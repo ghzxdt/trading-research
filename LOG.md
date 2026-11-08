@@ -24,7 +24,8 @@
 - Off-machine data backup (user approved): `data_backup.py` runs after the evening collection and zips `data/`
   except `data/raw/` to `backups/data/`, plus a cloud folder from `backup_targets.json`. No cloud app is
   installed yet (the OneDrive folder is a leftover; OneDrive isn't installed), so archives stay local until the
-  user installs Google Drive for desktop or iCloud for Windows.
+  user installs Google Drive for desktop or iCloud for Windows. Google Drive installed 2026-11-08; the first
+  off-machine copy landed in G:\My Drive\Trading Research Backups (4.5 MB).
 - Started the companion **trading-backtester** app (separate repo). First run: 90 daily indicator tests; oversold
   mean reversion (RSI(2) < 10, RSI(14) < 30, close below the lower Bollinger band) were candidates on SPY/QQQ
   and held on the 1993-2009 holdout. EMA touches, MACD crosses, breakouts, volume spikes and the 200-day state
@@ -32,8 +33,6 @@
   open), which favors a 4:05 PM perp entry, but that is below the 24 bp Kalshi taker round trip.
 
 ## Open items (keep current)
-- **User action:** install Google Drive for desktop (or iCloud for Windows) so the nightly data backup also
-  goes off this computer. Until then it is local only.
 - **Free liquidity pipeline (user approved, built 2026-11-08):** `liquidity_free.py` samples share and
   near-the-money option spreads 4 times a day and adds Yahoo share volume and OCC options volume (standard
   contracts, cleared sides / 2; OCC keeps about a year of daily history). Each finished day goes to a separate
