@@ -20,11 +20,15 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-# Imported here, not per call, so the dashboard server pays the import cost at startup and the
-# check itself stays well under a second (an older control panel waits only 1.2 s for an answer).
+# Imported here, not per call, so the dashboard server pays the import cost at startup. A check
+# is then one Cboe download (about 1 s from Python: a redirect means two secure connections; the
+# shared session reuses them for later checks). Control panels from before this guard wait only
+# 1.2 s for the server, so reopen the panel after updating.
 from monitor.paper import read_log  # verifies the hash chain on every read
 from stage1.sources import CBOE_URL, HEADERS
 from validation import NY, equity_sessions, expected_session
+
+SESSION = requests.Session()
 
 
 def newest_csv_date(text: str) -> date | None:
@@ -38,8 +42,8 @@ def newest_csv_date(text: str) -> date | None:
 
 
 def last_vix_date(timeout: int = 10) -> date | None:
-    """Newest date in Cboe's VIX history file: the same file the refresh downloads (~0.3 s)."""
-    response = requests.get(CBOE_URL.format(name="VIX"), headers=HEADERS, timeout=timeout)
+    """Newest date in Cboe's VIX history file: the same file the refresh downloads."""
+    response = SESSION.get(CBOE_URL.format(name="VIX"), headers=HEADERS, timeout=timeout)
     response.raise_for_status()
     return newest_csv_date(response.text)
 
