@@ -40,6 +40,12 @@ class ControllerTests(unittest.TestCase):
         with patch.object(self.controller,'start',return_value=self.idle),patch.object(self.controller,'status',return_value=self.idle),patch.object(self.controller,'_request',return_value={'ok':True}) as req:
             self.controller.refresh(offline=True);req.assert_called_once_with('/api/rebuild',method='POST')
 
+    def test_online_refresh_override_is_sent_only_when_asked(self):
+        for allow,headers in ((False,None),(True,{'X-Allow-Data-Blocked':'1'})):
+            with patch.object(self.controller,'start',return_value=self.idle),patch.object(self.controller,'status',return_value=self.idle),patch.object(self.controller,'_request',return_value={'ok':True}) as req:
+                self.controller.refresh(allow_data_blocked=allow)
+            req.assert_called_once_with('/api/refresh',method='POST',headers=headers,timeout=60)
+
     def test_busy_refresh_does_not_start_another(self):
         with patch.object(self.controller,'start',return_value={**self.idle,'busy':True}),patch.object(self.controller,'_request') as req:
             with self.assertRaises(control.ControlError):self.controller.refresh()
@@ -151,5 +157,32 @@ class ServerTests(unittest.TestCase):
     def test_interrupted_status_is_not_reported_as_success(self):
         hub.update_build_state(running=True,ok=None,message='In progress')
         hub.load_build_state();self.assertFalse(hub.BUILD_STATE['running']);self.assertFalse(hub.BUILD_STATE['ok'])
+
+    def test_online_refresh_before_the_vix_close_is_refused_with_the_reason(self):
+        handler=self.handler();handler.path='/api/refresh'
+        with patch.object(hub,'build_lock_state',return_value={'exists':False,'busy':False}),\
+             patch.object(hub.refresh_guard,'blocking_reason',return_value="Cboe hasn't posted the VIX close"),\
+             patch.object(hub.threading,'Thread') as thread:
+            handler.do_POST()
+        self.assertEqual(handler._json.call_args.args[0],409)
+        self.assertIn("Cboe hasn't posted",handler._json.call_args.args[1]['error'])
+        thread.assert_not_called();self.assertFalse(hub.LOCK.locked())
+
+    def test_override_header_and_offline_rebuild_skip_the_vix_guard(self):
+        for path,extra in (('/api/refresh',{'X-Allow-Data-Blocked':'1'}),('/api/rebuild',{})):
+            handler=self.handler();handler.path=path;handler.headers.update(extra)
+            with patch.object(hub,'build_lock_state',return_value={'exists':False,'busy':False}),\
+                 patch.object(hub.refresh_guard,'blocking_reason') as check,patch.object(hub.threading,'Thread') as thread:
+                handler.do_POST()
+            try:
+                check.assert_not_called();thread.assert_called_once()
+                self.assertEqual(handler._json.call_args.args[0],202)
+            finally:
+                if hub.LOCK.locked():hub.LOCK.release()  # the mocked thread never runs refresh_all, which releases it
+
+    def test_server_started_online_build_skips_the_repeat_check(self):
+        with patch.object(hub.subprocess,'run',return_value=SimpleNamespace(returncode=0)) as run,patch.object(hub,'update_build_state'):
+            hub.LOCK.acquire();hub.refresh_all(False)
+        self.assertIn('--skip-vix-guard',run.call_args.args[0]);self.assertFalse(hub.LOCK.locked())
 
 if __name__=='__main__':unittest.main()

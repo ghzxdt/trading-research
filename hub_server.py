@@ -8,6 +8,7 @@ import argparse, hmac, json, os, secrets, subprocess, sys, threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from app_control import app_identity,build_lock_state,hidden_process_flags,utc_now
+import refresh_guard
 
 ROOT=Path(__file__).resolve().parent
 OUT=ROOT/'output'
@@ -54,7 +55,8 @@ def status_payload():
 
 def refresh_all(offline):
     try:
-        command=[sys.executable,'-B',str(ROOT/'run_all.py')]+(['--offline'] if offline else [])
+        # The request handler already applied (or was told to override) the VIX guard.
+        command=[sys.executable,'-B',str(ROOT/'run_all.py')]+(['--offline'] if offline else ['--skip-vix-guard'])
         WORK.mkdir(parents=True,exist_ok=True)
         with (WORK/'last_refresh.log').open('w',encoding='utf-8') as stream:
             # Do not kill just the parent on an outer timeout while builder children write.
@@ -102,8 +104,12 @@ def make_handler(port:int,downloads:Path|None,token:str|None=None):
             if self.path in ('/api/refresh','/api/rebuild'):
                 writer=build_lock_state(ROOT)
                 if writer['exists']:return self._json(409,{'ok':False,'error':writer['reason']})
-                if not reserve_work():return self._json(409,{'ok':False,'error':'A build is already running or the dashboard is stopping.'})
                 offline=self.path=='/api/rebuild'
+                # An online refresh before Cboe posts the VIX close would log the day's paper decisions as data_blocked.
+                if not offline and self.headers.get('X-Allow-Data-Blocked')!='1':
+                    reason=refresh_guard.blocking_reason(ROOT)
+                    if reason:return self._json(409,{'ok':False,'error':reason})
+                if not reserve_work():return self._json(409,{'ok':False,'error':'A build is already running or the dashboard is stopping.'})
                 try:
                     update_build_state(running=True,ok=None,message='Building and validating a complete bundle...',action='offline' if offline else 'online',started_at=utc_now(),finished_at=None,exit_code=None)
                     threading.Thread(target=refresh_all,args=(offline,),daemon=True).start()

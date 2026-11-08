@@ -25,7 +25,14 @@ def main() -> None:
     ap.add_argument("--offline", action="store_true", help="reuse the last downloads")
     ap.add_argument("--open", action="store_true", help="open the hub when done")
     ap.add_argument("--as-of", help="ISO reference timestamp; combine with --offline for reproducible replay")
+    ap.add_argument("--skip-vix-guard", action="store_true",
+                    help="refresh even before Cboe posts the session's VIX close (logs that day's paper decisions as data-blocked)")
     args = ap.parse_args()
+    if not args.offline and not args.as_of and not args.skip_vix_guard:
+        from refresh_guard import blocking_reason
+        reason = blocking_reason(ROOT)
+        if reason:
+            raise SystemExit("Refresh refused: " + reason + " Add --skip-vix-guard to refresh anyway.")
     lock = ROOT / ".build.lock"
     try:
         fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)

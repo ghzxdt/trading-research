@@ -8,7 +8,8 @@ Steps:
    lock and the dashboard's busy checks apply exactly as they do for the button.
 4. Check that the decisions were logged; if not, try again every 15 minutes. At the deadline
    (9:00 AM ET the next morning, before the 9:30 entry) refresh once regardless, so a missing
-   VIX close is logged as data_blocked instead of leaving a silent gap.
+   VIX close is logged as data_blocked instead of leaving a silent gap. That is the only refresh
+   that overrides the app's VIX guard (refresh_guard.py).
 5. Commit the data files the refresh changed and push main to GitHub (git_backup.py).
 
 It never trades and never commits code. Log: work/scheduled_refresh.log.
@@ -18,17 +19,16 @@ Exit codes: 0 decisions logged before entry; 1 logged but late or data-blocked;
 from __future__ import annotations
 
 import argparse
-import json
 import time
 import traceback
-from datetime import date, datetime, time as wall_clock, timedelta
+from datetime import datetime, time as wall_clock, timedelta
 from pathlib import Path
 
 import pandas as pd
-import requests
 
 import git_backup
 from app_control import ControlError, Controller
+from refresh_guard import decision_states, last_vix_date, newest_csv_date  # shared with the refresh guard
 from validation import NY, equity_sessions, expected_session
 
 ROOT = Path(__file__).resolve().parent
@@ -63,40 +63,12 @@ def deadline_for(start: pd.Timestamp, session) -> pd.Timestamp:
     return min(at_et(following, 9), morning)
 
 
-def newest_csv_date(text: str) -> date | None:
-    """Date of the last data row in a Cboe daily history CSV (MM/DD/YYYY first column)."""
-    for line in reversed(text.strip().splitlines()):
-        try:
-            return datetime.strptime(line.split(",", 1)[0].strip(), "%m/%d/%Y").date()
-        except ValueError:
-            continue
-    return None
-
-
-def last_vix_date() -> date | None:
-    """Newest date in Cboe's VIX history file: the same file the refresh downloads."""
-    from stage1.sources import CBOE_URL, HEADERS
-    response = requests.get(CBOE_URL.format(name="VIX"), headers=HEADERS, timeout=60)
-    response.raise_for_status()
-    return newest_csv_date(response.text)
-
-
-def decision_states(root: Path, session) -> dict[str, str] | None:
-    """State of each rule's decision for `session`, or None until every frozen rule has one."""
-    from monitor.paper import read_log  # verifies the hash chain on every read
-    lock = json.loads((root / "data/monitor/experiment_lock.json").read_text(encoding="utf-8"))
-    day = pd.Timestamp(session).date().isoformat()
-    keys = {f"{lock['version']}:{day}:{rule['id']}" for rule in lock["strategies"]}
-    found = {e["key"]: e["state"] for e in read_log(root / "data/monitor/paper_events.jsonl")
-             if e.get("type") == "decision" and e.get("key") in keys}
-    return found if set(found) == keys else None
-
-
-def app_refresh(controller: Controller, say=log, sleep=time.sleep, monotonic=time.monotonic) -> str:
+def app_refresh(controller: Controller, say=log, sleep=time.sleep, monotonic=time.monotonic, force: bool = False) -> str:
     """Press Run / Refresh data through the dashboard server and wait for the build to finish.
 
     If a refresh is already running (for example one started from the control panel), wait for
-    that one instead. If this call started the dashboard server, stop it again afterwards."""
+    that one instead. If this call started the dashboard server, stop it again afterwards.
+    `force` overrides the VIX guard; the run uses it only at its deadline."""
     before = controller.status()
     if before.get("running") and not before.get("identity_ok"):
         return "Refresh not started: " + str(before.get("message"))
@@ -107,7 +79,7 @@ def app_refresh(controller: Controller, say=log, sleep=time.sleep, monotonic=tim
             note = "A refresh was already running; waited for it. "
         else:
             try:
-                controller.refresh(offline=False)
+                controller.refresh(offline=False, allow_data_blocked=force)
             except ControlError as exc:
                 if "already active" not in str(exc):
                     return f"Refresh not started: {exc}"
@@ -162,7 +134,7 @@ def run(root: Path = ROOT, *, say=log, now=lambda: pd.Timestamp.now(tz=NY), slee
             if not ready:
                 say("Deadline reached without the VIX close; refreshing anyway so the gap is logged as data blocked.")
             say("Running Run / Refresh data.")
-            say(refresh() if refresh else "No refresh function given.")
+            say(refresh(not ready) if refresh else "No refresh function given.")  # force only without the VIX close
             found = states(root, session)
             if found is not None:
                 code = report(found, say)
@@ -185,7 +157,7 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     try:
         today = pd.Timestamp.now(tz=NY).date().isoformat()
-        return run(ROOT, refresh=lambda: app_refresh(Controller(ROOT)),
+        return run(ROOT, refresh=lambda force=False: app_refresh(Controller(ROOT), force=force),
                    backup=None if args.no_git else (lambda: git_backup.sync(ROOT, log, f"Evening refresh data, {today}")))
     except Exception:
         log("Unexpected error:\n" + traceback.format_exc())

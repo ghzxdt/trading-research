@@ -25,11 +25,11 @@ class FakeClock:
 
 class FakeController:
     def __init__(self,statuses,refresh_error=None):
-        self.statuses=list(statuses);self.refresh_error=refresh_error;self.refreshed=0;self.stopped=0
+        self.statuses=list(statuses);self.refresh_error=refresh_error;self.refreshed=0;self.stopped=0;self.forced=[]
     def status(self):return self.statuses.pop(0) if len(self.statuses)>1 else self.statuses[0]
-    def refresh(self,offline=False):
+    def refresh(self,offline=False,allow_data_blocked=False):
         if self.refresh_error:raise ControlError(self.refresh_error)
-        self.refreshed+=1
+        self.refreshed+=1;self.forced.append(allow_data_blocked)
     def stop(self):self.stopped+=1
 
 
@@ -63,39 +63,39 @@ class RunTests(unittest.TestCase):
 
     def test_already_logged_skips_refresh_but_still_backs_up(self):
         calls=[]
-        code=self.go(lambda:calls.append('vix'),lambda:{'k':'recorded_before_entry'},lambda:calls.append('refresh'))
+        code=self.go(lambda:calls.append('vix'),lambda:{'k':'recorded_before_entry'},lambda force:calls.append('refresh'))
         self.assertEqual((code,calls,self.backups),(0,[],1))
 
-    def test_waits_for_vix_then_refreshes_once(self):
+    def test_waits_for_vix_then_refreshes_once_without_forcing(self):
         posted=iter([date(2026,11,6),date(2026,11,6),date(2026,11,9)]);refreshes=[]
-        def refresh():refreshes.append(self.clock.t);return 'Refresh succeeded.'
+        def refresh(force):refreshes.append((self.clock.t,force));return 'Refresh succeeded.'
         code=self.go(lambda:next(posted),lambda:{'k':'recorded_before_entry'} if refreshes else None,refresh)
         self.assertEqual(code,0)
-        self.assertEqual(refreshes,[MONDAY_EVENING+pd.Timedelta(minutes=30)])
+        self.assertEqual(refreshes,[(MONDAY_EVENING+pd.Timedelta(minutes=30),False)])
         self.assertEqual(self.clock.slept,[900.0,900.0])
 
     def test_failed_refresh_is_retried(self):
         refreshes=[]
-        def refresh():refreshes.append(1);return 'Refresh failed: Yahoo'
+        def refresh(force):refreshes.append(force);return 'Refresh failed: Yahoo'
         code=self.go(lambda:date(2026,11,9),lambda:{'k':'recorded_before_entry'} if len(refreshes)>=2 else None,refresh)
-        self.assertEqual((code,len(refreshes)),(0,2))
+        self.assertEqual((code,refreshes),(0,[False,False]))
 
-    def test_deadline_without_vix_refreshes_once_and_reports_data_blocked(self):
+    def test_deadline_without_vix_forces_one_refresh_and_reports_data_blocked(self):
         refreshes=[]
-        def refresh():refreshes.append(self.clock.t);return 'Refresh succeeded.'
+        def refresh(force):refreshes.append((self.clock.t,force));return 'Refresh succeeded.'
         code=self.go(lambda:date(2026,11,6),lambda:{'k':'data_blocked'} if refreshes else None,refresh)
         self.assertEqual(code,1)
-        self.assertEqual(refreshes,[pd.Timestamp('2026-11-10 09:00',tz=NY)])
+        self.assertEqual(refreshes,[(pd.Timestamp('2026-11-10 09:00',tz=NY),True)])
 
     def test_nothing_logged_by_deadline_returns_2(self):
         refreshes=[]
-        code=self.go(lambda:date(2026,11,6),lambda:None,lambda:refreshes.append(1) or 'Refresh failed: x')
-        self.assertEqual((code,len(refreshes),self.backups),(2,1,1))
+        code=self.go(lambda:date(2026,11,6),lambda:None,lambda force:refreshes.append(force) or 'Refresh failed: x')
+        self.assertEqual((code,refreshes,self.backups),(2,[True],1))
         self.assertLessEqual(self.clock.t,pd.Timestamp('2026-11-10 09:00',tz=NY))
 
     def test_vix_download_errors_count_as_not_posted(self):
         def vix():raise OSError('offline')
-        code=self.go(vix,lambda:None,lambda:'Refresh failed: offline')
+        code=self.go(vix,lambda:None,lambda force:'Refresh failed: offline')
         self.assertEqual(code,2)
         self.assertTrue(any("Could not read Cboe" in s for s in self.said))
 
@@ -104,7 +104,12 @@ class AppRefreshTests(unittest.TestCase):
     def test_starts_refresh_waits_and_stops_server_it_started(self):
         c=FakeController([{'running':False,'busy':False},BUSY,BUSY,IDLE_DONE])
         self.assertEqual(sr.app_refresh(c,say=lambda m:None,sleep=lambda s:None),'Refresh succeeded.')
-        self.assertEqual((c.refreshed,c.stopped),(1,1))
+        self.assertEqual((c.refreshed,c.stopped,c.forced),(1,1,[False]))
+
+    def test_force_overrides_the_vix_guard(self):
+        c=FakeController([IDLE_DONE,BUSY,IDLE_DONE])
+        sr.app_refresh(c,say=lambda m:None,sleep=lambda s:None,force=True)
+        self.assertEqual(c.forced,[True])
 
     def test_running_refresh_is_waited_for_not_doubled(self):
         c=FakeController([BUSY,BUSY,IDLE_DONE])

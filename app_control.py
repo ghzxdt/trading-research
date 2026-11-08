@@ -181,11 +181,13 @@ class Controller:
     def restart(self):
         self.stop();self.recover_stale_lock();return self.start()
 
-    def refresh(self,offline=False):
+    def refresh(self,offline=False,allow_data_blocked=False):
         status=self.start()
         if status['busy']:raise ControlError('A refresh/build is already active.')
         if status['build_lock']['stale']:self.recover_stale_lock()
-        result=self._request('/api/rebuild' if offline else '/api/refresh',method='POST')
+        # Before an online refresh the server checks Cboe's VIX file (refresh_guard), so give it time to answer.
+        if offline:result=self._request('/api/rebuild',method='POST')
+        else:result=self._request('/api/refresh',method='POST',headers={'X-Allow-Data-Blocked':'1'} if allow_data_blocked else None,timeout=60)
         if not result.get('ok'):raise ControlError(result.get('error','Refresh could not start.'))
         return self.status()
 
