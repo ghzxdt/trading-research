@@ -11,7 +11,7 @@ from build_pipeline import publish_bundle, recover_publish
 from stage1.sources import _fetch_etf_file, _replace_cache
 from validation import ValidationError, equity_sessions, expected_session, freshness, validate_etf_cache, validate_series, write_component_manifest
 
-TEST_WORK = Path(__file__).resolve().parents[3] / "work" / "validation_tests"
+TEST_WORK = Path(__file__).resolve().parents[1] / "work" / "validation_tests"
 TEST_WORK.mkdir(parents=True, exist_ok=True)
 
 
