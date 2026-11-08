@@ -56,6 +56,9 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   (p = 0.69). Surprise data feeds the thesis as context, not a standalone trade signal.
 
 ## Rules
+- Work directly in `C:\Users\gzdt\trading-research`, not in a git worktree. The runtime (`.venv`) and the data
+  aren't tracked by git, so a worktree can't run the app or its tests. If a session starts under
+  `.claude\worktrees`, move the session to this folder before doing anything else.
 - No order placement or broker integration. Never use Kalshi's trading endpoints.
 - Never fabricate data or consensus values. Unknown stays unknown (the app's existing principle).
 - Sizing stays blocked until margin/liquidation is calibrated and a strategy has forward evidence.

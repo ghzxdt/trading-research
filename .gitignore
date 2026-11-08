@@ -13,3 +13,6 @@ work/
 
 # Large archives stay on disk, not in git
 backups/
+
+# Claude Code session worktrees
+.claude/worktrees/
