@@ -16,7 +16,8 @@ from pathlib import Path
 
 from app_control import hidden_process_flags
 
-DATA_PATHS = ("data/monitor/paper_events.jsonl", "data/kalshi", "data/futures", "data/macro", "data/employment")
+DATA_PATHS = ("data/monitor/paper_events.jsonl", "data/thesis", "data/kalshi", "data/futures", "data/macro",
+              "data/employment")
 FROZEN = "data/monitor/experiment_lock.json"
 
 
@@ -58,6 +59,11 @@ def sync(root: Path, say, message: str = "Evening refresh data") -> str:
             except ValueError as exc:
                 say(f"Git backup refused: {exc}. Nothing was committed.")
                 return "refused"
+        from thesis import calls
+        check = calls.verify(root)
+        if not check["ok"]:
+            say(f"Git backup refused: {check['reason']}. Nothing was committed.")
+            return "refused"
         added = git(root, "add", "--", *data)
         committed = git(root, "commit", "--only", "-m", message, "--", *data) if added.returncode == 0 else added
         if committed.returncode != 0:

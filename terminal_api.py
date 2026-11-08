@@ -24,6 +24,10 @@ def handle_get(root, route, query):
             if cutoff[0] and utc(cutoff[0]) > utc():
                 raise ValueError('A replay cutoff cannot be in the future')
             return 200, build_state(root, symbol, cutoff[0])
+        if route == '/api/v1/thesis/calls':
+            import pandas as pd
+            from thesis import calls, data
+            return 200, calls.summary(root, data.etfs(root, pd.Timestamp.now(tz='America/New_York')))
         if route == '/api/v1/universe':
             return 200, {'schema_version': 1, 'universe': active_symbols(root)}
         if route == '/api/v1/intraday/status':

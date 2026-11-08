@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily thesis · Trading Research</title>
+<style>
+:root{color-scheme:dark;--bg:#0c1118;--panel:#131b26;--panel2:#182331;--line:#293647;--text:#ecf1f7;--muted:#9eafc3;--quiet:#6c829b;--blue:#8abaff;--green:#69d4b0;--amber:#f4c77a;--red:#f38c97}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 "Segoe UI",system-ui,sans-serif}
+a{color:var(--blue)}button,input,select,textarea{font:inherit;color:var(--text)}button{cursor:pointer;border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:8px 13px}button.primary{background:#294d78;border-color:#4672a6}button:disabled{opacity:.5;cursor:wait}
+:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+h1,h2,h3,p{margin:0}h1{font-size:30px;letter-spacing:-.6px;font-weight:650}h2{font-size:17px;font-weight:650}h3{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:16px 0 8px}
+.wrap{max-width:1400px;margin:auto;padding:25px 28px 48px}.eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:11px;color:var(--muted);font-weight:700}.muted{color:var(--muted)}.small{font-size:12px}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:16px;flex-wrap:wrap}.subtitle{color:var(--muted);margin-top:6px}
+.hub-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px}.hub-tabs a{white-space:nowrap;text-decoration:none;color:var(--muted);padding:7px 11px;border-radius:7px}.hub-tabs a[aria-current]{color:var(--text);background:var(--panel2);box-shadow:inset 0 0 0 1px var(--line)}.tab-badge[hidden]{display:none}
+.hub-tabs+.card{font-size:12px;padding:10px 13px!important;color:var(--muted);margin-bottom:14px}.hub-tabs+.card button{padding:5px 8px;font-size:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:19px;min-width:0}
+.grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;align-items:start}.stack{display:grid;gap:16px}
+.tag{display:inline-block;border:1px solid var(--line);border-radius:20px;font-size:11px;padding:3px 9px}.tag.good{color:var(--green);border-color:#2e6156;background:#16332f}.tag.warn{color:var(--amber);border-color:#625133;background:#312a20}.tag.bad{color:var(--red);border-color:#67414a;background:#321f29}
+.call{font-size:26px;font-weight:650;letter-spacing:-.3px;margin:6px 0 4px}.call.long{color:var(--green)}.call.flat{color:var(--text)}
+.notice{padding:11px 13px;background:#202a36;border:1px solid #344456;border-radius:9px;color:var(--muted);font-size:12.5px;margin-top:12px}.notice.warn{background:#2c281f;border-color:#54472f;color:#e8ca96}.notice ul{margin:4px 0 0;padding-left:18px}.notice li+li{margin-top:4px}
+.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:12.5px;text-align:left}th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:650}th,td{border-bottom:1px solid var(--line);padding:8px 9px;vertical-align:top}td:first-child,th:first-child{padding-left:0}tr:last-child td{border-bottom:0}td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:10px}.kv>div{background:#101822;border:1px solid var(--line);border-radius:8px;padding:9px 11px}.label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}.value{font-size:15px;font-weight:550;margin-top:3px;font-variant-numeric:tabular-nums}.sub{font-size:11px;color:var(--muted);margin-top:2px}
+details{margin-top:10px}summary{cursor:pointer;color:var(--muted);font-size:12.5px}
+.fired{color:var(--green);font-weight:600}.pos{color:var(--green)}.neg{color:var(--red)}
+form.callform{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:10px}form.callform label{font-size:11px;color:var(--muted);display:grid;gap:4px}form.callform .wide{grid-column:1/-1}select,input,textarea{background:#0f1721;border:1px solid var(--line);border-radius:7px;padding:7px 9px}textarea{min-height:56px;resize:vertical}
+.status{font-size:12px;color:var(--muted);min-height:18px;margin-top:6px}.foot{font-size:11px;color:var(--quiet);margin-top:18px}
+@media(max-width:1000px){.grid{grid-template-columns:1fr}form.callform{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.wrap{padding:18px 14px}form.callform{grid-template-columns:1fr}h1{font-size:25px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top"><div><div class="eyebrow">Trading research / daily thesis</div><h1>Today</h1><p class="subtitle" id="view-line">Daily view for the S&amp;P 500, Nasdaq-100 and Russell 2000, through their ETFs.</p></div><div><span class="tag" id="view-tag">Saved view</span></div></header>
+{{HUB_NAV}}
+<main class="grid">
+<div class="stack">
+<section class="card" aria-labelledby="call-title"><div class="eyebrow" id="call-title">The evidence-backed call</div><div id="call" class="call">Unavailable</div><p class="muted" id="call-reason"></p><div id="call-basis"></div><div id="call-exit"></div><div id="call-cautions"></div><div id="call-changes"></div><p class="small muted" id="short-note" style="margin-top:10px"></p></section>
+<section class="card" aria-labelledby="signals-title"><h2 id="signals-title">Registered signals at the latest close</h2><p class="small muted">The backtester's oversold rules, recomputed here. Evidence is its trade simulation, ETF pricing after a 2 bp round trip.</p><div id="signals" class="table-wrap"></div><div id="evidence-source" class="small muted" style="margin-top:8px"></div></section>
+<section class="card" aria-labelledby="regime-title"><h2 id="regime-title">Regime</h2><div id="trend" class="table-wrap"></div><div id="vol" class="kv"></div><h3>Credit spreads (FRED)</h3><div id="credit" class="table-wrap"></div><div id="breadth-rates" class="kv"></div><h3>What happened after days like today</h3><div id="history"></div></section>
+</div>
+<aside class="stack">
+<section class="card" aria-labelledby="overnight-title"><h2 id="overnight-title">Overnight and inflation</h2><div id="futures"></div><h3>Cleveland Fed CPI nowcast</h3><div id="nowcast"></div></section>
+<section class="card" aria-labelledby="events-title"><h2 id="events-title">Events and earnings</h2><div id="events"></div><h3>Mega-cap earnings</h3><div id="earnings" class="table-wrap"></div></section>
+<section class="card" aria-labelledby="risk-title"><h2 id="risk-title">Expressions and risk by leverage</h2><p class="small muted">ETFs only. No size is recommended; these are loss scenarios, not limits.</p><div id="risk"></div></section>
+</aside>
+</main>
+<section class="card" style="margin-top:16px" aria-labelledby="calls-title"><h2 id="calls-title">Your calls</h2><p class="small muted">Record the call you're making. It's added to an append-only, hash-chained log (separate from the paper log) and scored automatically against simply holding the same ETF.</p>
+<form class="callform" id="callform"><label>Direction<select name="direction" required><option value="long">Long</option><option value="short">Short</option><option value="flat">Flat (no position)</option></select></label><label>ETF<select name="instrument" id="instrument"></select></label><label>Horizon (sessions)<input name="horizon_sessions" type="number" min="1" max="60" value="5" required></label><label class="wide">What would invalidate it<input name="invalidation" maxlength="600" placeholder="e.g. SPY closes below 715, or VIX above 35"></label><label class="wide">Why<textarea name="reason" maxlength="1500" placeholder="Your reasoning"></textarea></label><div class="wide"><button class="primary" type="submit" id="record">Record call</button><span class="small muted" style="margin-left:10px">Entry is scored from the next session's open; exit at the close after the horizon.</span></div></form>
+<div class="status" id="call-status" role="status" aria-live="polite"></div><div id="scoreboard" class="kv"></div><div id="call-list" class="table-wrap" style="margin-top:10px"></div></section>
+<p class="foot" id="foot"></p>
+</div>
+<script type="application/json" id="thesis-state">{{STATE}}</script>
+<script>
+"use strict";
+(()=>{
+const $=id=>document.getElementById(id),list=v=>Array.isArray(v)?v:[],obj=v=>v&&typeof v==='object'&&!Array.isArray(v)?v:{};
+const ok=v=>v!==null&&v!==undefined&&v!==''&&!(typeof v==='number'&&!Number.isFinite(v));
+const fmt=(v,d=2)=>ok(v)?Number(v).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
+const pct=(v,d=1)=>ok(v)?(Number(v)>0?'+':'')+fmt(Number(v)*100,d)+'%':'—';
+const share=(v,d=0)=>ok(v)?fmt(Number(v)*100,d)+'%':'—';
+const bp=v=>ok(v)?(Number(v)>0?'+':'')+fmt(Number(v)*1e4,0)+' bp':'—';
+const usd=v=>ok(v)?'$'+fmt(v):'—';
+const big=v=>ok(v)?'$'+(Number(v)>=1e9?fmt(v/1e9,1)+'B':fmt(v/1e6,0)+'M'):'—';
+const ratio=v=>ok(v)?fmt(v,2):'—';
+function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(ok(text))n.textContent=String(text);return n;}
+function tag(text,kind){return el('span','tag '+(kind||''),text);}
+function table(parent,cols,rows,numeric){const t=el('table'),h=el('thead'),tr=el('tr');cols.forEach(c=>{const th=el('th','',c);th.scope='col';tr.append(th);});h.append(tr);const b=el('tbody');rows.forEach(r=>{const row=el('tr');r.forEach((v,i)=>{const td=el('td',numeric&&i>0?'num':'');if(v instanceof Node)td.append(v);else td.textContent=ok(v)?String(v):'—';row.append(td);});b.append(row);});t.append(h,b);parent.append(t);return t;}
+function kv(parent,label,value,sub){const d=el('div');d.append(el('div','label',label),el('div','value',ok(value)?value:'—'));if(sub)d.append(el('div','sub',sub));parent.append(d);}
+function notice(parent,items,warn,title){items=list(items).filter(ok);if(!items.length)return;const n=el('div','notice'+(warn?' warn':''));if(title)n.append(el('strong','',title));const ul=el('ul');items.forEach(x=>ul.append(el('li','',x)));n.append(ul);parent.append(n);}
+let state={};try{state=JSON.parse($('thesis-state').textContent);}catch(_){state={};}
+function view(){const v=obj(state.view);$('view-tag').textContent=v.label||'Saved view';$('view-line').textContent=(v.detail||'')+(state.latest_close?' Latest daily close: '+state.latest_close+'.':'');}
+function call(){const s=obj(state.stance),c=$('call');c.textContent=s.headline||'Unavailable';c.className='call '+(s.direction||'flat');$('call-reason').textContent=s.reason||'';
+ const b=$('call-basis');b.replaceChildren();if(list(s.basis).length){b.append(el('h3','','Evidence (development 2010 on · holdout 1993-2009)'));const w=el('div','table-wrap');table(w,['ETF / rule','Exit · entry','Trades','Win rate','Mean net','Random pct','Return/drawdown vs buy-and-hold'],s.basis.map(x=>[x.symbol+' · '+x.rule,x.exit+' · '+x.mode,x.dev_trades+' · '+(x.holdout_trades??'—'),share(x.dev_win_rate)+' · '+share(x.holdout_win_rate),bp(x.dev_mean_net)+' · '+bp(x.holdout_mean_net),ok(x.dev_random_percentile)?fmt(x.dev_random_percentile,0):'—',ratio(x.dev_per_drawdown)+' vs '+ratio(x.dev_matched_per_drawdown)+' · '+ratio(x.holdout_per_drawdown)+' vs '+ratio(x.holdout_matched_per_drawdown)]));b.append(w);}
+ const e=$('call-exit');e.replaceChildren();notice(e,s.exit,false,'Registered exit');
+ const k=$('call-cautions');k.replaceChildren();notice(k,s.cautions,true,'Cautions');
+ const ch=$('call-changes');ch.replaceChildren();if(list(s.changes).length){ch.append(el('h3','','What would change the call (next close)'));table(ch,['ETF','Rule (a backtested Lead)','Close at or below','From the last close'],s.changes.map(x=>[x.symbol,x.rule,usd(x.close_at_or_below),pct(x.distance)]));}
+ $('short-note').textContent=s.short_note||'';}
+function signals(){const p=$('signals');p.replaceChildren();const rows=list(state.signals);if(!rows.length){p.append(el('p','muted','No signal data.'));return;}
+ const t=table(p,['ETF','Rule','At the close','Value','Last fired','Fires at or below','Evidence'],rows.map(s=>{const f=el('span',s.fired?'fired':'muted',s.fired?'Fired':'No');const leads=list(s.evidence).filter(e=>e.verdict==='Lead').length;const ev=s.evidence_note?el('span','muted small',s.evidence_note):el('span','',list(s.evidence).length?leads+' of '+s.evidence.length+' pricings rated Lead':'Unavailable');
+  return [s.symbol,s.label,f,s.signal==='bollinger_lower_close'?'Band '+usd(s.value):fmt(s.value,1),(s.last_fired||'—')+' ('+s.times_fired_1y+'× in a year)',usd(s.trigger_close),ev];}));
+ const d=el('details');d.append(el('summary','','Full evidence for every rule and pricing'));rows.filter(s=>list(s.evidence).length).forEach(s=>{d.append(el('h3','',s.symbol+' · '+s.label+(s.crosscheck&&s.crosscheck.status?' · definitions '+(s.crosscheck.status==='match'?'match the backtester ('+s.crosscheck.dates_checked+' dates)':s.crosscheck.status):'')));const w=el('div','table-wrap');table(w,['Exit','Entry','Verdict','Dev trades','Dev win','Dev mean net','Random pct (dev / holdout)','CAGR vs matched (dev)','Max drawdown (dev)','Holdout trades','Holdout mean net'],s.evidence.map(e=>{const dv=obj(e.development),h=obj(e.holdout);return [e.exit_label,e.mode_label,tag(e.verdict,e.verdict==='Lead'?'good':e.verdict==='No edge'||e.verdict==='Failed holdout'?'bad':'warn'),dv.trades,share(dv.win_rate),bp(dv.mean_net),fmt(dv.random_percentile,0)+' / '+fmt(h.random_percentile,0),pct(obj(dv.strategy).cagr)+' vs '+pct(obj(dv.matched).cagr),pct(obj(dv.strategy).max_drawdown),h.trades,bp(h.mean_net)];}));d.append(w);});p.append(d);
+ const src=obj(state.evidence_source);$('evidence-source').textContent=src.status==='ok'?'Evidence: '+(src.report||'backtester export')+' · generated '+(src.generated_at||'')+' · code '+(src.code||'')+' · export sha256 '+String(src.sha256||'').slice(0,12):'Evidence unavailable: '+(src.reason||'no export');}
+function regime(){const r=obj(state.regime);const t=$('trend');t.replaceChildren();const tr=obj(r.trend);table(t,['ETF','Close','vs 50-day','vs 200-day','20 sessions','State'],Object.keys(tr).map(k=>{const x=tr[k];return [k,usd(x.close),pct(x.vs_sma50),pct(x.vs_sma200),pct(x.return_20d),x.state];}));
+ const v=obj(r.volatility),vb=$('vol');vb.replaceChildren();if(v.status==='ok'){kv(vb,'VIX',fmt(v.vix,2),v.level+' · '+share(v.percentile_10y)+' of the last 10 years were lower or equal');kv(vb,'VIX vs 3-month',ratio(v.term_ratio),v.term_state);kv(vb,'Implied S&P 500 day',pct(v.implied_daily_move),'1 standard deviation from the VIX; realized 20-day '+share(v.realized_20d)+' a year');kv(vb,'VIX change, 5 sessions',fmt(v.change_5d,1),'points');}else vb.append(el('p','muted',v.reason||'Volatility unavailable.'));
+ const c=$('credit');c.replaceChildren();table(c,['Spread','Latest','1 month','3 months','Percentile','Since'],list(r.credit).map(x=>x.status==='ok'?[x.label,fmt(x.value,2)+'%',(x.change_1m>0?'+':'')+fmt(x.change_1m,2),(x.change_3m>0?'+':'')+fmt(x.change_3m,2),share(x.percentile),x.since+(x.history_note?' (3 years only)':'')]:[x.label,el('span','muted small',x.reason),'','','','']));
+ const br=$('breadth-rates');br.replaceChildren();const b=obj(r.breadth),q=obj(r.rates);if(b.status==='ok')kv(br,'Equal-weight vs S&P 500, 20 sessions',pct(b.relative_20d),b.reading);if(q.status==='ok'){kv(br,'10-year Treasury',fmt(q.ten_year,2)+'%',(q.ten_year_change_1m>0?'+':'')+fmt(q.ten_year_change_1m,2)+' in a month · '+q.date);kv(br,'10-year minus 2-year',fmt(q.curve,2),'points');}
+ const h=obj(r.history),hp=$('history');hp.replaceChildren();if(h.status!=='ok'){hp.append(el('p','muted','Unavailable.'));return;}hp.append(el('p','small muted','Today: '+h.condition+'. SPY over the next 5 and 20 sessions after days in the same bucket, compared with all days.'));table(hp,['Period','Days like today (independent)','Next 5: mean · up','Next 20: mean · up','Next 20: worst 10%','All days, next 20: mean · up'],list(h.periods).map(x=>[x.period,x.similar_days_20+' ('+x.similar_independent_20+')',pct(x.similar_mean_5,2)+' · '+share(x.similar_positive_5),pct(x.similar_mean_20,2)+' · '+share(x.similar_positive_20),pct(x.similar_p10_20),pct(x.all_mean_20,2)+' · '+share(x.all_positive_20)]));hp.append(el('p','small muted',h.note));}
+function overnight(){const v=obj(state.view),f=obj(v.futures),p=$('futures');p.replaceChildren();if(f.status==='unavailable'){p.append(el('p','muted small',f.reason));}else{p.append(el('p','small muted','Snapshot '+f.snapshot_et+' ET ('+f.slot+')'+(f.status==='stale'?' · stale, from an earlier session':'')));table(p,['Future','Last','Since 4 PM','Delay'],list(f.rows).map(r=>[r.name||r.symbol,fmt(r.last_price),pct(r.change_since_4pm,2),ok(r.delay_min)?r.delay_min+' min':'—']),true);p.append(el('p','small muted',f.note));}
+ const n=obj(v.nowcast),np=$('nowcast');np.replaceChildren();if(n.status!=='ok'){np.append(el('p','muted small',n.reason));return;}table(np,['Month','Series','Month over month','As of'],list(n.rows).map(r=>[r.target_month,r.series,fmt(r.value_mom_pct,2)+'%',r.as_of]));np.append(el('p','small muted',n.note));}
+function events(){const e=obj(obj(state.regime).events),p=$('events');p.replaceChildren();const hist={};list(e.history).forEach(h=>hist[h.event]=h);
+ if(list(e.upcoming).length)table(p,['Date','Event','Typical SPY move that day'],e.upcoming.map(u=>{const h=hist[u.event];return [u.date+(u.time_et?' '+u.time_et+' ET':''),u.label,h?share(h.median_move,2)+' vs '+share(h.normal_median_move,2)+' normal ('+fmt(h.ratio,1)+'×, '+h.days+' days)':'—'];}));else p.append(el('p','muted small','No CPI, jobs or Fed day in the next two weeks.'));if(e.note)p.append(el('p','small muted',e.note));
+ const g=obj(state.earnings),ep=$('earnings');ep.replaceChildren();if(g.status!=='ok'){ep.append(el('p','muted small',g.reason||'Unavailable.'));return;}
+ table(ep,['Company','Yahoo','Nasdaq','Sources','QQQ reaction (median)'],list(g.rows).filter(r=>r.within_window).map(r=>{const y=obj(r.next_yahoo),n=obj(r.next_nasdaq);return [r.name,(y.date||'—')+(y.time_et?' '+y.time_et:''),(n.date||'—')+(n.timing?' '+n.timing:''),tag(r.agreement,r.agreement==='agree'?'good':r.agreement==='differ'?'bad':'warn'),r.past_reactions?share(r.median_qqq_move,2)+' ('+r.past_reactions+')':'—'];}));
+ ep.append(el('p','small muted','Shown: reports in the next 45 days. QQQ median move on a normal session: '+share(g.normal_qqq_move,2)+'. '+(g.note||'')+' Fetched '+(g.fetched_utc||'')+' UTC.'));}
+function risk(){const r=obj(state.risk),p=$('risk');p.replaceChildren();list(r.underlyings).forEach(u=>{p.append(el('h3','',u.underlying));table(p,['ETF','Type','Close','20-day $ volume','Spread'],list(u.instruments).map(i=>i.status==='ok'?[i.symbol,i.kind,usd(i.close),big(i.dollar_volume_20d),ok(i.spread_bps)?fmt(i.spread_bps,1)+' bp':'not sampled yet']:[i.symbol,i.kind,el('span','muted small',i.reason),'','']));
+  const h=obj(u.history);p.append(el('p','small muted','1-day move: '+pct(u.one_sd_move,2)+' ('+u.move_basis+'). History: '+(h.status==='ok'?h.days+' days since '+h.since+' with the prior VIX '+String(h.bucket).replace('VIX ','')+'; worst day '+pct(h.worst_1d)+' on '+h.worst_1d_date:'not enough days in this VIX bucket')));
+  table(p,['Leverage','Index move that wipes out the account','Typical day (1 SD)','1-in-100 day','Worst day','Worst 5 sessions'],list(u.levels).map(l=>[l.leverage+'×',pct(l.index_move_to_lose_all,0),pct(l.one_sd_day),pct(l.p01_day),pct(l.worst_day),pct(l.worst_5d)]),true);});
+ notice(p,r.notes,false,'How to read this');}
+function calls(){const c=obj(state.calls),sb=$('scoreboard'),cl=$('call-list');sb.replaceChildren();cl.replaceChildren();const sel=$('instrument');if(!sel.options.length)list(c.instruments).forEach(i=>sel.append(new Option(i,i)));
+ if(c.status==='broken'){cl.append(el('p','notice warn',c.reason));$('record').disabled=true;return;}const s=obj(c.scoreboard);kv(sb,'Calls recorded',s.calls,(s.open||0)+' open · '+(s.pending||0)+' waiting for entry');kv(sb,'Scored',s.scored,'directional: '+(s.directional_scored||0));kv(sb,'Hit rate (long/short)',share(s.hit_rate));kv(sb,'Mean per call vs always long',pct(s.mean_call_return,2)+' vs '+pct(s.mean_always_long,2));
+ if(list(c.calls).length)table(cl,['#','Recorded (ET)','Call','Horizon','Entry','Status','Call return','Always long','Invalidation · reason'],c.calls.map(x=>[x.id,String(x.recorded_et||'').replace('T',' ').slice(0,16),x.direction+' '+x.instrument,x.horizon_sessions,x.entry_date?x.entry_date+' open '+usd(x.entry_open):'—',x.status+(x.exit_due?' · '+x.exit_due:''),pct(x.call_return,2),pct(x.always_long_return,2),[x.invalidation,x.reason].filter(ok).join(' · ')]));else cl.append(el('p','muted small','No calls recorded yet.'));
+ if(s.note)cl.append(el('p','small muted',s.note));}
+async function reloadCalls(){const r=await fetch('/api/v1/thesis/calls',{cache:'no-store'});if(!r.ok)throw new Error('The local service returned '+r.status);state.calls=await r.json();calls();}
+$('callform').addEventListener('submit',async ev=>{ev.preventDefault();const f=new FormData(ev.target),st=$('call-status'),btn=$('record');const body=Object.fromEntries(f.entries());body.context={suggestion:obj(state.stance).headline||null,page_as_of:state.as_of||null,latest_close:state.latest_close||null};btn.disabled=true;st.textContent='Recording…';
+ try{const r=await fetch('/api/v1/thesis/call',{method:'POST',headers:{'Content-Type':'application/json','X-Hub':'1'},body:JSON.stringify(body)});const out=await r.json();if(!r.ok||out.ok===false)throw new Error(out.error||'Refused');st.textContent='Recorded call #'+out.call.id+' ('+out.call.direction+' '+out.call.instrument+', '+out.call.horizon_sessions+' sessions).';ev.target.reset();await reloadCalls();}catch(e){st.textContent='Not recorded: '+(e.message||e);}finally{btn.disabled=false;}});
+function foot(){const s=obj(state.sources);$('foot').textContent='Built '+(state.as_of||'')+' ET. Sources: '+Object.values(s).join(' · ')+'. Read-only: this page never places orders. Missing inputs stay unavailable.';}
+view();call();signals();regime();overnight();events();risk();calls();foot();
+if(location.protocol==='file:'){$('record').disabled=true;$('call-status').textContent='Open through the dashboard (Trading Research Control Panel) to record calls.';}else reloadCalls().catch(()=>{});
+})();
+</script>
+</body>
+</html>

@@ -96,6 +96,19 @@ def make_handler(port:int,downloads:Path|None,token:str|None=None):
         def do_POST(self):
             if self.headers.get('Host') not in hosts or self.headers.get('X-Hub')!='1':return self._json(403,{'ok':False,'error':'Not allowed.'})
             if stopping.is_set():return self._json(503,{'ok':False,'error':'Dashboard is stopping; retry after it restarts.'})
+            if self.path=='/api/v1/thesis/call':
+                try:
+                    length=int(self.headers.get('Content-Length','0'))
+                    if not 0<=length<=16384:return self._json(413,{'ok':False,'error':'Request too large.'})
+                    payload=json.loads(self.rfile.read(length) or b'{}')
+                except (ValueError,TypeError):return self._json(400,{'ok':False,'error':'Invalid request JSON.'})
+                # A build hashes data/ before and after; a write in between would make it refuse to publish.
+                if build_lock_state(ROOT)['busy']:return self._json(409,{'ok':False,'error':'A build is running. Try again in a minute.'})
+                try:
+                    from thesis import calls
+                    row=calls.append(ROOT,payload)
+                except ValueError as exc:return self._json(400,{'ok':False,'error':str(exc)})
+                return self._json(200,{'ok':True,'call':row})
             if self.path.startswith('/api/v1/intraday/'):
                 try:
                     length=int(self.headers.get('Content-Length','0'))
