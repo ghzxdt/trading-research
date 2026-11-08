@@ -20,6 +20,10 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+# Imported here, not per call, so the dashboard server pays the import cost at startup and the
+# check itself stays well under a second (an older control panel waits only 1.2 s for an answer).
+from monitor.paper import read_log  # verifies the hash chain on every read
+from stage1.sources import CBOE_URL, HEADERS
 from validation import NY, equity_sessions, expected_session
 
 
@@ -33,9 +37,8 @@ def newest_csv_date(text: str) -> date | None:
     return None
 
 
-def last_vix_date(timeout: int = 20) -> date | None:
-    """Newest date in Cboe's VIX history file: the same file the refresh downloads."""
-    from stage1.sources import CBOE_URL, HEADERS
+def last_vix_date(timeout: int = 10) -> date | None:
+    """Newest date in Cboe's VIX history file: the same file the refresh downloads (~0.3 s)."""
     response = requests.get(CBOE_URL.format(name="VIX"), headers=HEADERS, timeout=timeout)
     response.raise_for_status()
     return newest_csv_date(response.text)
@@ -43,7 +46,6 @@ def last_vix_date(timeout: int = 20) -> date | None:
 
 def decision_states(root: Path, session) -> dict[str, str] | None:
     """State of each frozen rule's decision for `session`, or None until every rule has one."""
-    from monitor.paper import read_log  # verifies the hash chain on every read
     lock = json.loads((Path(root) / "data/monitor/experiment_lock.json").read_text(encoding="utf-8"))
     day = pd.Timestamp(session).date().isoformat()
     keys = {f"{lock['version']}:{day}:{rule['id']}" for rule in lock["strategies"]}
