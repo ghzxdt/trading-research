@@ -72,10 +72,17 @@ def num(value) -> float | None:
     return x if math.isfinite(x) else None
 
 
+def price(value) -> float | None:
+    """A usable perp price. Kalshi sends 922337203685477.5807 (the 64-bit integer limit) when a
+    side has no quote; treat that, and anything non-positive, as missing."""
+    x = num(value)
+    return x if x is not None and 0 < x < 1e6 else None
+
+
 def book_levels(book: dict | None) -> tuple[list, list]:
     """(price, contracts) levels; a contract's notional value in dollars equals its price."""
     def clean(levels):
-        out = [(num(p), num(s)) for p, s in levels or []]
+        out = [(price(p), num(s)) for p, s in levels or []]
         return [(p, s) for p, s in out if p and s]
     return clean((book or {}).get("bids")), clean((book or {}).get("asks"))
 
@@ -98,23 +105,24 @@ def stamps(stamp: pd.Timestamp) -> dict:
 
 def perp_row(market: dict, book: dict | None, estimate: dict | None, stamp: pd.Timestamp, slot: str) -> dict:
     bids, asks = book_levels(book)
-    bid = num(market.get("bid")) or (max(p for p, _ in bids) if bids else None)
-    ask = num(market.get("ask")) or (min(p for p, _ in asks) if asks else None)
+    bid = price(market.get("bid")) or (max(p for p, _ in bids) if bids else None)
+    ask = price(market.get("ask")) or (min(p for p, _ in asks) if asks else None)
     mid = (bid + ask) / 2 if bid and ask else None
     reference = market.get("reference_price") or {}
-    ref, ref_ms = num(reference.get("price")), reference.get("ts_ms")
+    ref, ref_ms = price(reference.get("price")), reference.get("ts_ms")
+    next_funding = (estimate or {}).get("next_funding_time")  # inactive markets report year 0001
     row = {**stamps(stamp), "slot": slot, "ticker": market.get("ticker"),
            "name": INDEX_PERPS.get(market.get("ticker"), {}).get("name"), "status": market.get("status"),
            "is_open": (market.get("schedule") or {}).get("is_open"),
            "bid": bid, "ask": ask, "mid": mid, "spread_bp": round((ask - bid) / mid * 1e4, 3) if mid else None,
            "bid_size": num(market.get("bid_size_fp")), "ask_size": num(market.get("ask_size_fp")),
-           "last_price": num(market.get("price")),
-           "mark_price": num((market.get("liquidation_mark_price") or {}).get("price")),
+           "last_price": price(market.get("price")),
+           "mark_price": price((market.get("liquidation_mark_price") or {}).get("price")),
            "reference_price": ref,
            "reference_utc": pd.Timestamp(int(ref_ms), unit="ms", tz="UTC").isoformat() if ref_ms else None,
            "premium_bp": round((mid / ref - 1) * 1e4, 3) if mid and ref else None,
            "funding_rate_estimate": num((estimate or {}).get("funding_rate")),
-           "next_funding_utc": (estimate or {}).get("next_funding_time"),
+           "next_funding_utc": next_funding if next_funding and not next_funding.startswith("0001-") else None,
            "open_interest": num(market.get("open_interest")),
            "open_interest_usd": num(market.get("open_interest_notional_value_dollars")),
            "volume_24h": num(market.get("volume_24h")),

@@ -56,6 +56,13 @@ class SnapshotMathTests(unittest.TestCase):
         closed=ks.perp_row(dict(MARKET,ask=None,schedule={'is_open':False}),{'bids':BOOK['bids'],'asks':[]},None,STAMP,'manual')
         self.assertEqual((closed['mid'],closed['spread_bp'],closed['is_open']),(None,None,False))
 
+    def test_no_quote_placeholder_is_treated_as_missing(self):
+        placeholder='922337203685477.5807'  # what Kalshi sends for an empty side
+        row=ks.perp_row(dict(MARKET,ask=placeholder),{'bids':BOOK['bids'],'asks':[[placeholder,'1.00']]},
+                        {'funding_rate':0,'next_funding_time':'0001-01-01T00:00:00Z'},STAMP,'close')
+        self.assertEqual((row['ask'],row['mid'],row['spread_bp'],row['premium_bp']),(None,None,None,None))
+        self.assertEqual((row['book_levels'],row['next_funding_utc']),(4,None))
+
     def test_event_rows(self):
         [row]=ks.event_rows([CPI],'KXCPI',STAMP,'close')
         self.assertEqual((row['outcome'],row['yes_bid'],row['yes_ask'],row['open_interest']),('Above 0.3%',0.41,0.43,7000.0))
