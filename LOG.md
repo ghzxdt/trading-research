@@ -17,7 +17,21 @@
 - Existing frozen experiments and user data changes were preserved; code/data scope remains separated.
 - Operator guide: `docs/INTRADAY_TERMINAL.md`.
 
+## 2026-11-08
+- Scheduled the intraday collector (`scheduled_collect.py`, task **Trading Research Intraday Collection**, Mon-Fri
+  2:50 PM and 7:10 PM Central). The Codex release added collection but no schedule, and Yahoo keeps only ~5 days
+  of minute bars, so unattended days were being lost. 6 new tests (216 total).
+
 ## Open items (keep current)
+- **Intraday data has no off-machine backup.** `data/intraday/` (35 MB after a few collections) and
+  `data/terminal/` are git-ignored, sensibly, since they're too big for git. Proposed: a weekly compressed copy to
+  the user's OneDrive folder. Needs the user's OK.
+- **Intraday research stays blocked on free data.** The liquidity gate needs 20 prior sessions of session-median
+  share and option spreads; Yahoo minute bars carry no bid/ask, and a 3:50 PM chain snapshot is not a session
+  median. Options: buy history (e.g. Polygon or Databento), or register a separate, declared snapshot-based
+  liquidity policy version. User's call; don't weaken the existing gate.
+- Backtest app (user asked 2026-11-08): a separate app that reads this one's data read-only, starting with daily
+  indicator studies (EMA/RSI/MACD/volume) on 1993+ history; intraday versions once collected minutes accumulate.
 - Small polish: spreads under 0.01% show as "0.00%" on the Leverage tab and ticker pages. Show them in basis
   points (a new table format in `leverage/report.py`, plus `spread_text`).
 - **Costs are understated.** Kalshi perps fees are 0.12% taker / 0.02% maker per side at the base tier; the

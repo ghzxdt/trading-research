@@ -101,7 +101,12 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 ## How to run
 - Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
 - Dashboard: http://localhost:8766/today.html (server binds to 127.0.0.1 only).
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (210 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (216 tests).
+- Scheduled task **Trading Research Intraday Collection** (Mon-Fri 2:50 PM and 7:10 PM Central) runs
+  `scheduled_collect.py`: minute bars for every active Today instrument, plus option chains on the 3:50 PM ET run
+  (market open). Yahoo keeps only ~5 days of minute bars, so this is what builds intraday history. It waits for
+  builds and for a Today-page collection. Log: `work\intraday_collect.log`. The data (`data/intraday/`,
+  `data/terminal/`) is git-ignored, so it is not backed up off this computer yet.
 - Scheduled task **Trading Research Market Snapshots** (Mon-Fri 8:00 AM and 3:05 PM Central) runs
   `market_snapshot.py --scheduled`, which appends Kalshi perps and macro markets (`data/kalshi/perp_quotes.csv`,
   `event_quotes.csv`), S&P/Nasdaq futures from Yahoo (`data/futures/futures_quotes.csv`) and, at 4:05 PM, the
