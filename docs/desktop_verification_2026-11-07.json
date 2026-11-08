@@ -1,0 +1,22 @@
+{
+  "version": "desktop-control-v1",
+  "tests_passed": 59,
+  "validated_build_run": "3dee9a992e9e878f4fd8",
+  "chart_specs": 85,
+  "original_files_unchanged": 83,
+  "desktop_shortcut": "Trading Research Control Panel.lnk",
+  "live_checks": [
+    "start",
+    "stop",
+    "restart",
+    "reuse existing server",
+    "repeat shortcut launch",
+    "open dashboard HTTP200",
+    "log viewer",
+    "offline full rebuild",
+    "busy stop refusal"
+  ],
+  "package": "C:\\Users\\gzdt\\Documents\\Codex\\2026-11-06\\x20-au\\outputs\\trading_research_desktop_2026-11-07.zip",
+  "package_sha256": "358372de13f71d0086a43954850e441b27ac7a1dd2fea73d6272ebb477809d16",
+  "market_data_as_of": "2026-11-05"
+}
