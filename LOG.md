@@ -9,11 +9,10 @@
 - **Costs are understated.** Kalshi perps fees are 0.12% taker / 0.02% maker per side at the base tier; the
   backtests and the frozen paper experiment assume 0.02% plus 0.03% spread and slippage. Use measured fees in the
   next experiment version.
-- Roadmap 1: Leverage tab ignores closed-market spreads. (Kalshi snapshots are done; the first scheduled one is
+- Roadmap 1: Leverage tab ignores closed-market spreads. (Market snapshots are done; the first scheduled one is
   Mon Nov 9, 9:00 AM ET, and the evening task commits and pushes them.)
-- Proposed, not yet agreed: independent checks alongside the Kalshi snapshots: S&P 500 and Nasdaq-100 futures
-  (Yahoo `ES=F`/`NQ=F`) for the overnight move, and the Cleveland Fed's inflation nowcast next to Kalshi's
-  CPI markets.
+- Second-source price checks cover SPY and QQQ closes only. Opens, IWM, DIA, RSP and the leveraged ETFs have no
+  free second source yet (Stooq now blocks automated downloads; FRED has no Russell 2000).
 - Roadmap 2: jobs/macro data fix (BLS API + ALFRED + FRED release dates; Kalshi CPI and Fed markets as dated
   market expectations).
 - New data the user wants: mega-cap earnings calendar (yfinance history, Nasdaq calendar API, SEC EDGAR 8-K
@@ -67,3 +66,14 @@
 - A live dry run found Kalshi's no-quote placeholders (ask 922337203685477.5807; next funding in year 0001 for the
   inactive US 2000 perp). Both are now blank. The two test files that run wrote to `data/kalshi` were deleted
   before any commit. The final dry run went to a scratch folder.
+- Free cross-checks added (user: don't rely on Kalshi alone). The snapshot became `market_snapshot.py` and the task
+  **Trading Research Market Snapshots** (the Kalshi-only task was removed). It also saves Yahoo's S&P 500 and
+  Nasdaq-100 E-mini futures (`ES=F`/`NQ=F`: last price, the price before the latest 4 PM ET close, change since)
+  and, at 4:05 PM, the Cleveland Fed's daily nowcasts of monthly CPI, core CPI, PCE and core PCE
+  (`nowcast_month.json`; actuals too once released). On Nov 6 the nowcast for October CPI was +0.24% (core +0.21%).
+  Its points are dated from their tooltips because some series have fewer points than day labels.
+- `crosscheck.py`: Yahoo's SPY/QQQ daily returns vs FRED's `SP500` (last 10 years) and `NASDAQ100` (since 1986)
+  over the latest 60 sessions, flagging gaps above 0.25%. Typical gap is 0.03% and 99% of days fall within about
+  0.2%; 1% gaps appear only on extreme days (2020-03-16, 2025-04-09). Shown on the Data quality tab (display only,
+  the paper-log gate is unchanged). Offline rebuild in the main folder: PASS, largest gaps 0.08% (SPY) and 0.13%
+  (QQQ). Commits c84546b and 7d0f90e; 97 tests.

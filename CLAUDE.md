@@ -31,10 +31,11 @@ Single-stock and crypto perps are out of scope. Higher volatility (TQQQ/SQQQ) sc
 it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 
 ## Roadmap (user priorities, 2026-11-07)
-1. **Operations:** scheduled evening refresh so the paper log never misses a day (done 2026-11-07); Kalshi
-   snapshots at ~9:00 AM and 4:05 PM ET of the universe perps and the CPI/Fed/payrolls markets (done
-   2026-11-07; the user agreed a full every-15-minutes collector isn't worth it unless a strategy needs intraday
-   entries or limit-order fills); Leverage tab must ignore closed-market quotes when showing spreads.
+1. **Operations:** scheduled evening refresh so the paper log never misses a day (done 2026-11-07); market
+   snapshots at ~9:00 AM and 4:05 PM ET: Kalshi perps and CPI/Fed/payrolls markets, S&P/Nasdaq futures and the
+   Cleveland Fed inflation nowcast (done 2026-11-07; the user agreed a full every-15-minutes collector isn't worth
+   it unless a strategy needs intraday entries or limit-order fills); Leverage tab must ignore closed-market quotes
+   when showing spreads.
 2. **Jobs / macro data fix** (see below).
 3. **Thesis terminal "Today" page** for the universe: regime, relevant news and events with historical
    comparisons, evidence, invalidation, risk numbers, logged calls. Design it with the user before building.
@@ -62,6 +63,9 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   `.claude\worktrees`, move the session to this folder before doing anything else.
 - No order placement or broker integration. Never use Kalshi's trading endpoints.
 - Never fabricate data or consensus values. Unknown stays unknown (the app's existing principle).
+- Use the best free sources, and don't let any number depend on one provider when a free independent check
+  exists (user, 2026-11-07: "I don't want it to only come from Kalshi"). Prefer official sources (Cboe, FRED,
+  BLS, the Fed); Kalshi is the only source only for its own perps' quotes, depth and funding.
 - Sizing stays blocked until margin/liquidation is calibrated and a strategy has forward evidence.
 - Never edit `data/monitor/paper_events.jsonl` by hand (append-only, hash-chained). Never change a frozen
   experiment (`data/monitor/experiment_lock.json`); a new experiment gets a new version.
@@ -73,11 +77,14 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 ## How to run
 - Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
 - Dashboard: http://localhost:8766/monitor.html (server binds to 127.0.0.1 only).
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (87 tests).
-- Scheduled task **Trading Research Kalshi Snapshots** (Mon-Fri 8:00 AM and 3:05 PM Central) runs
-  `kalshi_snapshot.py --scheduled`, which appends to `data/kalshi/perp_quotes.csv` and
-  `data/kalshi/event_quotes.csv`. Log: `work\kalshi_snapshot.log`. A start outside 8:00-9:30 AM or 4:00-4:45 PM ET
-  records nothing.
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (97 tests).
+- Scheduled task **Trading Research Market Snapshots** (Mon-Fri 8:00 AM and 3:05 PM Central) runs
+  `market_snapshot.py --scheduled`, which appends Kalshi perps and macro markets (`data/kalshi/perp_quotes.csv`,
+  `event_quotes.csv`), S&P/Nasdaq futures from Yahoo (`data/futures/futures_quotes.csv`) and, at 4:05 PM, the
+  Cleveland Fed inflation nowcast (`data/macro/inflation_nowcast.csv`). Log: `work\market_snapshot.log`. A start
+  outside 8:00-9:30 AM or 4:00-4:45 PM ET records nothing.
+- The Data quality tab checks Yahoo's SPY/QQQ daily returns against FRED's S&P 500 and Nasdaq-100 closes
+  (`crosscheck.py`; online refreshes cache the FRED series in `data/raw/crosscheck/`).
 - Scheduled task **Trading Research Evening Refresh** (Mon-Fri 3:45 PM Central) runs `scheduled_refresh.py`:
   waits for the day's VIX close, runs the app's refresh, then `git_backup.py` commits the data files and pushes
   `main`. Log: `work\scheduled_refresh.log`. Turn it off in Task Scheduler.
