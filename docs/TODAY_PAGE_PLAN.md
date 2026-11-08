@@ -1,4 +1,10 @@
-# Today page: daily thesis and intraday, side by side (proposed 2026-11-08, awaiting the user's OK)
+# Today page: daily thesis and intraday, side by side (approved 2026-11-08)
+
+**Status (2026-11-08):** build order steps 1-5 are done. The Daily thesis tab is `thesis.html` (the landing page);
+the Intraday tab is `today.html`. User decision 2026-11-08: the thesis shows ETFs only, no Kalshi (wherever this
+plan mentions the perps or Kalshi odds, read ETFs only); the Kalshi snapshots keep collecting for later use.
+Section 5's invalidations are the registered exits, the cautions and the closes that would fire each rule; the
+user adds their own with each call.
 
 The user asked to build both directions side by side, prioritizing one first if needed. The Today page gets two
 tabs that share one header (as-of times, data health):

@@ -31,6 +31,14 @@
   and held on the 1993-2009 holdout. EMA touches, MACD crosses, breakouts, volume spikes and the 200-day state
   showed no evidence. RSI(2)'s next-day effect is mostly overnight (+19 bp from the close vs +7 bp from the next
   open), which favors a 4:05 PM perp entry, but that is below the 24 bp Kalshi taker round trip.
+- Daily thesis tab (`thesis/`, `run_thesis.py`; landing page `thesis.html`). Regime (trend, VIX and term
+  structure, FRED credit spreads, breadth, yields, SPY after days in the same pre-declared trend x VIX bucket),
+  the backtester's oversold rules recomputed with its ETF evidence and a date-by-date definition check (all six
+  rule/ETF pairs match), fixed stance rules (long candidate only when a Lead rule fires; flat otherwise; never
+  short), CPI/jobs/Fed days with SPY's typical move, mega-cap earnings from Yahoo and Nasdaq (Broadcom's dates
+  differ: Dec 9 vs Dec 10), ETF loss scenarios at 1x-10x, morning futures and nowcast, and the user's call log
+  (`data/thesis/calls.jsonl`, hash-chained, scored vs always-long, included in the nightly data commit).
+  19 new tests (247 total). Fixed line endings that an edit script had changed from LF to CRLF in six files.
 
 ## Pick up here (Mon 2026-11-09)
 
@@ -47,8 +55,21 @@ the GitHub data commit and the Drive archive dated 2026-11-09. CPI is Tue Nov 10
 
 **Reference:** every change from Nov 7-8 and why: `docs/CHANGES_2026-11-07_08.md`.
 
-**Next work (approved 2026-11-08):** build the Today page's two tabs side by side, Daily thesis first. Order and
-contents: `docs/TODAY_PAGE_PLAN.md`. Step 1 is the backtester's trade simulator (its `LOG.md` has the design).
+**Built overnight Nov 8 (user: "we have time. you can build both"):**
+- Backtester trade simulator (its `LOG.md`): 24 of 48 strategy pricings rated Lead, but in 2010-2026 every one
+  had a lower CAGR per unit of drawdown than buy-and-hold at the same exposure; the edge is mainly in 1993-2009.
+- **Daily thesis tab** (`thesis.html`, now the landing page; Intraday is the second tab). As of the Nov 6 close it
+  shows a long candidate: SPY and QQQ closed below their lower Bollinger bands (a Lead rule), with the cautions
+  (drawdown comparison, CPI Tue Nov 10, Nvidia earnings Nov 17 after the close, inverted VIX term structure).
+- User decision 2026-11-08: no Kalshi in the morning/evening thesis; keep collecting it.
+
+**Check Monday too:** after the 3:05 PM snapshot the "Overnight and inflation" card fills in (futures and the
+Cleveland Fed nowcast); after the evening refresh the thesis moves to Monday's close and credit/earnings re-download.
+Record calls on the Daily thesis tab ("Your calls"); the log is append-only and goes to GitHub nightly.
+
+**Next work:** the intraday side waits for data (snapshot liquidity policy around Dec 8). Ideas not built: log the
+page's own daily stance automatically so it can be scored like the user's calls; a registered trend/volatility
+filter for the oversold rules (new versions in the backtester); jobs/macro release values (roadmap 2).
 
 ## Open items (keep current)
 - **Free liquidity pipeline (user approved, built 2026-11-08):** `liquidity_free.py` samples share and

@@ -1,9 +1,10 @@
 # Trading research: thesis terminal for a few index tickers
 
 ## Intraday terminal extension (user, 2026-11-07)
-The current request extends this existing app locally, then publishes the code to GitHub. The new
-Today workspace is the landing page; the old research tabs remain available. See
-`docs/INTRADAY_TERMINAL.md` for capabilities, commands and limits.
+The current request extends this existing app locally, then publishes the code to GitHub. Its intraday
+workspace is now the **Intraday** tab (`today.html`); since 2026-11-08 the landing page is the **Daily thesis**
+tab (`thesis.html`). The old research tabs remain available. See `docs/INTRADAY_TERMINAL.md` for capabilities,
+commands and limits.
 
 - Shared intraday universe: SPY, QQQ, IWM, TQQQ, SQQQ, SOXL, TNA, LABD, KORU, BITX, ERY, FNGU,
   UPRO, SPXL, NVDL and TSLL. The user confirmed these eleven additions to the original five.
@@ -50,6 +51,9 @@ Organized by underlying; within each, the instruments are ways to express the sa
 - **Nasdaq-100:** QQQ, TQQQ (3x), SQQQ (-3x); Kalshi `KXUSTECH100PERP` (US Tech 100), `KXQQQPERP` (QQQ perp)
 - **Russell 2000:** IWM; Kalshi `KXUS2000PERP` (inactive as of 2026-11-07)
 
+**Thesis instruments (user, 2026-11-08):** the morning/evening thesis shows ETFs only (SPY, UPRO, SPXU; QQQ,
+TQQQ, SQQQ; IWM). Don't add Kalshi to the thesis; the scheduled snapshots keep collecting Kalshi data for later use.
+
 DIA, RSP, UPRO and SPXU stay in the research tabs only (RSP vs SPY is useful breadth context).
 Single-stock and crypto perps are out of scope. Higher volatility (TQQQ/SQQQ) scales wins and losses equally;
 it is a leverage choice on the Nasdaq-100 view, not a separate idea.
@@ -64,6 +68,10 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 3. **Thesis terminal "Today" page** for the universe: regime, relevant news and events with historical
    comparisons, evidence, invalidation, risk numbers, logged calls. Design approved 2026-11-08: two tabs side by
    side, Daily thesis (built first) and Intraday; see `docs/TODAY_PAGE_PLAN.md` for contents and build order.
+   **Daily thesis tab built 2026-11-08** (`thesis/`, `run_thesis.py`): regime, registered signals with the
+   backtester's evidence, fixed stance rules (long candidate only when a Lead rule fires; never short), events and
+   mega-cap earnings, ETF loss scenarios at 1x-10x, morning futures/nowcast, and the user's call log
+   (`data/thesis/calls.jsonl`, scored automatically). Intraday research unlocks around Dec 8, 2026.
    Historical comparisons must show base rates, sample sizes and holdout results so the page can't manufacture
    confidence. Interactive candlestick charts with news pinned to the time it hit (TradingView Lightweight
    Charts is the candidate library).
@@ -92,7 +100,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   exists (user, 2026-11-07: "I don't want it to only come from Kalshi"). Prefer official sources (Cboe, FRED,
   BLS, the Fed); Kalshi is the only source only for its own perps' quotes, depth and funding.
 - Sizing stays blocked until margin/liquidation is calibrated and a strategy has forward evidence.
-- Never edit `data/monitor/paper_events.jsonl` by hand (append-only, hash-chained). Never change a frozen
+- Never edit `data/monitor/paper_events.jsonl` or `data/thesis/calls.jsonl` by hand (append-only, hash-chained). Never change a frozen
   experiment (`data/monitor/experiment_lock.json`); a new experiment gets a new version.
 - After every change: run the tests, commit with a clear message, then push `main` (`git push`) to the private
   GitHub repo https://github.com/ghzxdt/trading-research. Don't commit `data/raw/`, `output/`, `backups/`,
@@ -101,8 +109,11 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 
 ## How to run
 - Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
-- Dashboard: http://localhost:8766/today.html (server binds to 127.0.0.1 only).
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (216 tests).
+- Dashboard: http://localhost:8766/thesis.html (Daily thesis; Intraday is `today.html`). Binds to 127.0.0.1 only.
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (247 tests).
+- Online builds also download FRED credit spreads (`data/raw/credit/`) and mega-cap earnings dates from Yahoo and
+  Nasdaq (`data/raw/earnings/`); offline builds only read them. The thesis reads the backtester's
+  `exports/trade_simulation.json` if present (`THESIS_BACKTESTER_EXPORT` overrides the path).
 - Scheduled task **Trading Research Intraday Collection** (Mon-Fri 9:30, 11:30 AM, 1:30, 2:50 and 7:10 PM Central)
   runs `scheduled_collect.py`: liquidity snapshots at 10:30, 12:30 and 2:30 PM ET (`liquidity_free.sample`); at
   3:50 PM ET minute bars, option chains and a fourth snapshot; at 8:10 PM ET minute bars, then OCC options

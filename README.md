@@ -1,8 +1,14 @@
 # Index research: stage 1
 
-## Intraday Today workspace
+## Daily thesis (landing page)
 
-The existing research app now opens on **Today** at http://localhost:8766/today.html. It adds a shared
+The dashboard opens on **Daily thesis** at http://localhost:8766/thesis.html: the market regime, the backtester's
+registered signals with their evidence, events and earnings, ETF loss scenarios at several leverage levels, and a
+log of your own long/short/flat calls that scores itself. See `docs/TODAY_PAGE_PLAN.md`.
+
+## Intraday workspace
+
+The **Intraday** tab (http://localhost:8766/today.html) adds a shared
 sixteen-instrument universe, intraday charts and levels, options information, source health, historical
 scenario research and a separate observation journal. Existing daily studies and paper records remain intact.
 
