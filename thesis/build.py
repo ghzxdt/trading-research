@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import calls, data, earnings, morning, regime, risk, signals
+from . import calls, data, earnings, morning, regime, risk, signals, stance_log
 
 TEMPLATE = Path(__file__).with_name("template.html")
 SCHEMA = 1
@@ -110,7 +110,7 @@ def build_state(root: Path, now: pd.Timestamp) -> dict:
             "view": morning.build(root, now), "stance": stance(sig, reg, earn, latest), "regime": reg,
             "signals": sig, "evidence_source": export_info,
             "risk": risk.build(root, etfs, vix, reg["volatility"].get("implied_daily_move")),
-            "earnings": earn, "calls": calls.summary(root, etfs),
+            "earnings": earn, "calls": calls.summary(root, etfs), "stance_log": stance_log.summary(root, etfs),
             "sources": {
                 "prices": "Yahoo Finance daily bars (dividend-adjusted), checked against FRED's index closes on the Data quality tab",
                 "volatility": "Cboe VIX and VIX3M daily closes",
@@ -149,6 +149,18 @@ def refresh_sources(root: Path, say=print) -> None:
             say(f"Thesis sources: {name}: {result}")
         except Exception as exc:  # a failed download never blocks the build
             say(f"Thesis sources: {name} failed: {exc}")
+
+
+def log_stance(root: Path, state: dict, now: pd.Timestamp, say=print) -> dict:
+    """Online builds only: append the page's stance for the latest close, then refresh its summary in `state`."""
+    try:
+        result = stance_log.append_daily(root, state, now)
+    except Exception as exc:  # a logging failure never blocks the page
+        result = {"logged": 0, "skipped": f"error: {exc}"}
+    say(f"Thesis stance log: {result}")
+    state["stance_log"] = stance_log.summary(root, data.etfs(root, now))
+    state["stance_log"]["last_attempt"] = result
+    return result
 
 
 def offline_requested() -> bool:

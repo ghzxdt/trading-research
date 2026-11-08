@@ -33,8 +33,8 @@ def _digest(body: dict) -> str:
     return hashlib.sha256(json.dumps(body, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
-def read(root: Path) -> list[dict]:
-    path = Path(root) / LOG
+def read(root: Path, log: Path = LOG) -> list[dict]:
+    path = Path(root) / log
     if not path.exists():
         return []
     rows, previous = [], ""
@@ -44,15 +44,15 @@ def read(root: Path) -> list[dict]:
         row = json.loads(line)
         body = {k: v for k, v in row.items() if k != "hash"}
         if row.get("previous_hash") != previous or row.get("hash") != _digest(body):
-            raise ValueError(f"calls.jsonl hash chain is broken at line {number}; do not edit the file by hand")
+            raise ValueError(f"{path.name} hash chain is broken at line {number}; do not edit the file by hand")
         previous = row["hash"]
         rows.append(row)
     return rows
 
 
-def verify(root: Path) -> dict:
+def verify(root: Path, log: Path = LOG) -> dict:
     try:
-        return {"ok": True, "calls": len(read(root))}
+        return {"ok": True, "calls": len(read(root, log))}
     except (ValueError, OSError) as exc:
         return {"ok": False, "reason": str(exc)}
 

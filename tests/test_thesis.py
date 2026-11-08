@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from thesis import build, calls, credit, data, earnings, morning, regime, risk, signals  # noqa: E402
+from thesis import build, calls, credit, data, earnings, morning, regime, risk, signals, stance_log  # noqa: E402
 
 NY = "America/New_York"
 DAYS = pd.bdate_range("2008-01-02", periods=900)
@@ -183,6 +183,63 @@ class CallLogTests(unittest.TestCase):
         self.assertEqual(late["status"], "pending")
         board = calls.scoreboard([s, short, flat])
         self.assertEqual((board["scored"], board["directional_scored"], board["hit_rate"]), (3, 2, 0.5))
+
+
+def page_state(fired_spy=True, evidence="ok", mismatch=False):
+    rows = []
+    for symbol in ("SPY", "QQQ"):
+        rows.append({**signal_row(symbol, fired_spy and symbol == "SPY", [lead(symbol, "x")]),
+                     "crosscheck": {"status": "mismatch" if mismatch else "match"}})
+    return {"latest_close": "2026-11-06", "evidence_source": {"status": evidence, "sha256": "abc"},
+            "signals": rows, "stance": {"headline": "Long candidate"}}
+
+
+def next_open(session):
+    return pd.Timestamp("2026-11-09 09:30", tz=NY)  # the session after Fri 2026-11-06
+
+
+class StanceLogTests(unittest.TestCase):
+    def test_records_follow_the_stance_rules(self):
+        records, reason = stance_log.records_for(page_state())
+        self.assertIsNone(reason)
+        self.assertEqual([(r["instrument"], r["direction"]) for r in records], [("SPY", "long"), ("QQQ", "flat")])
+        self.assertEqual(stance_log.records_for(page_state(evidence="unavailable"))[0], [])
+        self.assertIn("no longer match", stance_log.records_for(page_state(mismatch=True))[1])
+
+    def test_logged_once_per_close_and_only_before_the_next_open(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            evening = pd.Timestamp("2026-11-06 18:00", tz=NY)
+            first = stance_log.append_daily(root, page_state(), evening, entry_time=next_open)
+            self.assertEqual(first["logged"], 2)
+            again = stance_log.append_daily(root, page_state(fired_spy=False), evening, entry_time=next_open)
+            self.assertEqual(again["logged"], 0)  # the first record for a close stands
+            late = stance_log.append_daily(root, {**page_state(), "latest_close": "2026-11-05"},
+                                           pd.Timestamp("2026-11-09 10:00", tz=NY), entry_time=next_open)
+            self.assertIn("too late", late["skipped"])
+            self.assertEqual(calls.verify(root, stance_log.LOG), {"ok": True, "calls": 2})
+            self.assertFalse((root / calls.LOG).exists())  # the user's call log is separate
+
+    def test_scored_like_a_call(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            stance_log.append_daily(root, page_state(), pd.Timestamp("2026-11-06 18:00", tz=NY), entry_time=next_open)
+            days = pd.bdate_range("2026-11-02", periods=15)
+            f = pd.DataFrame({"open": np.arange(100, 115, dtype=float), "close": np.arange(101, 116, dtype=float)}, index=days)
+            out = stance_log.summary(root, {"SPY": f, "QQQ": f})
+            spy = next(r for r in out["records"] if r["instrument"] == "SPY")
+            self.assertEqual((spy["status"], spy["entry_date"], spy["through_date"]), ("scored", "2026-11-09", "2026-11-13"))
+            self.assertAlmostEqual(spy["call_return"], 110 / 105 - 1)  # Nov 9 open to Nov 13 close
+            qqq = next(r for r in out["records"] if r["instrument"] == "QQQ")
+            self.assertEqual(qqq["call_return"], 0)
+            self.assertEqual((out["scoreboard"]["scored"], out["long_scored"]), (2, 1))
+
+    def test_offline_state_build_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state = build.build_state(root, pd.Timestamp("2026-11-08 12:00", tz=NY))
+            self.assertEqual(state["stance_log"]["scoreboard"]["calls"], 0)
+            self.assertEqual([p for p in root.rglob("*") if p.is_file()], [])
 
 
 class SourceTests(unittest.TestCase):
