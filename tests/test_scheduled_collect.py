@@ -1,5 +1,6 @@
 """Scheduled intraday collection: option-chain window, waiting for builds/collections, summaries."""
 import json, tempfile, unittest
+from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -66,6 +67,48 @@ class ScheduledCollectTests(unittest.TestCase):
         self.assertEqual(sc.summarize(status({**ok,'options_status':'failed'}))[0],1)
         code,text=sc.summarize(status({'symbol':'SPY','bar_status':'failed'}))
         self.assertEqual(code,2);self.assertIn('not collected: SPY',text)
+
+
+class BackupTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory(dir=SCRATCH);self.root=Path(self.tmp.name)
+        for rel in ('data/intraday/v1/bars.jsonl','data/terminal/collection_status.json','data/monitor/paper_events.jsonl',
+                    'data/raw/etfs.csv','data/intraday/v1/.writer.lock'):
+            p=self.root/rel;p.parent.mkdir(parents=True,exist_ok=True);p.write_text('x',encoding='utf-8')
+    def tearDown(self):self.tmp.cleanup()
+
+    def test_archive_has_collected_data_but_not_raw_caches_or_locks(self):
+        import zipfile, data_backup
+        cloud=self.root/'cloud'
+        result=data_backup.run(self.root,say=lambda m:None,today=date(2026,11,9),cloud=cloud)
+        for path in (result['local'],result['cloud']):
+            with zipfile.ZipFile(path) as z:
+                self.assertEqual(sorted(z.namelist()),['data/intraday/v1/bars.jsonl','data/monitor/paper_events.jsonl',
+                                                       'data/terminal/collection_status.json'])
+        self.assertTrue(result['cloud'].startswith(str(cloud)))
+
+    def test_retention_keeps_recent_days_and_one_per_week(self):
+        import data_backup
+        folder=self.root/'b';folder.mkdir()
+        for day in range(1,40):
+            (folder/f'{data_backup.PREFIX}{date(2026,10,1)+timedelta(days=day)}.zip').write_text('z')
+        data_backup.prune(folder,date(2026,11,9))
+        kept=sorted(p.name[len(data_backup.PREFIX):-4] for p in folder.glob('*.zip'))
+        self.assertEqual(kept,['2026-10-18','2026-10-25','2026-11-01','2026-11-07','2026-11-08','2026-11-09'])
+
+    def test_no_cloud_folder_means_local_only(self):
+        import data_backup
+        said=[]
+        result=data_backup.run(self.root,say=said.append,today=date(2026,11,9),cloud=None)
+        self.assertIsNone(result['cloud']);self.assertIn('locally only',said[0])
+
+    def test_evening_run_backs_up_and_afternoon_run_does_not(self):
+        calls=[]
+        for when in ('2026-11-09 20:10','2026-11-09 15:50'):
+            sc.run(self.root,now=lambda w=when:pd.Timestamp(w,tz=NY),symbols=['SPY'],say=lambda m:None,
+                   lock_state=lambda r:{'busy':False},backup=lambda root,say:calls.append(1),
+                   collect=lambda root,symbols,include_options:status({'symbol':'SPY','bar_status':'collected'}))
+        self.assertEqual(calls,[1])
 
 
 if __name__=='__main__':unittest.main()

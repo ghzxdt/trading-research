@@ -21,11 +21,19 @@
 - Scheduled the intraday collector (`scheduled_collect.py`, task **Trading Research Intraday Collection**, Mon-Fri
   2:50 PM and 7:10 PM Central). The Codex release added collection but no schedule, and Yahoo keeps only ~5 days
   of minute bars, so unattended days were being lost. 6 new tests (216 total).
+- Off-machine data backup (user approved): `data_backup.py` runs after the evening collection and zips `data/`
+  except `data/raw/` to `backups/data/`, plus a cloud folder from `backup_targets.json`. No cloud app is
+  installed yet (the OneDrive folder is a leftover; OneDrive isn't installed), so archives stay local until the
+  user installs Google Drive for desktop or iCloud for Windows.
+- Started the companion **trading-backtester** app (separate repo). First run: 90 daily indicator tests; oversold
+  mean reversion (RSI(2) < 10, RSI(14) < 30, close below the lower Bollinger band) were candidates on SPY/QQQ
+  and held on the 1993-2009 holdout. EMA touches, MACD crosses, breakouts, volume spikes and the 200-day state
+  showed no evidence. RSI(2)'s next-day effect is mostly overnight (+19 bp from the close vs +7 bp from the next
+  open), which favors a 4:05 PM perp entry, but that is below the 24 bp Kalshi taker round trip.
 
 ## Open items (keep current)
-- **Intraday data has no off-machine backup.** `data/intraday/` (35 MB after a few collections) and
-  `data/terminal/` are git-ignored, sensibly, since they're too big for git. Proposed: a weekly compressed copy to
-  the user's OneDrive folder. Needs the user's OK.
+- **User action:** install Google Drive for desktop (or iCloud for Windows) so the nightly data backup also
+  goes off this computer. Until then it is local only.
 - **Intraday research stays blocked on free data.** The liquidity gate needs 20 prior sessions of session-median
   share and option spreads; Yahoo minute bars carry no bid/ask, and a 3:50 PM chain snapshot is not a session
   median. Options: buy history (e.g. Polygon or Databento), or register a separate, declared snapshot-based

@@ -105,8 +105,13 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - Scheduled task **Trading Research Intraday Collection** (Mon-Fri 2:50 PM and 7:10 PM Central) runs
   `scheduled_collect.py`: minute bars for every active Today instrument, plus option chains on the 3:50 PM ET run
   (market open). Yahoo keeps only ~5 days of minute bars, so this is what builds intraday history. It waits for
-  builds and for a Today-page collection. Log: `work\intraday_collect.log`. The data (`data/intraday/`,
-  `data/terminal/`) is git-ignored, so it is not backed up off this computer yet.
+  builds and for a Today-page collection. Log: `work\intraday_collect.log`. The evening run then backs up all
+  of `data/` except `data/raw/` (`data_backup.py`) to `backups/data/` and to the first cloud folder in
+  `backup_targets.json` that exists (Google Drive for desktop or iCloud for Windows). It keeps 3 days plus one
+  per week for 4 weeks.
+- Companion app: **trading-backtester** (`C:\Users\gzdt\trading-backtester`, private repo
+  https://github.com/ghzxdt/trading-backtester) reads this app's data read-only and tests indicator rules. Never
+  make this app depend on it.
 - Scheduled task **Trading Research Market Snapshots** (Mon-Fri 8:00 AM and 3:05 PM Central) runs
   `market_snapshot.py --scheduled`, which appends Kalshi perps and macro markets (`data/kalshi/perp_quotes.csv`,
   `event_quotes.csv`), S&P/Nasdaq futures from Yahoo (`data/futures/futures_quotes.csv`) and, at 4:05 PM, the

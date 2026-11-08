@@ -1,0 +1,4 @@
+{
+  "description": "Cloud-synced folders for data_backup.py, in order of preference. The first that exists is used. Google Drive for desktop usually appears as G:\\My Drive; iCloud for Windows as %USERPROFILE%\\iCloudDrive.",
+  "cloud_folders": ["G:/My Drive", "%USERPROFILE%/My Drive", "%USERPROFILE%/Google Drive", "%USERPROFILE%/iCloudDrive"]
+}

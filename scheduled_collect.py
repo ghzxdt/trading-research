@@ -7,6 +7,7 @@ This runs the app's own collector (intraday_collect.collect) for every active To
   market is open and Yahoo's option bid/ask are live. Chains are still indicative, not executable.
 - 8:10 PM ET ("bars" run): minute bars only, after the extended session ends, so each day's archive
   is complete. A late start (computer was off) also runs bars only; the five-day archive forgives it.
+  This run then backs up the collected data locally and to a cloud folder (data_backup.py).
 
 It waits for a running build (an offline rebuild refuses to publish if data/ changes underneath it)
 and for a collection started from the Today page. It never records paper decisions or trades.
@@ -78,7 +79,7 @@ def summarize(status: dict) -> tuple[int, str]:
 
 
 def run(root: Path = ROOT, *, now=lambda: pd.Timestamp.now(tz=NY), collect=None, symbols=None,
-        sleep=time.sleep, say=log, lock_state=build_lock_state, wait_limit: int = 900) -> int:
+        sleep=time.sleep, say=log, lock_state=build_lock_state, wait_limit: int = 900, backup=None) -> int:
     if collect is None:
         from intraday_collect import collect
     if symbols is None:
@@ -97,13 +98,20 @@ def run(root: Path = ROOT, *, now=lambda: pd.Timestamp.now(tz=NY), collect=None,
     status = collect(root, symbols, include_options=options)
     code, text = summarize(status)
     say(text)
+    if not options and backup:  # the evening run also backs up the collected data off this computer
+        try:
+            backup(root, say)
+        except Exception as exc:
+            say(f"Data backup failed: {exc}")
+            code = max(code, 1)
     return code
 
 
 def main(argv=None) -> int:
     argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter).parse_args(argv)
     try:
-        return run(ROOT)
+        import data_backup
+        return run(ROOT, backup=lambda root, say: data_backup.run(root, say))
     except Exception:
         log("Collection failed:\n" + traceback.format_exc())
         return 3
