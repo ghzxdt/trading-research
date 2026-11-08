@@ -25,7 +25,11 @@ CPI={'ticker':'KXCPI-26OCT-T0.3','event_ticker':'KXCPI-26OCT','yes_sub_title':'A
      'strike_type':'greater','status':'active','close_time':'2026-11-10T13:29:00Z','yes_bid_dollars':'0.4100',
      'yes_ask_dollars':'0.4300','yes_bid_size_fp':'100.00','yes_ask_size_fp':'80.00','last_price_dollars':'0.4200',
      'volume_24h_fp':'1500.00','volume_fp':'9000.00','open_interest_fp':'7000.00'}
-NOWCAST=[{'chart':{'subcaption':'2026-11','_comment':'2026-11-06 00:00'},
+NOWCAST=[{'chart':{'subcaption':'2026-10','_comment':'2026-11-06 00:00'},  # fewer points than labels
+          'categories':[{'category':[{'label':'11/03'},{'label':'11/04'},{'label':'11/05'},{'label':'11/06'}]}],
+          'dataset':[{'seriesname':'CPI Inflation','data':[{'value':'0.24','tooltext':'CPI Inflation{br}11/05{br}0.24'},
+                                                           {'value':'0.2421','tooltext':'CPI Inflation{br}11/06{br}0.2421'}]}]},
+         {'chart':{'subcaption':'2026-11','_comment':'2026-11-06 00:00'},
           'categories':[{'category':[{'label':'11/02'},{'label':'11/06'}]}],
           'dataset':[{'seriesname':'CPI Inflation','data':[{'value':'0.18'},{'value':''}]},
                      {'seriesname':'Actual CPI Inflation','data':[{'value':''},{'value':''}]}]},
@@ -102,7 +106,8 @@ class FuturesAndNowcastTests(unittest.TestCase):
     def test_nowcast_rows_take_the_latest_value_and_roll_the_year(self):
         rows=ms.nowcast_rows(NOWCAST,STAMP,'close')
         self.assertEqual([(r['target_month'],r['series'],r['value_mom_pct'],r['as_of']) for r in rows],
-                         [('2026-11','CPI Inflation',0.18,'2026-11-02'),('2026-12','Core CPI Inflation',0.25,'2027-01-04')])
+                         [('2026-10','CPI Inflation',0.2421,'2026-11-06'),  # dated by tooltip, not position
+                          ('2026-11','CPI Inflation',0.18,'2026-11-02'),('2026-12','Core CPI Inflation',0.25,'2027-01-04')])
 
 
 class SnapshotRunTests(unittest.TestCase):
@@ -124,7 +129,7 @@ class SnapshotRunTests(unittest.TestCase):
     def test_close_snapshot_writes_all_four_files_with_one_header(self):
         self.assertEqual(self.go(),0);self.assertEqual(self.go(),0)
         counts=[len(self.rows(f)) for f in (ms.PERP_FILE,ms.EVENT_FILE,ms.FUTURES_FILE,ms.NOWCAST_FILE)]
-        self.assertEqual(counts,[2*len(ms.INDEX_PERPS),2,2*len(ms.FUTURES),4])
+        self.assertEqual(counts,[2*len(ms.INDEX_PERPS),2,2*len(ms.FUTURES),6])
         self.assertEqual({r['slot'] for r in self.rows(ms.FUTURES_FILE)},{'close'})
         self.assertEqual((self.root/ms.PERP_FILE).read_text(encoding='utf-8').count('snapshot_utc'),1)
 

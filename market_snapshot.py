@@ -26,6 +26,7 @@ import argparse
 import csv
 import json
 import math
+import re
 import time
 import traceback
 from datetime import datetime, time as wall_clock, timedelta
@@ -250,23 +251,39 @@ def cleveland_nowcast() -> list:
     return json.loads(response.content.decode("utf-8-sig"))
 
 
+TOOLTIP_DATE = re.compile(r"\{br\}(\d{1,2})/(\d{1,2})\{br\}")
+
+
 def nowcast_rows(payload: list, stamp: pd.Timestamp, slot: str, months: int = NOWCAST_MONTHS) -> list[dict]:
-    """Latest value of each series for the newest target months (nowcasts, and actuals once out)."""
+    """Latest value of each series for the newest target months (nowcasts, and actuals once out).
+
+    A series can have fewer points than the chart has day labels, so each point is dated from
+    its own tooltip ("CPI Inflation{br}11/06{br}0.24"), not from its position."""
     rows = []
     for item in payload[-months:]:
         chart = item.get("chart") or {}
         year, month = (int(x) for x in str(chart.get("subcaption", "0-0")).split("-")[:2])
         labels = [c.get("label") for c in ((item.get("categories") or [{}])[0].get("category") or [])]
         for series in item.get("dataset") or []:
-            values = [num(point.get("value")) for point in series.get("data") or []]
-            filled = [i for i, v in enumerate(values) if v is not None and i < len(labels)]
-            if not filled:
+            points, latest = series.get("data") or [], None
+            for i, point in enumerate(points):
+                value = num(point.get("value"))
+                if value is None:
+                    continue
+                found = TOOLTIP_DATE.search(point.get("tooltext") or "")
+                if found:
+                    day = (int(found.group(1)), int(found.group(2)))
+                elif len(points) == len(labels):
+                    day = tuple(int(x) for x in labels[i].split("/"))
+                else:
+                    continue  # can't date this point safely
+                latest = (value, day)
+            if latest is None:
                 continue
-            i = filled[-1]
-            label_month, label_day = (int(x) for x in labels[i].split("/"))
+            value, (label_month, label_day) = latest
             as_of = datetime(year + (label_month < month), label_month, label_day).date()
             rows.append({**stamps(stamp, slot), "target_month": f"{year}-{month:02d}",
-                         "series": series.get("seriesname"), "value_mom_pct": round(values[i], 4),
+                         "series": series.get("seriesname"), "value_mom_pct": round(value, 4),
                          "as_of": as_of.isoformat(), "source_updated": chart.get("_comment")})
     return rows
 
