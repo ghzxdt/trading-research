@@ -67,9 +67,15 @@ the GitHub data commit and the Drive archive dated 2026-11-09. CPI is Tue Nov 10
 Cleveland Fed nowcast); after the evening refresh the thesis moves to Monday's close and credit/earnings re-download.
 Record calls on the Daily thesis tab ("Your calls"); the log is append-only and goes to GitHub nightly.
 
-**Next work:** the intraday side waits for data (snapshot liquidity policy around Dec 8). Ideas not built: log the
-page's own daily stance automatically so it can be scored like the user's calls; a registered trend/volatility
-filter for the oversold rules (new versions in the backtester); jobs/macro release values (roadmap 2).
+- **The page's own stance is now logged and scored** (user: "Yes, add it"): online builds append SPY/QQQ long or
+  flat for the latest close to `data/thesis/stance_log.jsonl`, only before the next open, scored like a call over
+  5 sessions. First entries: SPY long and QQQ long for the Nov 6 close (lower Bollinger band), recorded by a manual
+  online refresh at 2:38 AM ET Sun Nov 8 so that stance wasn't lost; they're scored from Mon Nov 9's open through
+  Fri Nov 13's close. Monday evening's data commit puts the file on GitHub.
+
+**Next work:** the intraday side waits for data (snapshot liquidity policy around Dec 8). Ideas not built: a
+registered trend/volatility filter for the oversold rules (new versions in the backtester); jobs/macro release
+values (roadmap 2).
 
 ## Open items (keep current)
 - **Free liquidity pipeline (user approved, built 2026-11-08):** `liquidity_free.py` samples share and

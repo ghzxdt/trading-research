@@ -71,7 +71,9 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
    **Daily thesis tab built 2026-11-08** (`thesis/`, `run_thesis.py`): regime, registered signals with the
    backtester's evidence, fixed stance rules (long candidate only when a Lead rule fires; never short), events and
    mega-cap earnings, ETF loss scenarios at 1x-10x, morning futures/nowcast, and the user's call log
-   (`data/thesis/calls.jsonl`, scored automatically). Intraday research unlocks around Dec 8, 2026.
+   (`data/thesis/calls.jsonl`, scored automatically). The page's own stance is logged forward by online builds
+   (`data/thesis/stance_log.jsonl`, SPY/QQQ long or flat, only before the next open) and scored the same way
+   (user asked 2026-11-08). Intraday research unlocks around Dec 8, 2026.
    Historical comparisons must show base rates, sample sizes and holdout results so the page can't manufacture
    confidence. Interactive candlestick charts with news pinned to the time it hit (TradingView Lightweight
    Charts is the candidate library).
@@ -100,7 +102,8 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   exists (user, 2026-11-07: "I don't want it to only come from Kalshi"). Prefer official sources (Cboe, FRED,
   BLS, the Fed); Kalshi is the only source only for its own perps' quotes, depth and funding.
 - Sizing stays blocked until margin/liquidation is calibrated and a strategy has forward evidence.
-- Never edit `data/monitor/paper_events.jsonl` or `data/thesis/calls.jsonl` by hand (append-only, hash-chained). Never change a frozen
+- Never edit `data/monitor/paper_events.jsonl`, `data/thesis/calls.jsonl` or `data/thesis/stance_log.jsonl` by hand
+  (append-only, hash-chained). Never change a frozen
   experiment (`data/monitor/experiment_lock.json`); a new experiment gets a new version.
 - After every change: run the tests, commit with a clear message, then push `main` (`git push`) to the private
   GitHub repo https://github.com/ghzxdt/trading-research. Don't commit `data/raw/`, `output/`, `backups/`,
