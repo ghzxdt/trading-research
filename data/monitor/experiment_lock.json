@@ -1,0 +1,46 @@
+{
+  "created_utc": "2026-11-08T00:04:40.124555+00:00",
+  "strategies": [
+    {
+      "id": "rally_short_1",
+      "name": "Big rise: short, next session",
+      "day_type": "big rise",
+      "side": -1,
+      "horizon": 1
+    },
+    {
+      "id": "rally_vix20_short_1",
+      "name": "Big rise + VIX >=20: short, next session",
+      "day_type": "big rise",
+      "min_vix": 20,
+      "side": -1,
+      "horizon": 1
+    },
+    {
+      "id": "normal_drop_long_5",
+      "name": "Normal drop: long, five sessions",
+      "day_type": "normal drop",
+      "side": 1,
+      "horizon": 5
+    },
+    {
+      "id": "rally_short_5",
+      "name": "Big rise: short, five sessions",
+      "day_type": "big rise",
+      "side": -1,
+      "horizon": 5
+    }
+  ],
+  "costs": {
+    "initial_equity": 10000.0,
+    "notional_fraction": 1.0,
+    "half_spread_bps": 1.0,
+    "slippage_bps_per_side": 2.0,
+    "fee_bps_per_side": 2.0,
+    "funding_bps_per_calendar_day": 1.36,
+    "description": "Illustrative execution assumptions, not verified historical Kalshi quotes/fees. Positive funding means longs pay. Each rule is a separate 1x-or-less research account; the four curves cannot be added together."
+  },
+  "cost_hash": "f349f10422e663f0",
+  "version": "corrected-next-open-v1",
+  "description": "Frozen research rules; forward decisions are recorded before hypothetical next-open entries."
+}

@@ -1,0 +1,9 @@
+{
+  "initial_equity": 10000,
+  "notional_fraction": 1,
+  "half_spread_bps": 1,
+  "slippage_bps_per_side": 2,
+  "fee_bps_per_side": 2,
+  "funding_bps_per_calendar_day": 1.36,
+  "description": "Illustrative execution assumptions, not verified historical Kalshi quotes/fees. Positive funding means longs pay. Each rule is a separate 1x-or-less research account; the four curves cannot be added together."
+}

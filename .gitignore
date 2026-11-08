@@ -1,0 +1,15 @@
+# Local runtime and caches
+.venv/
+__pycache__/
+*.pyc
+
+# Downloaded or generated (the app rebuilds these)
+data/raw/
+output/
+.output-*/
+.output-*
+work/
+.build.lock
+
+# Large archives stay on disk, not in git
+backups/

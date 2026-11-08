@@ -1,0 +1,6 @@
+# Exact versions this was built and checked with. Upgrade on purpose, then re-run
+# `python run_stage1.py --check` and compare the report before trusting new numbers.
+pandas==3.1.1
+numpy==2.5.4
+yfinance==1.8.0
+requests==2.34.2
