@@ -39,6 +39,50 @@ def bars():
                         index=pd.bdate_range("2026-10-05", periods=8))
 
 
+def snapshots(*rows):
+    return pd.DataFrame(rows, columns=["snapshot_utc", "ticker", "bid", "ask", "is_open"])
+
+
+class ClosedMarketSpreadTests(unittest.TestCase):
+    """A closed market's resting quotes are not a usable spread (quant review, 2026-11-07)."""
+
+    def spread_row(self, m, **raw):
+        return build.market_rows({"markets": [m], "funding": pd.DataFrame(), "risk": {}, **raw}).iloc[0]
+
+    def test_open_market_shows_its_live_spread(self):
+        r = self.spread_row(market(schedule={"is_open": True}))
+        self.assertAlmostEqual(r["spread"], 2 / 100)
+        self.assertEqual(r["spread_basis"], "Live")
+        self.assertEqual(build.spread_text(r), "2.00% (live)")
+
+    def test_round_the_clock_market_without_schedule_counts_as_open(self):
+        self.assertEqual(self.spread_row(market())["spread_basis"], "Live")
+
+    def test_closed_market_uses_the_latest_open_quote_with_its_time(self):
+        snaps = snapshots(("2026-11-06T05:14:43Z", "KXUS500PERP", 99.9, 100.1, True),
+                          ("2026-11-06T06:17:09Z", "KXUS500PERP", 99.95, 100.05, True),
+                          ("2026-11-07T23:33:05Z", "KXUS500PERP", 90.0, 110.0, False))
+        r = self.spread_row(market(schedule={"is_open": False}, bid="90", ask="110"), snapshots=snaps)
+        self.assertAlmostEqual(r["spread"], 0.1 / 100)
+        self.assertAlmostEqual(r["half_spread"], 0.05 / 100)
+        self.assertEqual(r["spread_basis"], "Market closed; last open quote Fri Nov 6, 1:17 AM ET")
+        self.assertEqual(build.spread_text(r), "0.10% (market closed; last open quote Fri Nov 6, 1:17 AM ET)")
+
+    def test_newer_twice_daily_quote_wins_and_placeholder_asks_are_ignored(self):
+        snaps = snapshots(("2026-11-06T06:17:09Z", "KXUS500PERP", 99.95, 100.05, True))
+        quotes = snapshots(("2026-11-06T21:05:00Z", "KXUS500PERP", 99.99, 100.01, "True"),
+                           ("2026-11-06T22:05:00Z", "KXUS500PERP", 99.0, 922337203685477.5807, "True"))
+        r = self.spread_row(market(schedule={"is_open": False}), snapshots=snaps, perp_quotes=quotes)
+        self.assertAlmostEqual(r["spread"], 0.02 / 100)
+        self.assertIn("Fri Nov 6, 4:05 PM ET", r["spread_basis"])
+
+    def test_closed_market_without_history_is_blank_not_the_closed_quote(self):
+        r = self.spread_row(market(schedule={"is_open": False}, bid="90", ask="110"))
+        self.assertTrue(np.isnan(r["spread"]))
+        self.assertEqual(r["spread_basis"], "Market closed; no open-market quote saved yet")
+        self.assertEqual(build.spread_text(r), "- (market closed; no open-market quote saved yet)")
+
+
 class RiskAvailabilityTests(unittest.TestCase):
     def test_unknown_barrier_is_unavailable_not_zero_risk(self):
         for value in [np.nan, 0, -0.01, np.inf]:

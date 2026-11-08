@@ -25,6 +25,7 @@ import requests
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw" / "kalshi"
 SNAPSHOTS = ROOT / "data" / "kalshi" / "snapshots.csv"
+PERP_QUOTES = ROOT / "data" / "kalshi" / "perp_quotes.csv"  # written by market_snapshot.py; read only here
 
 PLATFORM = "Kalshi"
 BASE = "https://external-api.kalshi.com/trade-api/v2"
@@ -230,5 +231,7 @@ def fetch_all(offline: bool = False) -> dict:
         hourly[ticker] = data["candlesticks"]
 
     snaps = pd.read_csv(SNAPSHOTS) if SNAPSHOTS.exists() else pd.DataFrame()
+    quotes = pd.read_csv(PERP_QUOTES) if PERP_QUOTES.exists() else pd.DataFrame()
     return {"markets": markets, "risk": risk, "funding": fund, "hourly": hourly, "status": status,
-            "snapshots": snaps, "fetched_utc": datetime.fromtimestamp((RAW / "markets.json").stat().st_mtime, tz=timezone.utc)}
+            "snapshots": snaps, "perp_quotes": quotes,
+            "fetched_utc": datetime.fromtimestamp((RAW / "markets.json").stat().st_mtime, tz=timezone.utc)}

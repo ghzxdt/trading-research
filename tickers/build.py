@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from stage1.studies import DAY_TYPES, clean, finding, mult, pct, rms, share, forward_return, daily_reset_return, normalized_wealth
+from leverage.build import spread_text
 
 CATEGORIES = [
     ("Index ETFs", ["SPY", "QQQ", "IWM", "DIA", "RSP"]),
@@ -269,7 +270,7 @@ def ticker_page_studies(tk: str, t: pd.DataFrame, lev: pd.DataFrame | None, dix:
             r = lev[lev["ticker"] == tick]
             if len(r) and r.iloc[0]["status"] == "active":
                 r = r.iloc[0]
-                extra.append([f"Kalshi {r['name']} perp", f"spread {pct(r['spread'], 2, False)}, 24h volume ${r['volume_24h'] / 1e6:,.1f}M, open interest ${r['open_interest'] / 1e6:,.2f}M, max leverage {r['max_leverage']:.1f}x"])
+                extra.append([f"Kalshi {r['name']} perp", f"spread {spread_text(r)}, 24h volume ${r['volume_24h'] / 1e6:,.1f}M, open interest ${r['open_interest'] / 1e6:,.2f}M, max leverage {r['max_leverage']:.1f}x"])
     studies.append({
         "id": "flow", "number": 2, "show_tables": True, "title": "Order flow (daily stand-ins)",
         "question": "Free daily signs of buying and selling pressure: volume vs. usual, up-day volume, where it closes in its range, and the accumulation/distribution line.",

@@ -40,7 +40,8 @@ MARKET_COLUMNS = [
     ("longs_paid", "Days longs paid", "share", "Share of funding payments in the last 30 days where longs paid (blank until there are 5)"),
     ("funding_payments", "Funding records available", "int", "Valid unique funding records including zero transfers, not only nonzero payments"),
     ("funding_sample", "Funding sample used", "text", "Actual valid sample supporting the trailing average; incomplete intervals suppress annualization"),
-    ("spread", "Full bid-ask spread", "pct2", "Ask minus bid divided by midpoint; approximately a round-trip spread cost at unchanged quotes, before fees and impact. One side versus midpoint costs half this"),
+    ("spread", "Full bid-ask spread", "pct2", "Ask minus bid divided by midpoint; approximately a round-trip spread cost at unchanged quotes, before fees and impact. One side versus midpoint costs half this. Only quotes from while the market is open count"),
+    ("spread_basis", "Spread quote", "text", "Live when the market is open. When it is closed, the spread is the latest saved open-market quote, with its time; a closed market's resting quotes are not a usable spread"),
     ("volume_24h", "24h volume", "usd_compact", "Dollar value traded in the last 24 hours"),
     ("open_interest", "Open interest", "usd_compact", "Dollar value of open positions"),
     ("hours", "Hours", "text", "Trading schedule right now"),
@@ -72,6 +73,39 @@ def _hours(m: dict) -> str:
         return f"Open at saved snapshot; next scheduled close {nxt}" if nxt else "Open at saved snapshot"
     nxt = _et(sch.get("next_open_ts"))
     return f"Closed at saved snapshot; scheduled reopen {nxt}" if nxt else "Closed at saved snapshot"
+
+
+def _is_open(m: dict) -> bool:
+    """Open at the saved snapshot. A market with no schedule trades around the clock."""
+    sch = m.get("schedule")
+    return True if not sch else bool(sch.get("is_open"))
+
+
+def last_open_spreads(raw: dict) -> dict[str, tuple[float, pd.Timestamp]]:
+    """Latest saved full spread per ticker from a moment its market was open, from the evening
+    refresh's market snapshots and the twice-daily perp quotes."""
+    frames = [f[["snapshot_utc", "ticker", "bid", "ask", "is_open"]]
+              for f in (raw.get("snapshots"), raw.get("perp_quotes"))
+              if f is not None and len(f) and {"snapshot_utc", "ticker", "bid", "ask", "is_open"} <= set(f.columns)]
+    if not frames:
+        return {}
+    d = pd.concat(frames, ignore_index=True)
+    d["open"] = d["is_open"].astype(str).str.lower().isin(["true", "1", "1.0"])
+    d["bid"], d["ask"] = d["bid"].map(_num), d["ask"].map(_num)
+    d["when"] = pd.to_datetime(d["snapshot_utc"], utc=True, errors="coerce")
+    d = d[d["open"] & d["when"].notna() & (d["bid"] > 0) & (d["ask"] >= d["bid"])]
+    out = {}
+    for ticker, g in d.sort_values("when").groupby("ticker"):
+        r = g.iloc[-1]
+        out[ticker] = ((r["ask"] - r["bid"]) / ((r["ask"] + r["bid"]) / 2), r["when"])
+    return out
+
+
+def spread_text(row) -> str:
+    """'0.02% (live)', or the closed-market wording, for one market-table row."""
+    basis = str(row.get("spread_basis") or "")
+    value = pct(row.get("spread"), 2, False)
+    return f"{value} (live)" if basis == "Live" else f"{value} ({basis[:1].lower() + basis[1:]})" if basis else value
 
 
 def _tracks(m: dict) -> str:
@@ -138,6 +172,7 @@ def funding_stats(fund: pd.DataFrame, ticker: str, days: int = 30) -> dict:
 def market_rows(raw: dict) -> pd.DataFrame:
     fund = raw["funding"]
     mults = (raw.get("risk") or {}).get("initial_margin_multiplier", {})
+    history = last_open_spreads(raw)
     rows = []
     for m in raw["markets"]:
         t = m["ticker"]
@@ -152,6 +187,15 @@ def market_rows(raw: dict) -> pd.DataFrame:
         cushion = min(long_c, short_c) if complete else np.nan
         bid, ask = _num(m.get("bid")), _num(m.get("ask"))
         mid = (bid + ask) / 2 if np.isfinite(bid) and np.isfinite(ask) and 0 < bid <= ask else np.nan
+        # A closed market's resting quotes say nothing about trading costs: use the last open one.
+        if _is_open(m):
+            spread = (ask - bid) / mid if np.isfinite(mid) else np.nan
+            basis = "Live" if np.isfinite(spread) else "No two-sided quote"
+        elif t in history:
+            spread, when = history[t]
+            basis = f"Market closed; last open quote {_et(when.timestamp())}"
+        else:
+            spread, basis = np.nan, "Market closed; no open-market quote saved yet"
         fs = funding_stats(fund, t) if len(fund) else {"n": 0}
         typ = "ETF" if t in ETF_TICKERS else TYPE_NAMES.get(m.get("asset_class"), m.get("asset_class") or "Other")
         rows.append({
@@ -178,8 +222,9 @@ def market_rows(raw: dict) -> pd.DataFrame:
             "funding_zero": fs.get("zero", np.nan),
             "funding_coverage": fs.get("coverage", np.nan),
             "funding_recent_records": fs.get("n_recent", 0),
-            "half_spread": (ask - bid) / (2 * mid) if np.isfinite(mid) else np.nan,
-            "spread": (ask - bid) / mid if np.isfinite(mid) else np.nan,
+            "half_spread": spread / 2 if np.isfinite(spread) else np.nan,
+            "spread": spread,
+            "spread_basis": basis,
             "volume_24h": _num(m.get("volume_24h_notional_value_dollars")),
             "open_interest": _num(m.get("open_interest_notional_value_dollars")),
             "hours": _hours(m),
