@@ -27,7 +27,7 @@ def records_from(path):
     return value if isinstance(value, list) else value.get('records', [])
 
 
-def research(root, symbol, *, assume_bar_close_availability=False, config=None):
+def research(root, symbol, *, assume_bar_close_availability=False, config=None, liquidity_journal='verified'):
     from intraday.store import load_bars
     from intraday.backtest import run, configuration
     root = Path(root)
@@ -42,7 +42,8 @@ def research(root, symbol, *, assume_bar_close_availability=False, config=None):
     from liquidity_screen import evaluate
     from intraday.calendar import date_of, session
     dates = sorted({date_of(r['timestamp']) for r in bars if session(date_of(r['timestamp'])).get('is_session')})
-    liquidity = evaluate(root, symbol, dates, load_config(root)['liquidity'], utc().isoformat(), execution='options')
+    liquidity = evaluate(root, symbol, dates, load_config(root)['liquidity'], utc().isoformat(), execution='options',
+                         journal=liquidity_journal)
     if not liquidity['research_eligible']:
         raise ValueError('Liquidity screen blocked signal research: ' + '; '.join(liquidity.get('reasons', [])))
     original_dataset_hash = hashlib.sha256(json.dumps(bars, sort_keys=True).encode()).hexdigest()
@@ -52,7 +53,8 @@ def research(root, symbol, *, assume_bar_close_availability=False, config=None):
     folder = root / 'data' / 'intraday' / 'v1' / 'research'
     registry = folder / 'trial_registry.jsonl'
     old = [json.loads(line) for line in registry.read_text(encoding='utf-8').splitlines() if line.strip()] if registry.exists() else []
-    variant = hashlib.sha256(json.dumps({'symbol': symbol, 'config': config, 'liquidity_policy': liquidity['thresholds']}, sort_keys=True).encode()).hexdigest()
+    policy = liquidity['thresholds'] if liquidity_journal == 'verified' else {**liquidity['thresholds'], 'journal': liquidity_journal}
+    variant = hashlib.sha256(json.dumps({'symbol': symbol, 'config': config, 'liquidity_policy': policy}, sort_keys=True).encode()).hexdigest()
     variants = {r['variant_hash'] for r in old}
     if variant not in variants and len(variants) >= 32:
         raise ValueError('The declared 32-variant research budget is exhausted; create a reviewed study version')
@@ -118,6 +120,9 @@ def parser():
         if command == 'research':
             p.add_argument('--assume-bar-close-availability', action='store_true',
                            help='Explicit historical timing scenario; never forward evidence')
+            p.add_argument('--liquidity-journal', choices=['verified', 'snapshot'], default='verified',
+                           help='snapshot = the declared free policy (spreads from a few intraday snapshots); '
+                                'results are labeled and counted as separate variants')
     for command in ('import-bars', 'import-options', 'import-liquidity'):
         p = commands.add_parser(command)
         p.add_argument('path', help='JSON/JSONL/CSV with explicit timestamps and provenance')
@@ -141,7 +146,8 @@ def main(argv=None, root=ROOT):
             from liquidity_screen import import_verified
             result = import_verified(root, records_from(args.path))
         elif args.command == 'research':
-            result = research(root, args.symbol.upper(), assume_bar_close_availability=args.assume_bar_close_availability)
+            result = research(root, args.symbol.upper(), assume_bar_close_availability=args.assume_bar_close_availability,
+                              liquidity_journal=args.liquidity_journal)
         elif args.command == 'paper-record':
             result = paper_observation(root, args.symbol.upper())
         else:

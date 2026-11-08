@@ -93,13 +93,21 @@ def normalize(record):
     return result
 
 
-def _path(root):
-    return Path(root) / "data" / "liquidity" / "v1" / "sessions.jsonl"
+# Separate journals, never mixed. "verified" holds imported full-session aggregates (the strict default).
+# "snapshot" holds the declared free policy built by liquidity_free.py: spreads are medians of a few intraday
+# quote snapshots, not full-session quote medians, so results using it must say so.
+JOURNALS = {"verified": ("v1", "sessions.jsonl"), "snapshot": ("snapshot-v1", "sessions.jsonl")}
 
 
-def _load(root):
+def _path(root, journal="verified"):
+    if journal not in JOURNALS:
+        raise ValueError("Unknown liquidity journal " + repr(journal))
+    return Path(root) / "data" / "liquidity" / JOURNALS[journal][0] / JOURNALS[journal][1]
+
+
+def _load(root, journal="verified"):
     rows = {}
-    for event in read_events(_path(root)):
+    for event in read_events(_path(root, journal)):
         if event.get("type") != "liquidity_session" or event.get("schema_version") != VERSION:
             raise ValueError("Unexpected liquidity-journal record")
         row = normalize(event["record"])
@@ -110,14 +118,14 @@ def _load(root):
     return rows
 
 
-def import_verified(root, records):
+def import_verified(root, records, journal="verified"):
     """Append attested session aggregates; exact duplicates deduplicate, conflicts reject."""
     if readonly():
         raise PermissionError("Replay/offline mode cannot import liquidity history")
     proposed = [normalize(row) for row in records]
-    path = _path(root)
+    path = _path(root, journal)
     with writer_lock(path.parent):
-        events, existing = read_events(path), _load(root)
+        events, existing = read_events(path), _load(root, journal)
         additions, duplicates = [], 0
         for row in proposed:
             key = row["symbol"], row["session_date"]
@@ -130,7 +138,7 @@ def import_verified(root, records):
             additions.append({"schema_version": VERSION, "type": "liquidity_session",
                               "recorded_at": datetime.now(timezone.utc).isoformat(), "record": row})
         append_events(path, events, additions)
-    return {"schema_version": VERSION, "accepted": len(additions), "duplicates": duplicates,
+    return {"schema_version": VERSION, "accepted": len(additions), "duplicates": duplicates, "journal": journal,
             "path": str(path), "source_verification": "Declared by importer; not independently certified"}
 
 
@@ -148,7 +156,7 @@ def _prior(day):
     raise ValueError("Twenty preceding exchange sessions unavailable")
 
 
-def evaluate(root, symbol, session_dates, thresholds, as_of, execution="shares"):
+def evaluate(root, symbol, session_dates, thresholds, as_of, execution="shares", journal="verified"):
     """Screen each requested session using only its immediately preceding 20 sessions.
 
     The 80% summary applies only to the caller-supplied research window. Callers
@@ -171,7 +179,7 @@ def evaluate(root, symbol, session_dates, thresholds, as_of, execution="shares")
         _day(day)
     if not dates or len(set(dates)) != len(dates):
         raise ValueError("A nonempty, unique research-session window is required")
-    result = {"schema_version": VERSION, "symbol": symbol, "execution": execution,
+    result = {"schema_version": VERSION, "symbol": symbol, "execution": execution, "journal": journal,
               "as_of": cutoff.isoformat(), "window_sessions": WINDOW, "required_fraction": REQUIRED_FRACTION,
               "thresholds": policy, "spread_aggregation": "median_of_session_medians",
               "metric_methods": {"volumes": "mean_of_20_prior_complete_exchange_sessions",
@@ -179,7 +187,7 @@ def evaluate(root, symbol, session_dates, thresholds, as_of, execution="shares")
               "research_eligible": False, "eligible_fraction": 0., "session_results": [], "reasons": [],
               "execution_qualified": False}
     try:
-        rows = {key: row for key, row in _load(root).items() if utc(row["available_at"]) <= cutoff}
+        rows = {key: row for key, row in _load(root, journal).items() if utc(row["available_at"]) <= cutoff}
     except (ValueError, OSError, KeyError, TypeError, RuntimeError) as exc:
         return {**result, "status": "data_blocked", "reasons": [str(exc)]}
     for day in sorted(dates):

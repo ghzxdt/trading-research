@@ -204,6 +204,15 @@ def build_state(root, symbol='SPY', as_of=None):
         liquidity = {'status': 'data_blocked', 'research_eligible': False, 'reasons': [str(exc)]}
     health.append({'name': 'Research liquidity screen', 'status': liquidity.get('status', 'unavailable'),
                    'last': None, 'reason': '; '.join(liquidity.get('reasons', []))})
+    try:  # the declared free policy, shown separately and never substituted for the verified screen
+        liquidity['snapshot_policy'] = evaluate(root, symbol, liquidity_dates, config['liquidity'], now.isoformat(),
+                                                execution='options', journal='snapshot')
+        snap = liquidity['snapshot_policy']
+        health.append({'name': 'Liquidity, free snapshot policy', 'status': snap.get('status', 'unavailable'),
+                       'last': None, 'reason': 'Spreads are medians of a few intraday quote snapshots (liquidity_free.py), '
+                       'not full-session medians. ' + '; '.join(snap.get('reasons', []))})
+    except (ValueError, OSError, KeyError) as exc:
+        health.append({'name': 'Liquidity, free snapshot policy', 'status': 'data_blocked', 'last': None, 'reason': str(exc)})
     if bars:
         context['intraday_last_price'] = bars[-1].get('close')
     if chart['mode'] == 'intraday' and chart['candles']:

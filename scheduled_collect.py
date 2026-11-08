@@ -3,11 +3,15 @@
 Yahoo serves only the last few days of one-minute bars, so any day nobody collects is lost for good.
 This runs the app's own collector (intraday_collect.collect) for every active Today instrument:
 
+- 10:30 AM, 12:30 and 2:30 PM ET ("sample" runs): a liquidity snapshot only, i.e. share and near-the-money
+  option bid/ask spreads (liquidity_free.sample).
 - 3:50 PM ET ("options" run): minute bars plus each instrument's current option chains, while the
-  market is open and Yahoo's option bid/ask are live. Chains are still indicative, not executable.
+  market is open and Yahoo's option bid/ask are live (chains are indicative, not executable), plus the
+  day's fourth liquidity snapshot.
 - 8:10 PM ET ("bars" run): minute bars only, after the extended session ends, so each day's archive
   is complete. A late start (computer was off) also runs bars only; the five-day archive forgives it.
-  This run then backs up the collected data locally and to a cloud folder (data_backup.py).
+  This run then fetches OCC options volume and writes finished days to the snapshot liquidity journal
+  (liquidity_free.update), and backs up the collected data locally and to a cloud folder (data_backup.py).
 
 It waits for a running build (an offline rebuild refuses to publish if data/ changes underneath it)
 and for a collection started from the Today page. It never records paper decisions or trades.
@@ -41,12 +45,22 @@ def log(message: str) -> None:
     print(line, flush=True)  # no-op under pythonw
 
 
-def wants_options(now: pd.Timestamp) -> bool:
-    """Option chains only on a trading day between 3:30 and 4:00 PM ET, when quotes are live."""
+def slot_for(now: pd.Timestamp) -> str:
+    """'sample' 10:00 AM-3:30 PM ET, 'options' 3:30-4:00 PM ET (trading days only), otherwise 'bars'."""
     t = now.tz_convert(NY)
     day = t.tz_localize(None).normalize()
-    trading_day = len(equity_sessions(day, day)) == 1
-    return trading_day and (15 * 60 + 30) <= t.hour * 60 + t.minute < 16 * 60
+    minutes = t.hour * 60 + t.minute
+    if len(equity_sessions(day, day)) == 1:
+        if 10 * 60 <= minutes < 15 * 60 + 30:
+            return "sample"
+        if 15 * 60 + 30 <= minutes < 16 * 60:
+            return "options"
+    return "bars"
+
+
+def wants_options(now: pd.Timestamp) -> bool:
+    """Option chains only on a trading day between 3:30 and 4:00 PM ET, when quotes are live."""
+    return slot_for(now) == "options"
 
 
 def collection_running(root: Path, now: pd.Timestamp) -> bool:
@@ -78,8 +92,23 @@ def summarize(status: dict) -> tuple[int, str]:
     return code, text + "."
 
 
+def _sample(sample, root, symbols, when, say) -> int:
+    try:
+        result = sample(root, symbols, when)
+    except Exception as exc:
+        say(f"Liquidity sample failed: {exc}")
+        return 1
+    if result.get("skipped"):
+        say(f"Liquidity sample skipped: {result['skipped']}.")
+        return 0
+    failed = result.get("failed") or []
+    say(f"Liquidity sample: {result['sampled']} instruments" + (f"; failed: {'; '.join(failed)}." if failed else "."))
+    return 1 if failed else 0
+
+
 def run(root: Path = ROOT, *, now=lambda: pd.Timestamp.now(tz=NY), collect=None, symbols=None,
-        sleep=time.sleep, say=log, lock_state=build_lock_state, wait_limit: int = 900, backup=None) -> int:
+        sleep=time.sleep, say=log, lock_state=build_lock_state, wait_limit: int = 900,
+        backup=None, sample=None, liquidity=None) -> int:
     if collect is None:
         from intraday_collect import collect
     if symbols is None:
@@ -92,18 +121,26 @@ def run(root: Path = ROOT, *, now=lambda: pd.Timestamp.now(tz=NY), collect=None,
             return 2
         sleep(15)
         waited += 15
-    options = wants_options(now())
+    slot = slot_for(now())
+    if slot == "sample":
+        return _sample(sample, root, symbols, now(), say) if sample else 0
+    options = slot == "options"
     say(f"Collecting {'minute bars and option chains' if options else 'minute bars'} for {len(symbols)} instruments"
         + (f" (waited {waited}s)." if waited else "."))
     status = collect(root, symbols, include_options=options)
     code, text = summarize(status)
     say(text)
-    if not options and backup:  # the evening run also backs up the collected data off this computer
-        try:
-            backup(root, say)
-        except Exception as exc:
-            say(f"Data backup failed: {exc}")
-            code = max(code, 1)
+    if options and sample:
+        code = max(code, _sample(sample, root, symbols, now(), say))
+    if slot == "bars":  # after the close: liquidity records, then back everything up off this computer
+        for label, step in (("Liquidity update", liquidity), ("Data backup", backup)):
+            if not step:
+                continue
+            try:
+                step(root, symbols, say) if step is liquidity else step(root, say)
+            except Exception as exc:
+                say(f"{label} failed: {exc}")
+                code = max(code, 1)
     return code
 
 
@@ -111,7 +148,10 @@ def main(argv=None) -> int:
     argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter).parse_args(argv)
     try:
         import data_backup
-        return run(ROOT, backup=lambda root, say: data_backup.run(root, say))
+        import liquidity_free
+        return run(ROOT, backup=lambda root, say: data_backup.run(root, say),
+                   sample=lambda root, symbols, when: liquidity_free.sample(root, symbols, when),
+                   liquidity=lambda root, symbols, say: liquidity_free.update(root, symbols, pd.Timestamp.now(tz=NY), say=say))
     except Exception:
         log("Collection failed:\n" + traceback.format_exc())
         return 3

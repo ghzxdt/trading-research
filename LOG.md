@@ -34,10 +34,12 @@
 ## Open items (keep current)
 - **User action:** install Google Drive for desktop (or iCloud for Windows) so the nightly data backup also
   goes off this computer. Until then it is local only.
-- **Intraday research stays blocked on free data.** The liquidity gate needs 20 prior sessions of session-median
-  share and option spreads; Yahoo minute bars carry no bid/ask, and a 3:50 PM chain snapshot is not a session
-  median. Options: buy history (e.g. Polygon or Databento), or register a separate, declared snapshot-based
-  liquidity policy version. User's call; don't weaken the existing gate.
+- **Free liquidity pipeline (user approved, built 2026-11-08):** `liquidity_free.py` samples share and
+  near-the-money option spreads 4 times a day and adds Yahoo share volume and OCC options volume (standard
+  contracts, cleared sides / 2; OCC keeps about a year of daily history). Each finished day goes to a separate
+  `snapshot` journal; the strict `verified` journal and its gate are unchanged. The snapshot policy can start
+  qualifying sessions after 20 sampled trading days (around Dec 8, 2026). Share spreads from Alpaca's free IEX
+  quotes would be better than Yahoo snapshots but need the user to open a free account and supply an API key.
 - Backtest app (user asked 2026-11-08): a separate app that reads this one's data read-only, starting with daily
   indicator studies (EMA/RSI/MACD/volume) on 1993+ history; intraday versions once collected minutes accumulate.
 - Small polish: spreads under 0.01% show as "0.00%" on the Leverage tab and ticker pages. Show them in basis

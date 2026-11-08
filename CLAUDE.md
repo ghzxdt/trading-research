@@ -102,9 +102,13 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
 - Dashboard: http://localhost:8766/today.html (server binds to 127.0.0.1 only).
 - Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (216 tests).
-- Scheduled task **Trading Research Intraday Collection** (Mon-Fri 2:50 PM and 7:10 PM Central) runs
-  `scheduled_collect.py`: minute bars for every active Today instrument, plus option chains on the 3:50 PM ET run
-  (market open). Yahoo keeps only ~5 days of minute bars, so this is what builds intraday history. It waits for
+- Scheduled task **Trading Research Intraday Collection** (Mon-Fri 9:30, 11:30 AM, 1:30, 2:50 and 7:10 PM Central)
+  runs `scheduled_collect.py`: liquidity snapshots at 10:30, 12:30 and 2:30 PM ET (`liquidity_free.sample`); at
+  3:50 PM ET minute bars, option chains and a fourth snapshot; at 8:10 PM ET minute bars, then OCC options
+  volume and the day's record in the **snapshot** liquidity journal (`liquidity_free.update`), then the backup.
+  The snapshot journal is a declared weaker policy (spreads from 4 snapshots, not session medians). It is shown
+  separately on Today and used only with `run_intraday.py research --liquidity-journal snapshot`; the strict
+  `verified` journal stays the default. Yahoo keeps only ~5 days of minute bars, so this is what builds intraday history. It waits for
   builds and for a Today-page collection. Log: `work\intraday_collect.log`. The evening run then backs up all
   of `data/` except `data/raw/` (`data_backup.py`) to `backups/data/` and to the first cloud folder in
   `backup_targets.json` that exists (Google Drive for desktop or iCloud for Windows). It keeps 3 days plus one
