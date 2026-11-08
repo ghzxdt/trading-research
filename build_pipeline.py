@@ -20,8 +20,8 @@ import pandas as pd
 
 from validation import ValidationError, input_manifest, now_et, output_dir, validate_daily_table
 
-BUILDERS = ("run_stage1.py", "run_leverage.py", "run_tickers.py", "run_gex.py", "run_monitor.py")
-COMPONENTS = ("indexes", "leverage", "tickers", "gex")
+BUILDERS = ("run_stage1.py", "run_leverage.py", "run_tickers.py", "run_gex.py", "run_monitor.py", "run_today.py")
+COMPONENTS = ("indexes", "leverage", "tickers", "gex", "today")
 
 
 def _inside(path: Path, parent: Path) -> Path:
@@ -44,7 +44,7 @@ def source_manifest(root: Path) -> dict:
 def validate_bundle(out: Path, run_id: str) -> None:
     required = ["index.html", "report.html", "tickers.html", "leverage.html", "gex.html", "monitor.html",
                 "backtests.html", "paper.html", "quality.html", "jobs.html", "monitor_status.json",
-                "daily_table.csv", "long_history.csv", "leverage_markets.csv", "validation_report.json"]
+                "daily_table.csv", "long_history.csv", "leverage_markets.csv", "validation_report.json", "today.html", "today_state.json"]
     required += [f"ticker_{tk}.html" for tk in ("SPY", "QQQ", "IWM", "DIA", "RSP", "TQQQ", "SQQQ", "UPRO", "SPXU")]
     missing = [name for name in required if not (out / name).is_file()]
     if missing:

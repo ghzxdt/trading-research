@@ -280,7 +280,7 @@ class ControlPanel:
                     result = self.controller.recover_stale_lock()
                     text = result.get("message", "Startup check finished.")
                 if open_after:
-                    webbrowser.open(f"http://localhost:{self.controller.port}/monitor.html", new=2)
+                    webbrowser.open(f"http://localhost:{self.controller.port}/today.html", new=2)
                     text = "Dashboard opened in your browser. You can leave this panel open or close it."
                 self.events.put(("operation_status", self.controller.status()))
                 self.events.put(("done", text))

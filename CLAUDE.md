@@ -1,5 +1,29 @@
 # Trading research: thesis terminal for a few index tickers
 
+## Intraday terminal extension (user, 2026-11-07)
+The current request extends this existing app locally, then publishes the code to GitHub. The new
+Today workspace is the landing page; the old research tabs remain available. See
+`docs/INTRADAY_TERMINAL.md` for capabilities, commands and limits.
+
+- Shared intraday universe: SPY, QQQ, IWM, TQQQ, SQQQ, SOXL, TNA, LABD, KORU, BITX, ERY, FNGU,
+  UPRO, SPXL, NVDL and TSLL. The user confirmed these eleven additions to the original five.
+  `terminal_config.json` is the shared source of scope; inclusion never establishes execution eligibility.
+- Use existing free feeds. Explicit collection retains minute-bar receipt times and indicative current
+  chains. Yahoo's last-trade time is not a verified quote time. Contract-level execution requires verified
+  timestamped imports. No paid subscription or broker integration has been added.
+- The new `intraday/`, `options_research/`, `today/`, versioned state API and news first-seen archive are
+  separate from the frozen daily experiment. Never relabel archive scenarios as forward evidence.
+- Paper buttons record research observations/abstentions. Automatic forward trade-outcome resolution is
+  not implemented. Current evidence and risk limits do not approve personalized sizing.
+- Intraday data lives in separately ignored local folders. Existing scheduled jobs are unchanged;
+  collection is manual. Offline builds and GET/replay requests do not collect data or create paper events.
+- For any future change to registered strategy behavior, create a new study/experiment version.
+- `liquidity_screen.py` gates new research using 20 prior verified sessions and 80% window eligibility;
+  failing sessions are excluded individually. Free current chains cannot certify that history. Initial
+  thresholds in `terminal_config.json` are research assumptions, not measured execution capacity.
+- NVDL/TSLL retain charts/data but cannot use index candidates, index research, or the index journal.
+  Their separately registered event study remains unavailable.
+
 ## Start of every session
 1. Read this file and `LOG.md` (open items are at the top).
 2. Give a short status: what's in progress, what's waiting on the user.
@@ -76,8 +100,8 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 
 ## How to run
 - Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
-- Dashboard: http://localhost:8766/monitor.html (server binds to 127.0.0.1 only).
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (116 tests).
+- Dashboard: http://localhost:8766/today.html (server binds to 127.0.0.1 only).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (210 tests).
 - Scheduled task **Trading Research Market Snapshots** (Mon-Fri 8:00 AM and 3:05 PM Central) runs
   `market_snapshot.py --scheduled`, which appends Kalshi perps and macro markets (`data/kalshi/perp_quotes.csv`,
   `event_quotes.csv`), S&P/Nasdaq futures from Yahoo (`data/futures/futures_quotes.csv`) and, at 4:05 PM, the

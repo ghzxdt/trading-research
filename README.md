@@ -1,5 +1,17 @@
 # Index research: stage 1
 
+## Intraday Today workspace
+
+The existing research app now opens on **Today** at http://localhost:8766/today.html. It adds a shared
+sixteen-instrument universe, intraday charts and levels, options information, source health, historical
+scenario research and a separate observation journal. Existing daily studies and paper records remain intact.
+
+Use the existing desktop control panel. **Collect intraday** explicitly refreshes the selected instrument;
+check **Include options snapshot** for free indicative chains. **Run baseline research** is a historical
+scenario, and archive timing must be explicitly selected. Neither function certifies a profitable strategy.
+
+Full capabilities, import formats and commands: [Intraday terminal guide](docs/INTRADAY_TERMINAL.md). Read the [complete upgrade and audit breakdown](docs/UPGRADE_AUDIT_2026-11-07.md) and [app walkthrough](docs/UI_WALKTHROUGH.md).
+
 A program that downloads about 16 years of free market history for the big index ETFs and writes a
 report on how they **normally** behave. It doesn't predict tomorrow or suggest trades. It sets the
 "normal" that any future trading idea has to beat.

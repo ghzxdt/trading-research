@@ -1,5 +1,22 @@
 # Trading research log
 
+## Intraday extension implementation (2026-11-07)
+- Added Today as the landing workspace and `/api/v1/thesis_state`, preserving existing tabs and controls.
+- Added the sixteen-instrument shared universe, minute-bar archive/replay, VWAP/ORB/price levels,
+  indicative current options chains, verified contract imports/P&L and causal level diagnostics.
+- Added a separately frozen intraday paper journal and bounded historical ORB scenario registry.
+- Added verified 20-session liquidity imports and an 80% joint share/options research prerequisite;
+  missing free-feed historical quotes fail closed. The initial SPY prototype is labeled pre-qualification.
+- Enforced a separate single-name research track: NVDL/TSLL cannot reuse index baseline parameters.
+- Native leveraged-product prices are not charged another hypothetical decay haircut; no universal
+  realized-volatility-only break-even holding period is claimed. Current baseline exits within the session.
+- News now has a first-seen archive; existing latest-headline sources remain available. GET/replay is read-only.
+- Free-feed collection received minute bars and chain indications for all sixteen configured instruments.
+  Those archives are not contemporaneous historical fills or a demonstrated edge.
+- Defaults retain unavailable risk budgets and blocked recommended sizing. No orders or new scheduled jobs.
+- Existing frozen experiments and user data changes were preserved; code/data scope remains separated.
+- Operator guide: `docs/INTRADAY_TERMINAL.md`.
+
 ## Open items (keep current)
 - Small polish: spreads under 0.01% show as "0.00%" on the Leverage tab and ticker pages. Show them in basis
   points (a new table format in `leverage/report.py`, plus `spread_text`).

@@ -9,6 +9,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from app_control import app_identity,build_lock_state,hidden_process_flags,utc_now
 import refresh_guard
+from urllib.parse import urlparse, parse_qs
+from terminal_api import handle_get, start_action
 
 ROOT=Path(__file__).resolve().parent
 OUT=ROOT/'output'
@@ -85,11 +87,29 @@ def make_handler(port:int,downloads:Path|None,token:str|None=None):
             self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(data)))
             self.end_headers();self.wfile.write(data)
         def do_GET(self):
+            route=urlparse(self.path)
+            if route.path.startswith('/api/v1/'):
+                code,body=handle_get(ROOT,route.path,parse_qs(route.query))
+                return self._json(code,body)
             if self.path.split('?')[0]=='/api/status':return self._json(200,status_payload())
             return super().do_GET()
         def do_POST(self):
             if self.headers.get('Host') not in hosts or self.headers.get('X-Hub')!='1':return self._json(403,{'ok':False,'error':'Not allowed.'})
             if stopping.is_set():return self._json(503,{'ok':False,'error':'Dashboard is stopping; retry after it restarts.'})
+            if self.path.startswith('/api/v1/intraday/'):
+                try:
+                    length=int(self.headers.get('Content-Length','0'))
+                    if not 0<=length<=32768:return self._json(413,{'ok':False,'error':'Request too large.'})
+                    payload=json.loads(self.rfile.read(length) or b'{}')
+                    if not isinstance(payload,dict):raise ValueError('A JSON object is required.')
+                except (ValueError,TypeError):return self._json(400,{'ok':False,'error':'Invalid request JSON.'})
+                if build_lock_state(ROOT)['busy'] or not reserve_work():return self._json(409,{'ok':False,'error':'An app writer is active.'})
+                def finished():LOCK.release()
+                try:
+                    code,body=start_action(ROOT,self.path,payload,update_build_state,finished)
+                except Exception as exc:
+                    LOCK.release();return self._json(400,{'ok':False,'error':str(exc)})
+                return self._json(code,body)
             if self.path=='/api/shutdown':
                 if not hmac.compare_digest(self.headers.get('X-Local-Control',''),token):return self._json(403,{'ok':False,'error':'Local desktop authentication is required.'})
                 if not reserve_work():return self._json(409,{'ok':False,'error':'A refresh/build is active or cannot be checked. Wait before restarting.'})

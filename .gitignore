@@ -16,3 +16,10 @@ backups/
 
 # Claude Code session worktrees
 .claude/worktrees/
+
+# Intraday market observations and user-specific local research
+data/intraday/
+data/options_research/
+data/terminal/
+data/news_history/
+data/liquidity/

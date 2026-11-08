@@ -1,6 +1,6 @@
 # Corrected research app
 
-Open the **Trading Research Control Panel** desktop shortcut, or **START_APP.cmd**, then click **Open dashboard**. The panel starts the server and opens **http://localhost:8766/monitor.html**. It also provides start/stop/restart, refresh, offline rebuild, logs, and startup repair. See **CONTROL_PANEL_GUIDE.md**. The original app at port 8765 was not edited.
+Open the **Trading Research Control Panel** desktop shortcut, or **START_APP.cmd**, then click **Open dashboard**. The panel starts the server and opens **http://localhost:8766/today.html**. It also provides start/stop/restart, refresh, offline rebuild, logs, and startup repair. See **CONTROL_PANEL_GUIDE.md**. The original app at port 8765 was not edited.
 
 The saved output was built and validated from the existing cached inputs. Use **Refresh data + validate** to download current sources and archive BLS observations. **Rebuild saved data** performs a network-free rebuild. Failed builds preserve the prior complete output. The console log is work/last_refresh.log.
 

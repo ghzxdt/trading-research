@@ -12,7 +12,7 @@ import pandas as pd
 TEMPLATE = Path(__file__).with_name("report_template.html")
 
 # The hub: one tab per part of the app. Each part is its own page, so they never mix.
-TABS = [("indexes", "report.html", "Indexes"), ("tickers", "tickers.html", "Tickers"), ("leverage", "leverage.html", "Leverage (perps)"),
+TABS = [("today", "today.html", "Today"), ("indexes", "report.html", "Indexes"), ("tickers", "tickers.html", "Tickers"), ("leverage", "leverage.html", "Leverage (perps)"),
         ("gex", "gex.html", "GEX / DIX"), ("compare", "monitor.html", "Original vs fixed"),
         ("backtests", "backtests.html", "Backtests"), ("paper", "paper.html", "Paper monitor"),
         ("quality", "quality.html", "Data quality"), ("jobs", "jobs.html", "Jobs & macro")]
@@ -31,13 +31,13 @@ def hub_nav(active: str) -> str:
 
 
 def write_hub_index(out_dir: Path) -> None:
-    """output/index.html opens the hub on the Indexes tab."""
+    """output/index.html opens the hub on the Today workspace."""
     out_dir.mkdir(parents=True, exist_ok=True)
     links = " &middot; ".join(f'<a href="{href}">{escape(label)}</a>' for _, href, label in TABS)
     (out_dir / "index.html").write_text(
         '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Index research</title>'
-        '<meta http-equiv="refresh" content="0; url=report.html"></head>'
-        f'<body><p>Opening the Indexes tab&hellip; {links}</p></body></html>', encoding="utf-8")
+        '<meta http-equiv="refresh" content="0; url=today.html"></head>'
+        f'<body><p>Opening Today&hellip; {links}</p></body></html>', encoding="utf-8")
 
 ICONS = {"edge": "✓", "hint": "~", "none": "–", "fact": "i", "ok": "✓", "note": "i", "warn": "!"}
 HEALTH_LABELS = {"ok": "OK", "note": "Note", "warn": "Warning"}
