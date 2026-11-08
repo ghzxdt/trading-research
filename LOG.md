@@ -9,8 +9,11 @@
 - **Costs are understated.** Kalshi perps fees are 0.12% taker / 0.02% maker per side at the base tier; the
   backtests and the frozen paper experiment assume 0.02% plus 0.03% spread and slippage. Use measured fees in the
   next experiment version.
-- Roadmap 1: Kalshi quote collector (also save KXCPI, KXFEDDECISION, KXPAYROLLS, KXINXU, KXNASDAQ100U and the
-  public funding-rate estimate); Leverage tab ignores closed-market spreads.
+- Roadmap 1: Leverage tab ignores closed-market spreads. (Kalshi snapshots are done; the first scheduled one is
+  Mon Nov 9, 9:00 AM ET, and the evening task commits and pushes them.)
+- Proposed, not yet agreed: independent checks alongside the Kalshi snapshots: S&P 500 and Nasdaq-100 futures
+  (Yahoo `ES=F`/`NQ=F`) for the overnight move, and the Cleveland Fed's inflation nowcast next to Kalshi's
+  CPI markets.
 - Roadmap 2: jobs/macro data fix (BLS API + ALFRED + FRED release dates; Kalshi CPI and Fed markets as dated
   market expectations).
 - New data the user wants: mega-cap earnings calendar (yfinance history, Nasdaq calendar API, SEC EDGAR 8-K
@@ -54,3 +57,13 @@
 - Private GitHub repo https://github.com/ghzxdt/trading-research created in Chrome with the user's OK (empty, no
   README). `main` pushed after the user approved Git Credential Manager's sign-in, which is saved for ghzxdt. A
   manual run of the evening task at 9:02 PM ET pushed `main` unattended. New rule: push after every commit.
+- Kalshi snapshots instead of a 15-minute collector (user agreed): `kalshi_snapshot.py` plus the task **Trading
+  Research Kalshi Snapshots** (Mon-Fri 8:00 AM and 3:05 PM Central, starts late if missed but records nothing
+  outside 8:00-9:30 AM / 4:00-4:45 PM ET). Each snapshot covers the 5 universe perps (bid/ask, sizes, mark,
+  reference price, premium, funding estimate, open interest, volume, order-book dollars within 5 and 25 bp of the
+  mid) and the open KXCPI, KXCPICORE, KXFEDDECISION and KXPAYROLLS markets (128 on Saturday). Public endpoints
+  only, including `/margin/markets/{ticker}/orderbook` and `/margin/funding_rates/estimate`. 9 tests (87 total),
+  commits 91460dc and f515568.
+- A live dry run found Kalshi's no-quote placeholders (ask 922337203685477.5807; next funding in year 0001 for the
+  inactive US 2000 perp). Both are now blank. The two test files that run wrote to `data/kalshi` were deleted
+  before any commit. The final dry run went to a scratch folder.
