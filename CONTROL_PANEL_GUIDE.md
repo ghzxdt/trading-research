@@ -8,7 +8,7 @@ Double-click the **Trading Research Control Panel** desktop shortcut. You can al
 2. Click **Run / Refresh data** when you want current market data and a full validated rebuild. It starts the server as needed. Watch the status or click **View logs**.
 3. Check the saved-market-data date. A running server does not imply fresh financial data. The date is rechecked against the current session clock when you open the panel.
 
-A Windows scheduled task, **Trading Research Evening Refresh**, also runs the refresh on weekday evenings. It waits until Cboe has posted the day's VIX close, because a refresh between 4:30 PM ET and that posting logs the day's paper decisions as data-blocked. Its log is `work\scheduled_refresh.log`. Opening the panel or dashboard does not download market data or place trades.
+A Windows scheduled task, **Trading Research Evening Refresh**, also runs the refresh on weekday evenings. It waits until Cboe has posted the day's VIX close, because a refresh between 4:30 PM ET and that posting would log the day's paper decisions as data-blocked. For the same reason, **Run / Refresh data** refuses during that gap and says why; **Rebuild saved data** always works. Its log is `work\scheduled_refresh.log`. Opening the panel or dashboard does not download market data or place trades.
 
 ## Other buttons
 

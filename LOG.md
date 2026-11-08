@@ -1,11 +1,10 @@
 # Trading research log
 
 ## Open items (keep current)
-- **A manual refresh before the VIX close logs the day as data_blocked.** Cboe posts the VIX close well after
-  4:30 PM ET (file times on Fri Nov 6: VVIX 5:31 PM, VIX 9:21 PM ET), but the app's freshness check expects it at
-  4:30 PM. A Run / Refresh in that gap records the day's four decisions as data_blocked for good. The scheduled
-  task waits for the VIX close; the app itself still needs a fix (decide with the user whether deferring the
-  record is a protocol change that needs a new experiment version).
+- **User action:** close the control panel, reopen it from the desktop shortcut, and click **Restart app**. The
+  dashboard server running since 7:08 PM CT on Nov 7, and the open panel, still have the code from before the
+  VIX guard. A panel from before the guard waits only 1.2 s for the server, and the guard's first check can take
+  about 1.5 s.
 - **Costs are understated.** Kalshi perps fees are 0.12% taker / 0.02% maker per side at the base tier; the
   backtests and the frozen paper experiment assume 0.02% plus 0.03% spread and slippage. Use measured fees in the
   next experiment version.
@@ -77,3 +76,12 @@
   0.2%; 1% gaps appear only on extreme days (2020-03-16, 2025-04-09). Shown on the Data quality tab (display only,
   the paper-log gate is unchanged). Offline rebuild in the main folder: PASS, largest gaps 0.08% (SPY) and 0.13%
   (QQQ). Commits c84546b and 7d0f90e; 97 tests.
+- VIX guard (user approved): `refresh_guard.py` blocks an online refresh when the latest session's decisions
+  aren't logged, it's before the next 9:30 open, and Cboe's VIX file doesn't have the session yet (or can't be
+  reached). That closes the data_blocked trap without changing how the frozen experiment records decisions. The
+  dashboard server answers 409 with the reason, shown in the control panel and on the dashboard's button.
+  `run_all.py` refuses too unless given `--skip-vix-guard`, which the server passes after its own check. The
+  evening task overrides the guard only at its 9:00 AM ET deadline. Offline rebuilds are never blocked.
+  Live check: no block on Saturday night (Friday already logged); at a simulated Mon 5:00 PM ET it blocked
+  because Cboe's file ends Nov 6. A check takes about 1-1.5 s the first time and 0.1 s once the connection is
+  reused. Commits 85c6258, ae3dda5 and bcae46a; 111 tests.

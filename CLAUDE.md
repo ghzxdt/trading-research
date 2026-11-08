@@ -77,7 +77,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 ## How to run
 - Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
 - Dashboard: http://localhost:8766/monitor.html (server binds to 127.0.0.1 only).
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (97 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (111 tests).
 - Scheduled task **Trading Research Market Snapshots** (Mon-Fri 8:00 AM and 3:05 PM Central) runs
   `market_snapshot.py --scheduled`, which appends Kalshi perps and macro markets (`data/kalshi/perp_quotes.csv`,
   `event_quotes.csv`), S&P/Nasdaq futures from Yahoo (`data/futures/futures_quotes.csv`) and, at 4:05 PM, the
@@ -89,7 +89,9 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   waits for the day's VIX close, runs the app's refresh, then `git_backup.py` commits the data files and pushes
   `main`. Log: `work\scheduled_refresh.log`. Turn it off in Task Scheduler.
 - Offline rebuild: `.venv\Scripts\python -B run_all.py --offline` (about 70 seconds).
-- Online refresh: the control panel's **Run / Refresh data**, or `run_all.py` without `--offline`.
+- Online refresh: the control panel's **Run / Refresh data**, or `run_all.py` without `--offline`. Both refuse,
+  with the reason, while the latest session's paper decisions aren't logged and Cboe hasn't posted its VIX close
+  (`refresh_guard.py`); `run_all.py --skip-vix-guard` overrides it, which logs that day as data-blocked.
 - Review checks: `.venv\Scripts\python -B research\holdout_checks.py` and `research\review_checks.py`.
 
 ## History
