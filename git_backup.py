@@ -68,7 +68,7 @@ def sync(root: Path, say, message: str = "Evening refresh data") -> str:
     if others:
         say(f"Left {len(others)} uncommitted change(s) outside data/ alone (not pushed): {', '.join(others[:5])}")
     if "origin" not in git(root, "remote").stdout.split():
-        say("No GitHub remote yet; data is committed locally only.")
+        say("No GitHub remote yet; " + ("data committed locally only." if result == "committed" else "nothing to push."))
         return result
     pushed = git(root, "push", "origin", "main", timeout=180)
     if pushed.returncode != 0:

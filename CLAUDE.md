@@ -71,7 +71,10 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 ## How to run
 - Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
 - Dashboard: http://localhost:8766/monitor.html (server binds to 127.0.0.1 only).
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (59 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (78 tests).
+- Scheduled task **Trading Research Evening Refresh** (Mon-Fri 3:45 PM Central) runs `scheduled_refresh.py`:
+  waits for the day's VIX close, runs the app's refresh, then `git_backup.py` commits the data files and pushes
+  `main`. Log: `work\scheduled_refresh.log`. Turn it off in Task Scheduler.
 - Offline rebuild: `.venv\Scripts\python -B run_all.py --offline` (about 70 seconds).
 - Online refresh: the control panel's **Run / Refresh data**, or `run_all.py` without `--offline`.
 - Review checks: `.venv\Scripts\python -B research\holdout_checks.py` and `research\review_checks.py`.
@@ -88,9 +91,14 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - Only normal-drop long 5 survives the untouched SPY 1993-2009 holdout; the three rally shorts don't.
 - Normal-drop long 5 is mostly beta: +0.34%/trade gross vs +0.25% for random entries in the same windows.
 - Kalshi index perps trade Sun 6 PM to Fri ~5 PM ET, so 4:00 PM signals are tradeable at ~4:05 PM.
-- Kalshi funding is one payment per day at 4:00 PM ET.
-- Open-session index perp half-spreads were ~0.2-0.7 bp; fees unknown; SPY/QQQ perps are thin.
+- Kalshi funding is one payment per day at 4:00 PM ET: the time-weighted premium of the perp over its index;
+  positive means longs pay shorts.
+- Open-session index perp half-spreads were ~0.2-0.7 bp; SPY/QQQ perps are thin.
+- Kalshi perps fees (checked 2026-11-07): 0.12% taker / 0.02% maker per side at the base tier, on notional.
+- Cboe posts the VIX close well after 4:30 PM ET, so evening jobs must wait for it (see LOG.md).
 
 ## Open decisions (user)
-- Max drawdown (%) and max leverage they're willing to use. Dollar account size isn't needed.
-- GitHub private repo for off-machine backup (git commit identity is a local placeholder until then).
+- Risk limits: the user has set no max drawdown or max leverage (2026-11-07); the goal is good trades and large
+  gains. Show outcomes at several leverage levels instead of one allowed size. Sizing stays blocked.
+- GitHub private repo: yes (2026-11-07); creation waits for the user's final OK (git commit identity is a local
+  placeholder until then).
