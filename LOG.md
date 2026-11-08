@@ -45,6 +45,8 @@
 **Check tomorrow:** `work\market_snapshot.log`, `work\intraday_collect.log`, `work\scheduled_refresh.log`,
 the GitHub data commit and the Drive archive dated 2026-11-09. CPI is Tue Nov 10, 8:30 AM ET.
 
+**Reference:** every change from Nov 7-8 and why: `docs/CHANGES_2026-11-07_08.md`.
+
 **Next work:** the trade simulator in the backtester (its `LOG.md`, "Pick up here", has the full design). Then
 the open items below.
 
