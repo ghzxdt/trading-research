@@ -47,8 +47,8 @@ the GitHub data commit and the Drive archive dated 2026-11-09. CPI is Tue Nov 10
 
 **Reference:** every change from Nov 7-8 and why: `docs/CHANGES_2026-11-07_08.md`.
 
-**Next work:** the trade simulator in the backtester (its `LOG.md`, "Pick up here", has the full design). Then
-the open items below.
+**Next work (approved 2026-11-08):** build the Today page's two tabs side by side, Daily thesis first. Order and
+contents: `docs/TODAY_PAGE_PLAN.md`. Step 1 is the backtester's trade simulator (its `LOG.md` has the design).
 
 ## Open items (keep current)
 - **Free liquidity pipeline (user approved, built 2026-11-08):** `liquidity_free.py` samples share and

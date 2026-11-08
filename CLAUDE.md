@@ -62,7 +62,8 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
    when showing spreads (done 2026-11-07).
 2. **Jobs / macro data fix** (see below).
 3. **Thesis terminal "Today" page** for the universe: regime, relevant news and events with historical
-   comparisons, evidence, invalidation, risk numbers, logged calls. Design it with the user before building.
+   comparisons, evidence, invalidation, risk numbers, logged calls. Design approved 2026-11-08: two tabs side by
+   side, Daily thesis (built first) and Intraday; see `docs/TODAY_PAGE_PLAN.md` for contents and build order.
    Historical comparisons must show base rates, sample sizes and holdout results so the page can't manufacture
    confidence. Interactive candlestick charts with news pinned to the time it hit (TradingView Lightweight
    Charts is the candidate library).
