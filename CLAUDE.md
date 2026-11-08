@@ -64,8 +64,9 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - Sizing stays blocked until margin/liquidation is calibrated and a strategy has forward evidence.
 - Never edit `data/monitor/paper_events.jsonl` by hand (append-only, hash-chained). Never change a frozen
   experiment (`data/monitor/experiment_lock.json`); a new experiment gets a new version.
-- After every change: run the tests, then commit with a clear message. Don't commit `data/raw/`, `output/`,
-  `backups/`, `work/` or `.venv/` (already in `.gitignore`).
+- After every change: run the tests, commit with a clear message, then push `main` (`git push`) to the private
+  GitHub repo https://github.com/ghzxdt/trading-research. Don't commit `data/raw/`, `output/`, `backups/`,
+  `work/` or `.venv/` (already in `.gitignore`).
 - The computer's clock is US Central; market times are Eastern (Central = Eastern minus 1 hour).
 
 ## How to run
@@ -85,7 +86,9 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - 2026-11-06/07: audited and repaired in Codex at
   `C:\Users\gzdt\Documents\Codex\2026-11-06\x20-au\outputs\trading_research` (5 evaluation tabs, control panel).
   Portable archives (`trading_research_desktop_2026-11-07.zip` etc.) remain in that `outputs` folder.
-- 2026-11-07: moved here, git initialized, quant review in `docs/QUANT_REVIEW_2026-11-07.md`.
+- 2026-11-07: moved here, git initialized, quant review in `docs/QUANT_REVIEW_2026-11-07.md`. Evening refresh task
+  set up; private GitHub repo https://github.com/ghzxdt/trading-research created, and the evening task pushes
+  `main` to it.
 
 ## Key facts from the review (details in docs/QUANT_REVIEW_2026-11-07.md)
 - Only normal-drop long 5 survives the untouched SPY 1993-2009 holdout; the three rally shorts don't.
@@ -100,5 +103,5 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 ## Open decisions (user)
 - Risk limits: the user has set no max drawdown or max leverage (2026-11-07); the goal is good trades and large
   gains. Show outcomes at several leverage levels instead of one allowed size. Sizing stays blocked.
-- GitHub private repo: yes (2026-11-07); creation waits for the user's final OK (git commit identity is a local
-  placeholder until then).
+- Git commit identity is still the local placeholder `trading-research (local)`, so commits on GitHub don't link
+  to the user's account (ghzxdt). Change it only if the user wants that.

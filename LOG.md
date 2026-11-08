@@ -1,9 +1,6 @@
 # Trading research log
 
 ## Open items (keep current)
-- **GitHub (user said yes, 2026-11-07):** waiting for the final OK to create the private repo `trading-research`
-  (in Chrome, where the user is signed in), add it as `origin` and push `main`. Then the evening task pushes
-  nightly. Sign-in goes through Git Credential Manager's browser prompt.
 - **A manual refresh before the VIX close logs the day as data_blocked.** Cboe posts the VIX close well after
   4:30 PM ET (file times on Fri Nov 6: VVIX 5:31 PM, VIX 9:21 PM ET), but the app's freshness check expects it at
   4:30 PM. A Run / Refresh in that gap records the day's four decisions as data_blocked for good. The scheduled
@@ -54,3 +51,6 @@
   for overnight tests.
 - This session ran in a git worktree. The app blocks file edits in the main folder from worktree sessions, so it
   committed in the worktree and fast-forwarded `main`.
+- Private GitHub repo https://github.com/ghzxdt/trading-research created in Chrome with the user's OK (empty, no
+  README). `main` pushed after the user approved Git Credential Manager's sign-in, which is saved for ghzxdt. A
+  manual run of the evening task at 9:02 PM ET pushed `main` unattended. New rule: push after every commit.
