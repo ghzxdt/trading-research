@@ -32,6 +32,22 @@
   showed no evidence. RSI(2)'s next-day effect is mostly overnight (+19 bp from the close vs +7 bp from the next
   open), which favors a 4:05 PM perp entry, but that is below the 24 bp Kalshi taker round trip.
 
+## Pick up here (Mon 2026-11-09)
+
+**Runs automatically tomorrow (Central times):**
+- 8:00 AM: market snapshot (Kalshi perps and macro markets, futures).
+- 9:30 AM, 11:30 AM, 1:30 PM: liquidity samples (first ever).
+- 2:50 PM: minute bars, option chains, 4th liquidity sample. 3:05 PM: market snapshot with the inflation nowcast.
+- 3:45 PM: evening refresh. It waits for Cboe's VIX close, records Monday's paper decisions, then commits and
+  pushes the data ("Evening refresh data, 2026-11-09" on GitHub).
+- 7:10 PM: minute bars, OCC volume, first snapshot-journal records, backup to `G:\My Drive\Trading Research Backups`.
+
+**Check tomorrow:** `work\market_snapshot.log`, `work\intraday_collect.log`, `work\scheduled_refresh.log`,
+the GitHub data commit and the Drive archive dated 2026-11-09. CPI is Tue Nov 10, 8:30 AM ET.
+
+**Next work:** the trade simulator in the backtester (its `LOG.md`, "Pick up here", has the full design). Then
+the open items below.
+
 ## Open items (keep current)
 - **Free liquidity pipeline (user approved, built 2026-11-08):** `liquidity_free.py` samples share and
   near-the-money option spreads 4 times a day and adds Yahoo share volume and OCC options volume (standard
