@@ -16,7 +16,7 @@ from pathlib import Path
 
 from app_control import hidden_process_flags
 
-DATA_PATHS = ("data/monitor/paper_events.jsonl", "data/kalshi", "data/employment")
+DATA_PATHS = ("data/monitor/paper_events.jsonl", "data/kalshi", "data/futures", "data/macro", "data/employment")
 FROZEN = "data/monitor/experiment_lock.json"
 
 

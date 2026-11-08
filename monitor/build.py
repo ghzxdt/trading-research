@@ -8,6 +8,7 @@ import pandas as pd
 from stage1 import report
 from stage1.studies import adjust_pvalues
 from validation import freshness,now_et
+import crosscheck
 from . import backtest,employment,paper
 
 
@@ -153,8 +154,10 @@ def quality_page(root,out,t,registry):
           ['VIX observations',vf['last'],'PASS' if vf['ok'] else 'BLOCKED',vf['reason']],
           ['Rebuild/arithmetic checks',str(checks.get('passed')),'PASS' if checks.get('passed') else 'BLOCKED','Current transformation checks; not independent vendor certification'],
           ['Liquidation calibration','Unknown','SIZING BLOCKED','Side-specific proxy model is not reconciled against broker-displayed liquidation prices'],
-          ['Independent vendor reconciliation','Not completed','UNVERIFIED','Internal consistency cannot prove every provider observation is true'],
+          ['Independent vendor reconciliation','Partial','UNVERIFIED','SPY and QQQ daily returns are checked against FRED (next row); opens, IWM, DIA, RSP and the leveraged ETFs are not'],
           ['Historical executable venue costs','Not available','SCENARIO ONLY','Backtests expose assumptions and do not label them actual fills']]
+    # Second-source price check: display only, so the gate returned below is unchanged.
+    cross=crosscheck.compare(t,crosscheck.load(root));dump(out/'price_crosscheck.json',cross);rows.insert(5,crosscheck.quality_row(cross))
     manifests=[]
     for p in out.glob('manifest_*.json'):
         data=json.loads(p.read_text(encoding='utf-8'));manifests.append([data.get('component'),data.get('run_id'),data.get('as_of')])
@@ -196,7 +199,7 @@ def jobs_page(root,out,t):
 
 def build(root,out,refresh_jobs=False):
     out.mkdir(parents=True,exist_ok=True)
-    if refresh_jobs:employment.refresh(root)
+    if refresh_jobs:employment.refresh(root);crosscheck.refresh(root)
     config=root/'monitor_config.json'
     costs=backtest.validate_costs(json.loads(config.read_text(encoding='utf-8')) if config.exists() else {})
     baseline=json.loads((root/'baseline_manifest.json').read_text(encoding='utf-8'))
