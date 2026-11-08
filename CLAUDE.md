@@ -34,8 +34,8 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 1. **Operations:** scheduled evening refresh so the paper log never misses a day (done 2026-11-07); market
    snapshots at ~9:00 AM and 4:05 PM ET: Kalshi perps and CPI/Fed/payrolls markets, S&P/Nasdaq futures and the
    Cleveland Fed inflation nowcast (done 2026-11-07; the user agreed a full every-15-minutes collector isn't worth
-   it unless a strategy needs intraday entries or limit-order fills); Leverage tab must ignore closed-market quotes
-   when showing spreads.
+   it unless a strategy needs intraday entries or limit-order fills); Leverage tab ignores closed-market quotes
+   when showing spreads (done 2026-11-07).
 2. **Jobs / macro data fix** (see below).
 3. **Thesis terminal "Today" page** for the universe: regime, relevant news and events with historical
    comparisons, evidence, invalidation, risk numbers, logged calls. Design it with the user before building.
@@ -77,7 +77,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 ## How to run
 - Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
 - Dashboard: http://localhost:8766/monitor.html (server binds to 127.0.0.1 only).
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (111 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (116 tests).
 - Scheduled task **Trading Research Market Snapshots** (Mon-Fri 8:00 AM and 3:05 PM Central) runs
   `market_snapshot.py --scheduled`, which appends Kalshi perps and macro markets (`data/kalshi/perp_quotes.csv`,
   `event_quotes.csv`), S&P/Nasdaq futures from Yahoo (`data/futures/futures_quotes.csv`) and, at 4:05 PM, the

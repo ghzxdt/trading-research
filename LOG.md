@@ -1,15 +1,13 @@
 # Trading research log
 
 ## Open items (keep current)
-- **User action:** close the control panel, reopen it from the desktop shortcut, and click **Restart app**. The
-  dashboard server running since 7:08 PM CT on Nov 7, and the open panel, still have the code from before the
-  VIX guard. A panel from before the guard waits only 1.2 s for the server, and the guard's first check can take
-  about 1.5 s.
+- Small polish: spreads under 0.01% show as "0.00%" on the Leverage tab and ticker pages. Show them in basis
+  points (a new table format in `leverage/report.py`, plus `spread_text`).
 - **Costs are understated.** Kalshi perps fees are 0.12% taker / 0.02% maker per side at the base tier; the
   backtests and the frozen paper experiment assume 0.02% plus 0.03% spread and slippage. Use measured fees in the
   next experiment version.
-- Roadmap 1: Leverage tab ignores closed-market spreads. (Market snapshots are done; the first scheduled one is
-  Mon Nov 9, 9:00 AM ET, and the evening task commits and pushes them.)
+- Roadmap 1 is done (evening refresh, market snapshots, closed-market spreads). The first scheduled snapshot is
+  Mon Nov 9, 9:00 AM ET, and the evening task commits and pushes it. Next: roadmap 2 (jobs/macro data).
 - Second-source price checks cover SPY and QQQ closes only. Opens, IWM, DIA, RSP and the leveraged ETFs have no
   free second source yet (Stooq now blocks automated downloads; FRED has no Russell 2000).
 - Roadmap 2: jobs/macro data fix (BLS API + ALFRED + FRED release dates; Kalshi CPI and Fed markets as dated
@@ -85,3 +83,10 @@
   Live check: no block on Saturday night (Friday already logged); at a simulated Mon 5:00 PM ET it blocked
   because Cboe's file ends Nov 6. A check takes about 1-1.5 s the first time and 0.1 s once the connection is
   reused. Commits 85c6258, ae3dda5 and bcae46a; 111 tests.
+- Leverage tab fix (commit e403c0d, 116 tests): a closed market now shows its latest saved open-market spread,
+  with the time (from `data/kalshi/snapshots.csv` and `perp_quotes.csv`), or a blank if there is none. Before,
+  it showed the closed book's quotes. A new "Spread quote" column says which, and the ticker pages use the same
+  wording. Offline rebuild: US500 now shows a 0.0046% spread from Fri Nov 6, 1:17 AM ET instead of the closed
+  market's 2.46%; crypto (24/7) stays live.
+- Restarted the dashboard server on the new code (9:07 PM CT) through the app's own stop/start path. The control
+  panel wasn't open.
