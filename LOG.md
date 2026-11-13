@@ -12,6 +12,10 @@
   nothing was pushed after Nov 8. Market snapshots were skipped every day (outside their windows), so no Kalshi,
   futures or nowcast data exists for Nov 9-12. No daytime liquidity samples or option chains. Evening minute
   bars were collected Nov 9, 11 and 12 (Nov 12 missed TNA and LABD). Backups stayed local (no Google Drive).
+- 00:37 ET Nov 13, from the new laptop: `scheduled_refresh.py` logged the Nov 12 paper decisions before entry and
+  the page's stances (SPY and QQQ flat), then pushed the data (05542c2). Its page build was refused because
+  `setup_windows_tasks.ps1` was edited mid-build; an offline rebuild then published the Nov 12 page. The thesis
+  now reads the backtester's Nov 9 export from the sibling folder. Shortcut uses `assets\app.ico`.
 
 ## Intraday extension implementation (2026-11-07)
 - Added Today as the landing workspace and `/api/v1/thesis_state`, preserving existing tabs and controls.
