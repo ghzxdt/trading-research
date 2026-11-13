@@ -34,6 +34,7 @@ $lnk = $shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Desktop')
 $lnk.TargetPath = $pythonw
 $lnk.Arguments = "`"$(Join-Path $root 'desktop_app.pyw')`""
 $lnk.WorkingDirectory = $root
+$lnk.IconLocation = "$(Join-Path $root 'assets\app.ico'),0"
 $lnk.Description = 'Trading Research Control Panel'
 $lnk.Save()
 Write-Output "Shortcut: $($lnk.FullName)"
