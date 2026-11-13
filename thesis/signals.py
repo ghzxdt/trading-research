@@ -15,7 +15,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-DEFAULT_EXPORT = Path("C:/Users/gzdt/trading-backtester/exports/trade_simulation.json")
+# Sibling folder: <workspace>/trading-backtester (works wherever both apps sit side by side)
+DEFAULT_EXPORT = Path(__file__).resolve().parents[2] / "trading-backtester" / "exports" / "trade_simulation.json"
 SYMBOLS = ("SPY", "QQQ", "IWM")
 EVIDENCE_SYMBOLS = ("SPY", "QQQ")  # the backtester simulated these two (long histories)
 EXIT_LABELS = {"hold_5": "Hold 5 sessions", "close_above_sma5": "First close above the 5-day average (max 10)"}

@@ -1,5 +1,18 @@
 # Trading research log
 
+## 2026-11-12: moved to the reset laptop (`C:\Claude\trading-research`, user `timothy`)
+- Restored from `C:\Claude\Claude-Backup-2026-11-12`. Python 3.12.10 and Git installed; `.venv` rebuilt from
+  `requirements-frozen-2026-11-12.txt`; 251 tests pass. Path fixes: `runtime.json`, `CLAUDE.md`, and
+  `thesis/signals.py` (backtester export is now the sibling `..\trading-backtester` folder).
+- `setup_windows_tasks.ps1` recreated the Evening Refresh, Market Snapshots and Intraday Collection tasks and the
+  desktop shortcut (first runs Fri Nov 13). Stale worktree `.claude\worktrees\wizardly-allen-40e985` removed.
+- What the old laptop did Nov 9-12: it only ran jobs late in the evening (off or asleep during the day).
+  The evening refresh never finished (Cboe's VIX file reset the connection on Nov 9; Nov 10 no run; Nov 11
+  and 12 started but never got further), so no paper decisions or page stances were logged for Nov 9-11 and
+  nothing was pushed after Nov 8. Market snapshots were skipped every day (outside their windows), so no Kalshi,
+  futures or nowcast data exists for Nov 9-12. No daytime liquidity samples or option chains. Evening minute
+  bars were collected Nov 9, 11 and 12 (Nov 12 missed TNA and LABD). Backups stayed local (no Google Drive).
+
 ## Intraday extension implementation (2026-11-07)
 - Added Today as the landing workspace and `/api/v1/thesis_state`, preserving existing tabs and controls.
 - Added the sixteen-instrument shared universe, minute-bar archive/replay, VWAP/ORB/price levels,

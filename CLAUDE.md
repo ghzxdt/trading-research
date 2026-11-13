@@ -93,7 +93,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   (p = 0.69). Surprise data feeds the thesis as context, not a standalone trade signal.
 
 ## Rules
-- Work directly in `C:\Users\gzdt\trading-research`, not in a git worktree. The runtime (`.venv`) and the data
+- Work directly in `C:\Claude\trading-research`, not in a git worktree. The runtime (`.venv`) and the data
   aren't tracked by git, so a worktree can't run the app or its tests. If a session starts under
   `.claude\worktrees`, move the session to this folder before doing anything else.
 - No order placement or broker integration. Never use Kalshi's trading endpoints.
@@ -113,7 +113,10 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 ## How to run
 - Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
 - Dashboard: http://localhost:8766/thesis.html (Daily thesis; Intraday is `today.html`). Binds to 127.0.0.1 only.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (247 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (251 tests).
+- New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
+  requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
+  recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).
 - Online builds also download FRED credit spreads (`data/raw/credit/`) and mega-cap earnings dates from Yahoo and
   Nasdaq (`data/raw/earnings/`); offline builds only read them. The thesis reads the backtester's
   `exports/trade_simulation.json` if present (`THESIS_BACKTESTER_EXPORT` overrides the path).
@@ -128,7 +131,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   of `data/` except `data/raw/` (`data_backup.py`) to `backups/data/` and to the first cloud folder in
   `backup_targets.json` that exists (Google Drive for desktop or iCloud for Windows). It keeps 3 days plus one
   per week for 4 weeks.
-- Companion app: **trading-backtester** (`C:\Users\gzdt\trading-backtester`, private repo
+- Companion app: **trading-backtester** (`C:\Claude\trading-backtester`, private repo
   https://github.com/ghzxdt/trading-backtester) reads this app's data read-only and tests indicator rules. Never
   make this app depend on it.
 - Scheduled task **Trading Research Market Snapshots** (Mon-Fri 8:00 AM and 3:05 PM Central) runs
