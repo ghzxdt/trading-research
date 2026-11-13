@@ -19,7 +19,7 @@
 - No Google Drive (user, 2026-11-13): "keep saving all our conversations to the claude folder and i will
   manually back up". Cloud targets removed. Chats for every project are now copied into each project's own
   `conversations/` folder by the hub task **Claude Conversations Copy** (`C:\Claude\sync_conversations.ps1`,
-  nightly 10 PM and at sign-in; each folder has a `.gitignore`, so transcripts never reach GitHub).
+  nightly 10 PM, at sign-in and on unlock; each folder has a `.gitignore`, so transcripts never reach GitHub).
 
 ## Intraday extension implementation (2026-11-07)
 - Added Today as the landing workspace and `/api/v1/thesis_state`, preserving existing tabs and controls.
