@@ -23,3 +23,6 @@ data/options_research/
 data/terminal/
 data/news_history/
 data/liquidity/
+
+# Same-day option snapshots (large, in the nightly data backup)
+data/zero_dte/

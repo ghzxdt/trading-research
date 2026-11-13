@@ -28,6 +28,16 @@ def handle_get(root, route, query):
             import pandas as pd
             from thesis import calls, data
             return 200, calls.summary(root, data.etfs(root, pd.Timestamp.now(tz='America/New_York')))
+        if route == '/api/v1/thesis/live':
+            # Parts of the Daily thesis that change between builds: the 3:50 PM check, the paper book, 0DTE data.
+            import pandas as pd
+            import zero_dte
+            from thesis import calls, data, paper_book, preclose, signals, stance_log
+            now = pd.Timestamp.now(tz='America/New_York')
+            etfs = data.etfs(root, now)
+            sig = signals.build(etfs, signals.load_export()[0])['signals']
+            return 200, {'preclose': preclose.summary(root, etfs, sig), 'same_day_options': zero_dte.summary(root, etfs),
+                         'paper_book': paper_book.build(root, now, etfs, sig, calls.read(root, stance_log.LOG))}
         if route == '/api/v1/thesis/journal':
             import pandas as pd
             from thesis import data, journal, ledger

@@ -25,11 +25,17 @@
   - Journal and Idea ledger on the Daily thesis (new `/api/v1/thesis/note`, `/idea`, `/idea/update`,
     `/journal`). Ledger seeded with 11 ideas from what has been tested so far and the playbook's open ideas.
   - Optional "leans on" tags on calls, with a by-tag table once calls are scored.
-- **Next, in order (playbook gaps 5-15):** pre-close check at 3:50 PM ET; open-setups tracker; overnight-gap
-  context; morning headline collection and a top-holdings mover flag; release values (roadmap 2); 0DTE phase 0
-  (confirm expiries, test Cboe's delayed quotes as a second source). Backtester items (gap split, regime filter,
-  leveraged-ETF pricing, weekly automatic simulation) wait until the backtester chat ends; the user wants the
-  two-app review revisited then.
+- **Then (user: "build everything"):** paper ticket and paper book; pre-close check at 3:50 PM ET logged
+  forward; same-day option snapshots (Cboe delayed feed) and one-day VIX history; news card and morning
+  headline collection; futures caution; bad-print filter; tasks wake the laptop and also run at sign-in;
+  dashboard starts at sign-in. Full list with reasons: `docs/CHANGES_2026-11-12_13.md`. 284 tests.
+- **Check on Fri Nov 13 (first live runs):** `work\intraday_collect.log` for "Same-day options: {'saved': 3...}"
+  at 10:00 AM ET and "Pre-close check: {'recorded': True...}" at 3:50 PM ET; the System status card for
+  snapshots and liquidity samples; whether the laptop woke from sleep for a run.
+- **Still open:** backtester items (gap split, regime filter, leveraged-ETF pricing, weekly automatic
+  simulation) wait until the backtester chat ends; the user wants the two-app review revisited then. Release
+  values (roadmap 2, needs the user's free FRED key). Top-holdings mover flag (needs a single-stock price
+  download; the playbook wrongly said saved prices cover it). Intraday base rates wait for data.
 - **Idea kept in mind, not built (user, brainstorm):** automatic paper trades in thinkorswim as a live running
   log. paperMoney has no supported API for automated orders as far as known, and this project's rule is no
   broker integration; options are a daily "ticket" the user enters by hand, or a paper-trading API built for

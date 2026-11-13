@@ -312,7 +312,8 @@ def wait_for_build(root: Path, sleep, lock_state, limit: int = 600) -> int:
 
 
 def run(root: Path = ROOT, *, scheduled: bool = False, get=_get, bars_for=yahoo_bars, nowcast=cleveland_nowcast,
-        now=lambda: pd.Timestamp.now(tz=NY), sleep=time.sleep, say=log, lock_state=build_lock_state) -> int:
+        now=lambda: pd.Timestamp.now(tz=NY), sleep=time.sleep, say=log, lock_state=build_lock_state,
+        headlines=None) -> int:
     stamp = now()
     slot = slot_for(stamp)
     if scheduled and slot == "manual":
@@ -350,8 +351,23 @@ def run(root: Path = ROOT, *, scheduled: bool = False, get=_get, bars_for=yahoo_
         f"{len(futures_rows)} futures, {len(cast_rows)} nowcast values"
         + (f"; waited {waited}s for a build" if waited else "")
         + (f". Problems: {'; '.join(problems)}" if problems else "."))
+    if headlines:  # also archive headlines, so the morning page has news from before the open
+        try:
+            say(f"Headlines: {headlines(root)}")
+        except Exception as exc:
+            say(f"Headlines failed: {exc}")
     wrote = perp_rows or futures_rows
     return 0 if wrote and not problems else 1 if wrote else 2
+
+
+def collect_headlines(root: Path) -> str:
+    """Yahoo headlines for the three index ETFs and Fed releases, added to the first-seen archive."""
+    from intraday_collect import refresh_headlines
+    from news_history import archive_current
+    results = refresh_headlines(root, ["SPY", "QQQ", "IWM"])
+    added = archive_current(root)
+    failed = [r["source"] for r in results if r["status"].startswith("failed")]
+    return f"{added['added']} new, {added['total']} archived" + (f"; failed: {', '.join(failed)}" if failed else "")
 
 
 def main(argv=None) -> int:
@@ -360,7 +376,7 @@ def main(argv=None) -> int:
                         help="skip when started outside the snapshot windows (used by the scheduled task)")
     args = parser.parse_args(argv)
     try:
-        return run(ROOT, scheduled=args.scheduled)
+        return run(ROOT, scheduled=args.scheduled, headlines=collect_headlines)
     except Exception:
         log("Snapshot failed:\n" + traceback.format_exc())
         return 3

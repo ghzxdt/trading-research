@@ -5,6 +5,7 @@ from validation import equity_sessions
 from .calendar import utc, date_of, session, NY
 from .store import canonical, digest
 
+BAD_PRINT = 0.01  # an extended-hours print more than 1% from the surrounding closes is treated as a bad print
 STUDY_ID = "orb-continuation-v1"
 PARAMETERS = {"opening_range_minutes": 15, "target_r": 2.0, "max_trades_per_session": 1,
               "vwap_confirmation": True, "direction": "both", "entry": "next_event_after_knowledge_and_latency"}
@@ -134,10 +135,24 @@ def snapshot(records, as_of):
     if bounds.get("is_session"):
         prior_close = utc(session(previous_date)["close"]) if previous_date else utc(bounds["open"]) - pd.Timedelta(days=1)
         overnight = [r for r in rows if prior_close <= utc(r["timestamp"]) < utc(bounds["open"])]
+    # Extended-hours feeds carry occasional bad prints (seen 2026-11-11: SPY "traded" 711.46 between 760.04 and
+    # 760.08, as the bar's open and low). A high or low more than BAD_PRINT away from both that bar's close and
+    # the previous bar's close is a spike that reverted within the minute: it is replaced by the nearer of those
+    # two closes, and counted, so one stray tick can't set a level.
+    ordered = sorted(overnight, key=lambda r: r["timestamp"])
+    highs, lows, suspect = [], [], 0
+    for i, r in enumerate(ordered):
+        closes = [r["close"]] + ([ordered[i - 1]["close"]] if i else [])
+        top, bottom = max(closes), min(closes)
+        bad_high, bad_low = r["high"] > top * (1 + BAD_PRINT), r["low"] < bottom * (1 - BAD_PRINT)
+        suspect += bad_high or bad_low
+        highs.append(top if bad_high else r["high"])
+        lows.append(bottom if bad_low else r["low"])
     levels = {"prior_session": prior,
-              "overnight_observed": {"high": max(r["high"] for r in overnight), "low": min(r["low"] for r in overnight),
-                                     "bars": len(overnight), "coverage_verified": False,
-                                     "label": "Observed extended-hours range; feed coverage may be incomplete"} if overnight else None,
+              "overnight_observed": {"high": max(highs), "low": min(lows),
+                                     "bars": len(overnight), "coverage_verified": False, "suspect_prints_excluded": suspect,
+                                     "label": "Observed extended-hours range; feed coverage may be incomplete"
+                                              + (f"; {suspect} suspect print(s) excluded" if suspect else "")} if overnight else None,
               "orb_high": orb.get("high"), "orb_low": orb.get("low")}
     forward = bool(regular) and all(r["availability_basis"] == "observed_live" for r in regular)
     return {"schema_version": 1, "symbol": symbol, "as_of": cutoff.isoformat(), "session": bounds, "market_session": market_bounds,

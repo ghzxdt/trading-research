@@ -20,7 +20,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import calls, data, earnings, eligibility, journal, ledger, morning, ops, regime, risk, signals, stance_log
+from . import (calls, data, earnings, eligibility, journal, ledger, morning, news, ops, paper_book, preclose, regime,
+               risk, signals, stance_log)
 
 TEMPLATE = Path(__file__).with_name("template.html")
 SCHEMA = 2  # 2 (2026-11-13): stance direction "none", evidence_check, ops, journal, ideas
@@ -147,9 +148,29 @@ def build_state(root: Path, now: pd.Timestamp) -> dict:
     if latest:
         from refresh_guard import entry_time
         entry_at = entry_time(pd.Timestamp(latest))
+    view = morning.build(root, now)
+    call = stance(sig, reg, earn, latest, check, entry_passed=bool(entry_at is not None and now >= entry_at))
+    if call["direction"] == "long" and view["futures"].get("status") == "ok" and view["mode"] in ("morning", "evening"):
+        moves = "; ".join(f"{r.get('name') or r['symbol']} {r['change_since_4pm']:+.2%}" for r in view["futures"]["rows"]
+                          if r.get("change_since_4pm") is not None)
+        if moves:
+            call["cautions"].append(f"Since the 4 PM close ({view['futures']['snapshot_et']} ET snapshot): {moves}. "
+                                    "A move up before the open has already taken part of any bounce; the evidence "
+                                    "is not split by gap size yet.")
+    try:
+        stance_rows = calls.read(root, stance_log.LOG)
+    except ValueError:
+        stance_rows = []
+    try:
+        import zero_dte
+        same_day = zero_dte.summary(root, etfs)
+    except Exception as exc:  # research data only: never blocks the page
+        same_day = {"status": "unavailable", "reason": str(exc)[:200], "rows": [], "latest": []}
     return {"schema_version": SCHEMA, "as_of": now.isoformat(), "latest_close": latest,
-            "view": morning.build(root, now),
-            "stance": stance(sig, reg, earn, latest, check, entry_passed=bool(entry_at is not None and now >= entry_at)),
+            "view": view, "stance": call,
+            "paper_book": paper_book.build(root, now, etfs, sig, stance_rows),
+            "preclose": preclose.summary(root, etfs, sig), "same_day_options": same_day,
+            "news": news.build(root, now, latest),
             "next_entry_et": entry_at.isoformat() if entry_at is not None else None,
             "regime": reg, "signals": sig, "evidence_source": export_info, "evidence_check": check,
             "ops": ops.build(root, now, latest, check),
@@ -205,7 +226,12 @@ def log_stance(root: Path, state: dict, now: pd.Timestamp, say=print) -> dict:
     say(f"Thesis stance log: {result}")
     state["stance_log"] = stance_log.summary(root, data.etfs(root, now))
     state["stance_log"]["last_attempt"] = result
-    state["ops"] = ops.build(root, now, state.get("latest_close"), state.get("evidence_check"))
+    try:  # the ticket must include a stance logged in this same build
+        etfs = data.etfs(root, now)
+        state["paper_book"] = paper_book.build(root, now, etfs, state.get("signals") or [], calls.read(root, stance_log.LOG))
+    except ValueError:
+        pass
+    state["ops"] =ops.build(root, now, state.get("latest_close"), state.get("evidence_check"))
     return result
 
 

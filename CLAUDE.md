@@ -82,6 +82,15 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
    notes with a snapshot of the page and a 5/20-session look-back); the **Idea ledger** (`thesis/ledger.py`, each
    idea from "idea" to "kept" or "dropped", counting everything tested); optional "leans on" tags on calls.
    The playbook `docs/THESIS_PLAYBOOK.pdf` lists the 15 information gaps in priority order; gaps 1-4 are fixed.
+   **Also added 2026-11-13 (user: "build everything"; details in `docs/CHANGES_2026-11-12_13.md`):**
+   the **Paper ticket and paper book** (`thesis/paper_book.py`: each logged long followed to its rule's own exit,
+   with the backtest beside it; a view, not a new log); the **Pre-close check** (`thesis/preclose.py`,
+   `data/thesis/preclose.jsonl`: at about 3:50 PM ET, which rules would fire at the current price, compared later
+   with the real close, plus paper trades bought at that close); **same-day option snapshots** (`zero_dte.py`,
+   Cboe's free delayed feed, SPY/QQQ/IWM, `data/zero_dte/`, research data only, never a signal); a **News since
+   the last close** card (`thesis/news.py`); a futures line among a long call's cautions; a bad-print filter for
+   extended-hours levels (`intraday/features.py`, `BAD_PRINT`). `/api/v1/thesis/live` refreshes the ticket,
+   pre-close and 0DTE cards without a rebuild.
    Historical comparisons must show base rates, sample sizes and holdout results so the page can't manufacture
    confidence. Interactive candlestick charts with news pinned to the time it hit (TradingView Lightweight
    Charts is the candidate library).
@@ -111,7 +120,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   BLS, the Fed); Kalshi is the only source only for its own perps' quotes, depth and funding.
 - Sizing stays blocked until margin/liquidation is calibrated and a strategy has forward evidence.
 - Never edit `data/monitor/paper_events.jsonl`, `data/thesis/calls.jsonl`, `data/thesis/stance_log.jsonl`,
-  `data/thesis/journal.jsonl` or `data/thesis/ideas.jsonl` by hand (append-only, hash-chained; a new fact is a
+  `data/thesis/journal.jsonl`, `data/thesis/ideas.jsonl` or `data/thesis/preclose.jsonl` by hand (append-only, hash-chained; a new fact is a
   new record). Never change a frozen
   experiment (`data/monitor/experiment_lock.json`); a new experiment gets a new version.
 - After every change: run the tests, commit with a clear message, then push `main` (`git push`) to the private
@@ -122,16 +131,22 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 ## How to run
 - Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
 - Dashboard: http://localhost:8766/thesis.html (Daily thesis; Intraday is `today.html`). Binds to 127.0.0.1 only.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (271 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (284 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).
 - Online builds also download FRED credit spreads (`data/raw/credit/`) and mega-cap earnings dates from Yahoo and
   Nasdaq (`data/raw/earnings/`); offline builds only read them. The thesis reads the backtester's
   `exports/trade_simulation.json` if present (`THESIS_BACKTESTER_EXPORT` overrides the path).
-- Scheduled task **Trading Research Intraday Collection** (Mon-Fri 9:30, 11:30 AM, 1:30, 2:50 and 7:10 PM Central)
-  runs `scheduled_collect.py`: liquidity snapshots at 10:30, 12:30 and 2:30 PM ET (`liquidity_free.sample`); at
-  3:50 PM ET minute bars, option chains and a fourth snapshot; at 8:10 PM ET minute bars, then OCC options
+- All three data tasks also start two minutes after sign-in (user, 2026-11-13), so a night with the laptop off
+  is caught up as soon as the user signs in; each script decides what to do from the time of day. After a
+  reboot nothing runs until the user signs in (the tasks store no password). Task **Trading Research Dashboard**
+  starts the dashboard server at sign-in (`start_dashboard.py`).
+- Scheduled task **Trading Research Intraday Collection** (Mon-Fri 9:00, 9:30, 11:30 AM, 1:30, 2:50 and 7:10 PM
+  Central) runs `scheduled_collect.py`: at 10:00 AM ET a same-day option snapshot only (`zero_dte.snapshot`, also
+  taken at every later daytime run); liquidity snapshots at 10:30, 12:30 and 2:30 PM ET (`liquidity_free.sample`); at
+  3:50 PM ET first the pre-close check (`thesis/preclose.py`), then minute bars, option chains and a fourth
+  snapshot; at 8:10 PM ET Cboe's one-day and nine-day VIX histories, minute bars, then OCC options
   volume and the day's record in the **snapshot** liquidity journal (`liquidity_free.update`), then the backup.
   The snapshot journal is a declared weaker policy (spreads from 4 snapshots, not session medians). It is shown
   separately on Today and used only with `run_intraday.py research --liquidity-journal snapshot`; the strict
@@ -147,7 +162,8 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - Scheduled task **Trading Research Market Snapshots** (Mon-Fri 8:00 AM and 3:05 PM Central) runs
   `market_snapshot.py --scheduled`, which appends Kalshi perps and macro markets (`data/kalshi/perp_quotes.csv`,
   `event_quotes.csv`), S&P/Nasdaq futures from Yahoo (`data/futures/futures_quotes.csv`) and, at 4:05 PM, the
-  Cleveland Fed inflation nowcast (`data/macro/inflation_nowcast.csv`). Log: `work\market_snapshot.log`. A start
+  Cleveland Fed inflation nowcast (`data/macro/inflation_nowcast.csv`), and archives Yahoo headlines for SPY, QQQ
+  and IWM plus Fed releases (so the morning page has news). Log: `work\market_snapshot.log`. A start
   outside 8:00-9:30 AM or 4:00-4:45 PM ET records nothing.
 - The Data quality tab checks Yahoo's SPY/QQQ daily returns against FRED's S&P 500 and Nasdaq-100 closes
   (`crosscheck.py`; online refreshes cache the FRED series in `data/raw/crosscheck/`).

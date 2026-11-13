@@ -45,8 +45,9 @@ def records_for(state: dict) -> tuple[list[dict], str | None]:
         mine = [s for s in signals if s["symbol"] == symbol]
         leads = [s["signal"] for s in mine if s["fired"] and eligibility.open_leads(s)]
         passed = [s["signal"] for s in mine if s["fired"] and eligibility.close_only_leads(s)]
+        exits = {s["signal"]: sorted({e["exit"] for e in eligibility.open_leads(s)}) for s in mine if s["signal"] in leads}
         out.append({"instrument": symbol, "direction": "long" if leads else "flat", "rules": leads,
-                    "close_only_rules": passed})
+                    "close_only_rules": passed, "rule_exits": exits})  # exits: what the paper book follows
     return out, None
 
 
