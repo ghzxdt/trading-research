@@ -22,6 +22,15 @@ class SourceManifestTests(unittest.TestCase):
             self.assertEqual(before,source_manifest(root))
             self.assertIn('desktop_app.pyw',before)
 
+    def test_copied_chats_are_not_app_source(self):
+        with tempfile.TemporaryDirectory(dir=SCRATCH) as folder:
+            root=Path(folder)
+            (root/'desktop_app.pyw').write_text('print("app")')
+            before=source_manifest(root)
+            (root/'conversations'/'abc').mkdir(parents=True)
+            (root/'conversations'/'abc'/'custom-title.json').write_text('{"title":"chat"}')
+            self.assertEqual(before,source_manifest(root))
+
 
 class FreshnessDisplayTests(unittest.TestCase):
     def test_saved_old_green_status_is_not_presented_as_current(self):

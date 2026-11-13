@@ -32,9 +32,11 @@ def _inside(path: Path, parent: Path) -> Path:
 
 
 def source_manifest(root: Path) -> dict:
+    # "conversations" holds copied Claude chats (C:\Claude\sync_conversations.ps1); they change at any time and
+    # are not app source, so they must never make a build look inconsistent.
     paths = []
     for p in root.rglob("*"):
-        if not p.is_file() or any(part in {"backups", "output", ".venv", "__pycache__", ".git", ".claude", "data", "work"} or part.startswith(".output-") for part in p.relative_to(root).parts):
+        if not p.is_file() or any(part in {"backups", "output", ".venv", "__pycache__", ".git", ".claude", "data", "work", "conversations"} or part.startswith(".output-") for part in p.relative_to(root).parts):
             continue
         if p.suffix.lower() in {".py", ".pyw", ".html", ".json", ".txt", ".ps1", ".cmd", ".bat"}:
             paths.append(p)

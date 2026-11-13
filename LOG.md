@@ -1,5 +1,17 @@
 # Trading research log
 
+## 2026-11-13: review and first fix
+- Read-only review of the app (user's prompt). Findings to act on, in order: (1) the page and the stance log call
+  "long" when any pricing of a fired rule is a Lead, including "buy at the signal close", which has passed (SPY
+  RSI(2) < 10 is a Lead only at the close); (2) the page says Flat when the export is missing and Long when a
+  rule's dates mismatch, while the stance log skips both; (3) `scheduled_refresh.py` stops once paper decisions
+  exist, so a failed page build is never retried and still exits 0; (4) a stale export still "matches" (dates
+  only, no price or fingerprint check) and a malformed strategy row crashes the thesis build; (5) no liquidity
+  sample has ever been recorded, so the snapshot gate can't open before about Dec 14-15 (not Dec 8).
+- Fixed: `build_pipeline.source_manifest` no longer counts `conversations/` as app source, so the chat copy
+  can't make a build refuse to publish. 1 new test (252 total).
+- Thesis playbook for the user: `docs/THESIS_PLAYBOOK.pdf` (routes to a thesis, information gaps, 0DTE plan).
+
 ## 2026-11-12: moved to the reset laptop (`C:\Claude\trading-research`, user `timothy`)
 - Restored from `C:\Claude\Claude-Backup-2026-11-12`. Python 3.12.10 and Git installed; `.venv` rebuilt from
   `requirements-frozen-2026-11-12.txt`; 251 tests pass. Path fixes: `runtime.json`, `CLAUDE.md`, and
