@@ -17,8 +17,9 @@
   `setup_windows_tasks.ps1` was edited mid-build; an offline rebuild then published the Nov 12 page. The thesis
   now reads the backtester's Nov 9 export from the sibling folder. Shortcut uses `assets\app.ico`.
 - No Google Drive (user, 2026-11-13): "keep saving all our conversations to the claude folder and i will
-  manually back up". Cloud targets removed; the evening backup now also copies this project's Claude chats and
-  memory to `backups/conversations/`. 2 new tests (253 total).
+  manually back up". Cloud targets removed. Chats for every project are now copied into each project's own
+  `conversations/` folder by the hub task **Claude Conversations Copy** (`C:\Claude\sync_conversations.ps1`,
+  nightly 10 PM and at sign-in; each folder has a `.gitignore`, so transcripts never reach GitHub).
 
 ## Intraday extension implementation (2026-11-07)
 - Added Today as the landing workspace and `/api/v1/thesis_state`, preserving existing tabs and controls.

@@ -80,7 +80,7 @@ class BackupTests(unittest.TestCase):
     def test_archive_has_collected_data_but_not_raw_caches_or_locks(self):
         import zipfile, data_backup
         cloud=self.root/'cloud'
-        result=data_backup.run(self.root,say=lambda m:None,today=date(2026,11,9),cloud=cloud,conversations=None)
+        result=data_backup.run(self.root,say=lambda m:None,today=date(2026,11,9),cloud=cloud)
         for path in (result['local'],result['cloud']):
             with zipfile.ZipFile(path) as z:
                 self.assertEqual(sorted(z.namelist()),['data/intraday/v1/bars.jsonl','data/monitor/paper_events.jsonl',
@@ -99,25 +99,8 @@ class BackupTests(unittest.TestCase):
     def test_no_cloud_folder_means_local_only(self):
         import data_backup
         said=[]
-        result=data_backup.run(self.root,say=said.append,today=date(2026,11,9),cloud=None,conversations=None)
-        self.assertIsNone(result['cloud']);self.assertIn('backups/data',said[0]);self.assertEqual(len(said),1)
-
-    def test_conversations_are_copied_without_deleting(self):
-        import os, data_backup
-        source=self.root/'chats';(source/'memory').mkdir(parents=True)
-        (source/'a.jsonl').write_text('one',encoding='utf-8');(source/'memory'/'MEMORY.md').write_text('m',encoding='utf-8')
-        dest=self.root/data_backup.CONVERSATIONS;dest.mkdir(parents=True);(dest/'old.jsonl').write_text('keep',encoding='utf-8')
-        result=data_backup.run(self.root,say=lambda m:None,today=date(2026,11,9),cloud=None,conversations=source)
-        self.assertEqual(result['conversations'],2)
-        self.assertEqual((dest/'a.jsonl').read_text(encoding='utf-8'),'one');self.assertTrue((dest/'old.jsonl').exists())
-        self.assertEqual(data_backup.copy_conversations(source,dest),0)  # unchanged files are skipped
-        (source/'a.jsonl').write_text('one two',encoding='utf-8');os.utime(source/'a.jsonl',None)
-        self.assertEqual(data_backup.copy_conversations(source,dest),1)
-        self.assertEqual((dest/'a.jsonl').read_text(encoding='utf-8'),'one two')
-
-    def test_conversation_folder_matches_claude_code_naming(self):
-        import data_backup
-        self.assertEqual(data_backup.conversation_folder(Path('C:/Claude/trading-research')).name,'C--Claude-trading-research')
+        result=data_backup.run(self.root,say=said.append,today=date(2026,11,9),cloud=None)
+        self.assertIsNone(result['cloud']);self.assertIn('backups/data',said[0])
 
     def test_evening_run_backs_up_and_afternoon_run_does_not(self):
         calls=[]
