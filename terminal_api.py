@@ -28,6 +28,11 @@ def handle_get(root, route, query):
             import pandas as pd
             from thesis import calls, data
             return 200, calls.summary(root, data.etfs(root, pd.Timestamp.now(tz='America/New_York')))
+        if route == '/api/v1/thesis/journal':
+            import pandas as pd
+            from thesis import data, journal, ledger
+            return 200, {'journal': journal.summary(root, data.etfs(root, pd.Timestamp.now(tz='America/New_York'))),
+                         'ideas': ledger.summary(root)}
         if route == '/api/v1/universe':
             return 200, {'schema_version': 1, 'universe': active_symbols(root)}
         if route == '/api/v1/intraday/status':

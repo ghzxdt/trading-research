@@ -11,6 +11,29 @@
 - Fixed: `build_pipeline.source_manifest` no longer counts `conversations/` as app source, so the chat copy
   can't make a build refuse to publish. 1 new test (252 total).
 - Thesis playbook for the user: `docs/THESIS_PLAYBOOK.pdf` (routes to a thesis, information gaps, 0DTE plan).
+- **Built the same day (user: "lets do all of those"), playbook gaps 1-4 plus the journal and ledger:**
+  - Stance rules v2 (`thesis/eligibility.py`, used by the page and the stance log): long needs a next-open Lead;
+    close-only Leads show as "fired, but not a setup now" and log flat; "No call" when the evidence can't be
+    used. The user agreed to about 10 days for stale evidence; implemented as a caution after 10 days and unusable
+    after 45, because the simulation is still re-run by hand and a hard 10-day cut would blank the page within a
+    week. New stance records carry `"stance_rules": 2`; the four existing records are v1 and untouched.
+  - `signals.validate_export`: a damaged export is "invalid" instead of crashing the build.
+  - `scheduled_refresh.py` step 5: checks the published page and the stance log after the decisions exist,
+    refreshes once more if incomplete, exits 4 if the page still isn't published.
+  - System status card (`thesis/ops.py`). It shows Nov 9-11 as missed paper-decision days.
+  - Tasks set to wake the laptop; the power plan's "Allow wake timers" still has to be enabled by the user.
+  - Journal and Idea ledger on the Daily thesis (new `/api/v1/thesis/note`, `/idea`, `/idea/update`,
+    `/journal`). Ledger seeded with 11 ideas from what has been tested so far and the playbook's open ideas.
+  - Optional "leans on" tags on calls, with a by-tag table once calls are scored.
+- **Next, in order (playbook gaps 5-15):** pre-close check at 3:50 PM ET; open-setups tracker; overnight-gap
+  context; morning headline collection and a top-holdings mover flag; release values (roadmap 2); 0DTE phase 0
+  (confirm expiries, test Cboe's delayed quotes as a second source). Backtester items (gap split, regime filter,
+  leveraged-ETF pricing, weekly automatic simulation) wait until the backtester chat ends; the user wants the
+  two-app review revisited then.
+- **Idea kept in mind, not built (user, brainstorm):** automatic paper trades in thinkorswim as a live running
+  log. paperMoney has no supported API for automated orders as far as known, and this project's rule is no
+  broker integration; options are a daily "ticket" the user enters by hand, or a paper-trading API built for
+  automation, which would need the user to change that rule and open the account.
 
 ## 2026-11-12: moved to the reset laptop (`C:\Claude\trading-research`, user `timothy`)
 - Restored from `C:\Claude\Claude-Backup-2026-11-12`. Python 3.12.10 and Git installed; `.venv` rebuilt from

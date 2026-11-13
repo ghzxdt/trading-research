@@ -10,11 +10,14 @@ Steps:
    (9:00 AM ET the next morning, before the 9:30 entry) refresh once regardless, so a missing
    VIX close is logged as data_blocked instead of leaving a silent gap. That is the only refresh
    that overrides the app's VIX guard (refresh_guard.py).
-5. Commit the data files the refresh changed and push main to GitHub (git_backup.py).
+5. Check that the Daily thesis was published for that session and its stance logged (a build can fail
+   after it has written the decisions). If not, run the refresh once more; if the page still isn't
+   published, say so and exit 4.
+6. Commit the data files the refresh changed and push main to GitHub (git_backup.py).
 
 It never trades and never commits code. Log: work/scheduled_refresh.log.
 Exit codes: 0 decisions logged before entry; 1 logged but late or data-blocked;
-2 not logged by the deadline; 3 unexpected error.
+2 not logged by the deadline; 3 unexpected error; 4 decisions logged but the page was not published.
 """
 from __future__ import annotations
 
@@ -28,7 +31,7 @@ import pandas as pd
 
 import git_backup
 from app_control import ControlError, Controller
-from refresh_guard import decision_states, last_vix_date, newest_csv_date  # shared with the refresh guard
+from refresh_guard import decision_states, entry_time, last_vix_date, newest_csv_date  # shared with the refresh guard
 from validation import NY, equity_sessions, expected_session
 
 ROOT = Path(__file__).resolve().parent
@@ -110,8 +113,54 @@ def report(found: dict[str, str], say) -> int:
     return 0
 
 
+PAGE_NOT_PUBLISHED = 4
+
+
+def page_status(root: Path, session) -> dict:
+    """What the published Daily thesis and the stance log hold for `session` (read-only)."""
+    import json
+
+    from thesis import calls, stance_log
+    from validation import output_dir
+    day = f"{pd.Timestamp(session):%Y-%m-%d}"
+    try:
+        state = json.loads((output_dir(Path(root)) / "thesis_state.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        state = {}
+    built = str(state.get("latest_close") or "")
+    try:
+        logged = any(r.get("latest_close") == day for r in calls.read(root, stance_log.LOG))
+    except ValueError:
+        logged = False
+    attempt = ((state.get("stance_log") or {}).get("last_attempt") or {}) if built == day else {}
+    skipped = attempt.get("skipped") if attempt.get("skipped") and "already logged" not in attempt["skipped"] else None
+    return {"published": built >= day, "page_close": built or None, "stance_logged": logged, "stance_skipped": skipped}
+
+
+def finish(root: Path, session, page, refresh, say, now, entry=entry_time) -> int:
+    """After the decisions exist: make sure the page was published and the stance logged; refresh once if not.
+
+    The decisions are written early in a build, so a build that fails later leaves them logged with the page
+    still on an older close. Without this step the next run would see the decisions and stop."""
+    status = page(root, session)
+    stance_due = not status["stance_logged"] and not status["stance_skipped"] and now() < entry(session)
+    if not status["published"] or stance_due:
+        say(f"Incomplete: the page is at the {status['page_close'] or 'unknown'} close and the stance for "
+            f"{session:%b %d} is {'logged' if status['stance_logged'] else 'not logged'}. Running Run / Refresh data again.")
+        say(refresh(False) if refresh else "No refresh function given.")
+        status = page(root, session)
+    if not status["published"]:
+        say(f"FAILED: the page is still not published for {session:%b %d}. Open work\\last_refresh.log.")
+        return PAGE_NOT_PUBLISHED
+    if status["stance_logged"]:
+        say(f"Page published for {session:%b %d}; stance logged.")
+    else:
+        say(f"Page published for {session:%b %d}; stance not logged ({status['stance_skipped'] or 'its entry has passed'}).")
+    return 0
+
+
 def run(root: Path = ROOT, *, say=log, now=lambda: pd.Timestamp.now(tz=NY), sleep=time.sleep,
-        vix_date=last_vix_date, states=decision_states, refresh=None, backup=None) -> int:
+        vix_date=last_vix_date, states=decision_states, refresh=None, backup=None, page=None) -> int:
     start = now()
     session = expected_session(start)
     deadline = deadline_for(start, session)
@@ -146,6 +195,8 @@ def run(root: Path = ROOT, *, say=log, now=lambda: pd.Timestamp.now(tz=NY), slee
             say(f"Deadline passed without decisions for {session:%b %d}.")
             break
         sleep(max(min(CHECK_EVERY, deadline - moment).total_seconds(), 1.0))
+    if page and code in (0, 1):  # decisions exist: check the rest of the evening's work
+        code = max(code, finish(root, session, page, refresh, say, now))
     if backup:
         backup()
     return code
@@ -157,7 +208,7 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     try:
         today = pd.Timestamp.now(tz=NY).date().isoformat()
-        return run(ROOT, refresh=lambda force=False: app_refresh(Controller(ROOT), force=force),
+        return run(ROOT, refresh=lambda force=False: app_refresh(Controller(ROOT), force=force), page=page_status,
                    backup=None if args.no_git else (lambda: git_backup.sync(ROOT, log, f"Evening refresh data, {today}")))
     except Exception:
         log("Unexpected error:\n" + traceback.format_exc())

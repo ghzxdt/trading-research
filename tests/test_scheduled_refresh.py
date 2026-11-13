@@ -100,6 +100,52 @@ class RunTests(unittest.TestCase):
         self.assertTrue(any("Could not read Cboe" in s for s in self.said))
 
 
+class FinishTests(unittest.TestCase):
+    """Decisions are written early in a build, so the run must also check the page and the stance log."""
+    def setUp(self):self.clock=FakeClock(MONDAY_EVENING);self.said=[];self.refreshes=[]
+
+    def go(self,pages,refresh_result='Refresh succeeded.'):
+        pages=list(pages)
+        def page(root,session):return pages.pop(0) if len(pages)>1 else pages[0]
+        def refresh(force):self.refreshes.append(force);return refresh_result
+        return sr.run(Path('.'),say=self.said.append,now=self.clock.now,sleep=self.clock.sleep,vix_date=lambda:date(2026,11,9),
+                      states=lambda root,session:{'k':'recorded_before_entry'},refresh=refresh,page=page)
+
+    def page(self,published=True,stance=True,skipped=None):
+        return {'published':published,'page_close':'2026-11-09' if published else '2026-11-06','stance_logged':stance,'stance_skipped':skipped}
+
+    def test_complete_evening_needs_no_second_refresh(self):
+        self.assertEqual((self.go([self.page()]),self.refreshes),(0,[]))
+        self.assertTrue(any('stance logged' in s for s in self.said))
+
+    def test_unpublished_page_is_refreshed_once_and_repaired(self):
+        code=self.go([self.page(published=False,stance=False),self.page()])
+        self.assertEqual((code,self.refreshes),(0,[False]))
+        self.assertTrue(any(s.startswith('Incomplete: the page is at the 2026-11-06 close') for s in self.said))
+
+    def test_page_still_unpublished_exits_4(self):
+        code=self.go([self.page(published=False)],refresh_result='Refresh failed: Build failed')
+        self.assertEqual((code,self.refreshes),(sr.PAGE_NOT_PUBLISHED,[False]))
+        self.assertTrue(any(s.startswith('FAILED: the page is still not published') for s in self.said))
+
+    def test_missing_stance_is_retried_only_while_its_entry_is_ahead_and_unexplained(self):
+        self.assertEqual((self.go([self.page(stance=False),self.page()]),self.refreshes),(0,[False]))
+        self.refreshes.clear()
+        self.assertEqual((self.go([self.page(stance=False,skipped='evidence unavailable')]),self.refreshes),(0,[]))
+        self.refreshes.clear();self.clock.t=pd.Timestamp('2026-11-10 10:00',tz=NY)  # Monday's entry has passed
+        code=sr.finish(Path('.'),pd.Timestamp('2026-11-09'),lambda r,s:self.page(stance=False),lambda f:self.refreshes.append(f),self.said.append,self.clock.now)
+        self.assertEqual((code,self.refreshes),(0,[]))
+
+    def test_page_status_reads_the_published_state_and_the_stance_log(self):
+        with tempfile.TemporaryDirectory(dir=SCRATCH) as folder:
+            root=Path(folder);(root/'output').mkdir()
+            self.assertEqual(sr.page_status(root,'2026-11-09'),{'published':False,'page_close':None,'stance_logged':False,'stance_skipped':None})
+            (root/'output'/'thesis_state.json').write_text(json.dumps({'latest_close':'2026-11-09','stance_log':{'last_attempt':{'logged':0,'skipped':'the evidence is unavailable'}}}))
+            got=sr.page_status(root,'2026-11-09')
+            self.assertEqual((got['published'],got['stance_logged'],got['stance_skipped']),(True,False,'the evidence is unavailable'))
+            self.assertFalse(sr.page_status(root,'2026-11-10')['published'])
+
+
 class AppRefreshTests(unittest.TestCase):
     def test_starts_refresh_waits_and_stops_server_it_started(self):
         c=FakeController([{'running':False,'busy':False},BUSY,BUSY,IDLE_DONE])

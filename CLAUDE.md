@@ -69,11 +69,19 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
    comparisons, evidence, invalidation, risk numbers, logged calls. Design approved 2026-11-08: two tabs side by
    side, Daily thesis (built first) and Intraday; see `docs/TODAY_PAGE_PLAN.md` for contents and build order.
    **Daily thesis tab built 2026-11-08** (`thesis/`, `run_thesis.py`): regime, registered signals with the
-   backtester's evidence, fixed stance rules (long candidate only when a Lead rule fires; never short), events and
+   backtester's evidence, fixed stance rules (never short; **v2 since 2026-11-13**, shared by the page and the
+   stance log in `thesis/eligibility.py`: long only when a rule fired whose *next-open* pricing is a Lead; a rule
+   that is a Lead only at the close is "fired, but not a setup now"; "No call" when the evidence is missing,
+   damaged, mismatched, unchecked or over 45 days old, with a caution after 10 days), events and
    mega-cap earnings, ETF loss scenarios at 1x-10x, morning futures/nowcast, and the user's call log
    (`data/thesis/calls.jsonl`, scored automatically). The page's own stance is logged forward by online builds
    (`data/thesis/stance_log.jsonl`, SPY/QQQ long or flat, only before the next open) and scored the same way
-   (user asked 2026-11-08). Intraday research unlocks around Dec 8, 2026.
+   (user asked 2026-11-08). Intraday research needs 20 complete sampled days; none existed on 2026-11-13, so
+   mid-December at the earliest. **Added 2026-11-13 (user: "lets do all of those"):** a System status card
+   (`thesis/ops.py`: last result of each job, missed paper-decision days); the **Journal** (`thesis/journal.py`,
+   notes with a snapshot of the page and a 5/20-session look-back); the **Idea ledger** (`thesis/ledger.py`, each
+   idea from "idea" to "kept" or "dropped", counting everything tested); optional "leans on" tags on calls.
+   The playbook `docs/THESIS_PLAYBOOK.pdf` lists the 15 information gaps in priority order; gaps 1-4 are fixed.
    Historical comparisons must show base rates, sample sizes and holdout results so the page can't manufacture
    confidence. Interactive candlestick charts with news pinned to the time it hit (TradingView Lightweight
    Charts is the candidate library).
@@ -102,8 +110,9 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   exists (user, 2026-11-07: "I don't want it to only come from Kalshi"). Prefer official sources (Cboe, FRED,
   BLS, the Fed); Kalshi is the only source only for its own perps' quotes, depth and funding.
 - Sizing stays blocked until margin/liquidation is calibrated and a strategy has forward evidence.
-- Never edit `data/monitor/paper_events.jsonl`, `data/thesis/calls.jsonl` or `data/thesis/stance_log.jsonl` by hand
-  (append-only, hash-chained). Never change a frozen
+- Never edit `data/monitor/paper_events.jsonl`, `data/thesis/calls.jsonl`, `data/thesis/stance_log.jsonl`,
+  `data/thesis/journal.jsonl` or `data/thesis/ideas.jsonl` by hand (append-only, hash-chained; a new fact is a
+  new record). Never change a frozen
   experiment (`data/monitor/experiment_lock.json`); a new experiment gets a new version.
 - After every change: run the tests, commit with a clear message, then push `main` (`git push`) to the private
   GitHub repo https://github.com/ghzxdt/trading-research. Don't commit `data/raw/`, `output/`, `backups/`,
@@ -113,7 +122,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 ## How to run
 - Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
 - Dashboard: http://localhost:8766/thesis.html (Daily thesis; Intraday is `today.html`). Binds to 127.0.0.1 only.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (252 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (271 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).
@@ -143,8 +152,13 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - The Data quality tab checks Yahoo's SPY/QQQ daily returns against FRED's S&P 500 and Nasdaq-100 closes
   (`crosscheck.py`; online refreshes cache the FRED series in `data/raw/crosscheck/`).
 - Scheduled task **Trading Research Evening Refresh** (Mon-Fri 3:45 PM Central) runs `scheduled_refresh.py`:
-  waits for the day's VIX close, runs the app's refresh, then `git_backup.py` commits the data files and pushes
-  `main`. Log: `work\scheduled_refresh.log`. Turn it off in Task Scheduler.
+  waits for the day's VIX close, runs the app's refresh, checks that the page was published for that session and
+  its stance logged (refreshing once more if not; exit 4 if the page still isn't published), then
+  `git_backup.py` commits the data files and pushes `main`. Log: `work\scheduled_refresh.log`. Turn it off in
+  Task Scheduler.
+- All three tasks have "wake the computer to run" set (2026-11-13). Windows only honours it when the power plan's
+  **Allow wake timers** is Enabled; on 2026-11-13 it was "Important wake timers only" plugged in and Disabled on
+  battery, which the user changes (Control Panel > Power Options > Change plan settings > Advanced > Sleep).
 - Offline rebuild: `.venv\Scripts\python -B run_all.py --offline` (about 70 seconds).
 - Online refresh: the control panel's **Run / Refresh data**, or `run_all.py` without `--offline`. Both refuse,
   with the reason, while the latest session's paper decisions aren't logged and Cboe hasn't posted its VIX close

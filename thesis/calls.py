@@ -23,6 +23,7 @@ from .data import NY
 LOG = Path("data/thesis/calls.jsonl")
 INSTRUMENTS = ("SPY", "QQQ", "IWM", "UPRO", "SPXU", "TQQQ", "SQQQ")
 DIRECTIONS = ("long", "short", "flat")
+BASIS = ("signal", "regime", "event", "news", "levels", "other")  # what the call leaned on (optional tags)
 MAX_HORIZON = 60
 MAX_TEXT = {"invalidation": 600, "reason": 1500}
 OPEN = pd.Timedelta(hours=9, minutes=30)
@@ -82,7 +83,13 @@ def validate(payload: dict) -> dict:
         raise ValueError("Say what would invalidate a long or short call.")
     context = payload.get("context") if isinstance(payload.get("context"), dict) else {}
     keep = {k: context[k] for k in ("suggestion", "page_as_of", "latest_close") if k in context}
-    return {"instrument": instrument, "direction": direction, "horizon_sessions": horizon, **texts, "context": keep}
+    raw = payload.get("basis") or []
+    raw = raw if isinstance(raw, list) else [raw]
+    basis = [b for b in BASIS if b in {str(x).lower() for x in raw}]
+    if len(basis) != len({str(x).lower() for x in raw}):
+        raise ValueError("Basis must be chosen from " + ", ".join(BASIS) + ".")
+    return {"instrument": instrument, "direction": direction, "horizon_sessions": horizon, **texts, "context": keep,
+            "basis": basis}
 
 
 def append(root: Path, payload: dict, now: pd.Timestamp | None = None) -> dict:
@@ -114,6 +121,7 @@ def score(call: dict, frame: pd.DataFrame | None) -> dict:
     out = {"id": call["id"], "recorded_et": call["recorded_et"], "instrument": call["instrument"],
            "direction": call["direction"], "horizon_sessions": call["horizon_sessions"],
            "invalidation": call.get("invalidation"), "reason": call.get("reason"),
+           "basis": call.get("basis") or [],
            "suggestion": (call.get("context") or {}).get("suggestion")}
     if frame is None or frame.empty:
         return {**out, "status": "no_data"}
@@ -153,5 +161,14 @@ def summary(root: Path, etfs: dict) -> dict:
     if not check["ok"]:
         return {"status": "broken", "reason": check["reason"], "calls": [], "scoreboard": scoreboard([])}
     scored = [score(c, etfs.get(c["instrument"])) for c in read(root)]
+    final = [s for s in scored if s.get("status") == "scored"]
+    by_basis = []
+    for tag in BASIS:
+        mine = [s for s in final if tag in (s.get("basis") or [])]
+        if mine:
+            by_basis.append({"basis": tag, "scored": len(mine),
+                             "mean_call_return": sum(s["call_return"] for s in mine) / len(mine),
+                             "mean_versus_always_long": sum(s["versus_always_long"] for s in mine) / len(mine)})
     return {"status": "ok", "calls": list(reversed(scored)), "scoreboard": scoreboard(scored),
-            "instruments": list(INSTRUMENTS), "max_horizon": MAX_HORIZON}
+            "instruments": list(INSTRUMENTS), "max_horizon": MAX_HORIZON, "basis_options": list(BASIS),
+            "by_basis": by_basis}

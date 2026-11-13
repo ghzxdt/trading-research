@@ -1,7 +1,7 @@
 # Recreates the app's Windows scheduled tasks and the desktop shortcut for the signed-in user.
 # Run from the project folder after .venv exists:  powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1
 # Times are the computer's local time (US Central). Triggers start tomorrow so nothing fires during setup.
-# Settings (LOG.md, 2026-11-07): start late if missed, run on battery, don't wake the computer,
+# Settings: start late if missed, run on battery, wake the computer to run (since 2026-11-13),
 # run only while the user is signed in (no stored password).
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -14,7 +14,9 @@ $start = (Get-Date).Date.AddDays(1)
 function Register-AppTask($name, $script, $arguments, $times, $limitHours, $description) {
     $action = New-ScheduledTaskAction -Execute $pythonw -Argument ("`"$(Join-Path $root $script)`" $arguments").Trim() -WorkingDirectory $root
     $triggers = foreach ($t in $times) { New-ScheduledTaskTrigger -Weekly -DaysOfWeek $days -At ($start + [TimeSpan]::Parse($t)) }
-    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+    # -WakeToRun (2026-11-13): the old laptop slept through every daytime run. Windows only honours it when the
+    # power plan's "Allow wake timers" is Enabled (Control Panel > Power Options > Sleep); the user sets that.
+    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -WakeToRun -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
         -ExecutionTimeLimit (New-TimeSpan -Hours $limitHours) -MultipleInstances IgnoreNew
     $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
     Register-ScheduledTask -TaskName $name -Action $action -Trigger $triggers -Settings $settings -Principal $principal `

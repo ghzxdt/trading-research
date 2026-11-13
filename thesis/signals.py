@@ -49,6 +49,29 @@ def export_path() -> Path:
     return Path(os.environ.get("THESIS_BACKTESTER_EXPORT") or DEFAULT_EXPORT)
 
 
+def validate_export(payload: dict) -> None:
+    """Raise ValueError unless the export has every field this app reads (a damaged file must not crash a build)."""
+    strategies, days = payload.get("strategies"), payload.get("signal_days")
+    if not isinstance(strategies, list) or not strategies:
+        raise ValueError("it has no strategies")
+    if not isinstance(days, dict) or not days:
+        raise ValueError("it has no signal days")
+    for row in strategies:
+        if not isinstance(row, dict) or any(not isinstance(row.get(k), str) for k in ("symbol", "signal", "exit", "mode", "verdict")):
+            raise ValueError("a strategy row is missing its symbol, signal, exit, mode or verdict")
+        for period in ("development", "holdout"):
+            result = row.get(period)
+            if result is None and period == "holdout":
+                continue
+            if (not isinstance(result, dict) or "trades" not in result or not isinstance(result.get("strategy"), dict)
+                    or not isinstance(result.get("matched"), dict)):
+                raise ValueError(f"a strategy row has an incomplete {period} result")
+    for key, entry in days.items():
+        if not isinstance(entry, dict) or not isinstance(entry.get("dates"), list) or not entry.get("last_date"):
+            raise ValueError(f"signal days for {key} are incomplete")
+        pd.Timestamp(entry["last_date"])
+
+
 def load_export(path: Path | None = None) -> tuple[dict | None, dict]:
     path = Path(path or export_path())
     if not path.exists():
@@ -60,7 +83,8 @@ def load_export(path: Path | None = None) -> tuple[dict | None, dict]:
         payload = json.loads(raw)
         if payload.get("kind") != "trade_simulation" or payload.get("schema") != 1:
             raise ValueError("unexpected export format")
-    except (ValueError, AttributeError) as exc:
+        validate_export(payload)
+    except (ValueError, AttributeError, TypeError, KeyError) as exc:
         return None, {"status": "invalid", "path": str(path), "reason": f"Export unreadable: {exc}"}
     return payload, {"status": "ok", "path": str(path), "sha256": hashlib.sha256(raw).hexdigest(),
                      "generated_at": payload.get("generated_at"), "code": payload.get("code"),
