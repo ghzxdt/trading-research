@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Thesis Playbook</title>
+<style>
+  @page { size: Letter; margin: 15mm 14mm 16mm 14mm; }
+  :root { --ink:#16202b; --muted:#5a6675; --line:#d5dbe3; --accent:#0f5c8c; --soft:#f2f6fa; --good:#1d7a4f; --warn:#a86400; --bad:#b3261e; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: var(--ink); font-size: 9.6pt; line-height: 1.42; margin: 0; }
+  h1 { font-size: 23pt; margin: 0 0 4pt; letter-spacing: -0.3pt; }
+  h2 { font-size: 14pt; color: var(--accent); margin: 16pt 0 6pt; padding-bottom: 3pt; border-bottom: 1.5pt solid var(--accent); break-after: avoid; }
+  h3 { font-size: 11pt; margin: 0 0 4pt; break-after: avoid; }
+  h4 { font-size: 8.4pt; text-transform: uppercase; letter-spacing: 0.6pt; color: var(--muted); margin: 7pt 0 2pt; break-after: avoid; }
+  p { margin: 0 0 5pt; }
+  ul, ol { margin: 0 0 5pt; padding-left: 14pt; }
+  li { margin-bottom: 2pt; }
+  .sub { color: var(--muted); font-size: 10.5pt; margin-bottom: 8pt; }
+  .note { background: var(--soft); border-left: 3pt solid var(--accent); padding: 6pt 9pt; margin: 6pt 0 8pt; break-inside: avoid; }
+  .card { border: 0.8pt solid var(--line); border-radius: 5pt; padding: 8pt 10pt; margin: 0 0 8pt; break-inside: avoid; }
+  .route { border-left: 3.5pt solid var(--accent); }
+  table { border-collapse: collapse; width: 100%; margin: 4pt 0 8pt; font-size: 8.7pt; }
+  th { background: var(--soft); text-align: left; font-weight: 600; padding: 4pt 5pt; border: 0.6pt solid var(--line); vertical-align: bottom; }
+  td { padding: 3.5pt 5pt; border: 0.6pt solid var(--line); vertical-align: top; }
+  tr { break-inside: avoid; }
+  .num { text-align: right; white-space: nowrap; }
+  .chip { display: inline-block; font-size: 7.6pt; font-weight: 600; padding: 0.5pt 5pt; border-radius: 8pt; white-space: nowrap; }
+  .good { background: #e3f3ea; color: var(--good); } .warn { background: #fbefd9; color: var(--warn); } .bad { background: #fbe4e2; color: var(--bad); }
+  .cols { display: flex; gap: 10pt; } .cols > div { flex: 1; }
+  .small { font-size: 8.3pt; color: var(--muted); }
+  .break { break-before: page; }
+  .foot { margin-top: 10pt; font-size: 8pt; color: var(--muted); border-top: 0.6pt solid var(--line); padding-top: 4pt; }
+</style>
+</head>
+<body>
+
+<h1>Thesis Playbook</h1>
+<div class="sub">How to read the trading-research terminal as a quant and day trader, where the information gaps are, and how we close them. Written 13 November 2026 against the app at commit 08c8e9a and data through the 12 November close.</div>
+
+<div class="note"><b>What this is.</b> A research process for the tickers the app is built around (SPY, QQQ, IWM and their leveraged ETFs). It describes how evidence is read and tested, not what to buy. The app never places orders, sizing stays blocked, and nothing here is personal investment advice. Every number is taken from the app's own data; where something has not been checked it says so.</div>
+
+<h2>1. What a thesis needs, and whether the app supplies it</h2>
+<p>A usable thesis answers six questions. The table shows where each answer lives today and how complete it is.</p>
+<table>
+<tr><th style="width:19%">Question</th><th style="width:27%">Where it is in the app</th><th style="width:9%">Status</th><th>What is missing</th></tr>
+<tr><td><b>1. What kind of market is this?</b></td><td>Daily thesis: Regime (trend, VIX and its term structure, credit spreads, breadth, yields) and "what happened after days like today"</td><td><span class="chip good">Good</span></td><td>No uncertainty range on the base rates. The comparison is context only; no rule has been tested by regime.</td></tr>
+<tr><td><b>2. Is there a tested setup?</b></td><td>Daily thesis: registered signals and the backtester's evidence (2010 on, and the 1993-2009 holdout)</td><td><span class="chip warn">Partial</span></td><td>The headline can say "Long" on evidence that only applied to the closing price, which has passed. Stale or missing evidence is not flagged on the page.</td></tr>
+<tr><td><b>3. What could blow it up?</b></td><td>Daily thesis: CPI, jobs and Fed days; mega-cap earnings. Intraday: news with first-seen times</td><td><span class="chip warn">Partial</span></td><td>No release values or expectations, so no "surprise". News reaches the app only in the evening. No news on the Daily thesis.</td></tr>
+<tr><td><b>4. How do I express it, and what does it cost?</b></td><td>Daily thesis: loss scenarios at 1x to 10x. Leverage and Tickers tabs</td><td><span class="chip warn">Partial</span></td><td>Evidence is priced on SPY and QQQ only, not on TQQQ, SQQQ or UPRO. No options expression. No overnight-gap context at the open.</td></tr>
+<tr><td><b>5. When am I wrong, and when do I exit?</b></td><td>Daily thesis: registered exit, "what would change the call" price levels</td><td><span class="chip warn">Partial</span></td><td>Once a signal has fired, nothing tracks the open setup day by day until its exit. The rules have no stop, by design.</td></tr>
+<tr><td><b>6. Did it work?</b></td><td>Your calls, the page's own stance log, the frozen four-rule paper log</td><td><span class="chip bad">Thin</span></td><td>8 paper decisions (1 signal), 4 page stances, 0 calls of yours. Three days were lost when the old laptop was off. The stance is scored over 5 sessions, not the rule's own exit.</td></tr>
+</table>
+
+<h2>2. The daily rhythm</h2>
+<table>
+<tr><th style="width:17%">When (Eastern)</th><th style="width:38%">What I look at</th><th>What I am deciding</th></tr>
+<tr><td><b>3:45 to 4:00 PM</b></td><td>Live price against last night's "what would change the call" levels on the Daily thesis</td><td>Will a registered rule fire at today's close? This is the only moment the "buy at the close" evidence can be used (Route B).</td></tr>
+<tr><td><b>After the evening refresh</b></td><td>Daily thesis top to bottom: headline, evidence table, cautions, regime, events in the next 10 sessions</td><td>Is there a registered setup for tomorrow's open? Which cautions apply? Record my own call with what would invalidate it.</td></tr>
+<tr><td><b>8:00 to 9:25 AM</b></td><td>"Overnight and inflation" card (futures since 4 PM), events today, earnings due, headlines</td><td>Has the overnight move already given or taken the expected bounce? Is today an event day where the daily rules mean less?</td></tr>
+<tr><td><b>9:30 to 10:30 AM</b></td><td>Intraday tab: opening range, VWAP, previous-session levels</td><td>Observation only for now. The intraday rule has 5 prototype trades and is not evidence.</td></tr>
+<tr><td><b>Open positions, daily</b></td><td>Close against the 5-day average (the registered exit), sessions held</td><td>Has the rule's exit triggered? The app shows the level on signal day only; after that it is a manual check.</td></tr>
+<tr><td><b>Weekly</b></td><td>Scoreboards (calls, stance, paper monitor), Data quality tab</td><td>Are my calls adding anything over simply holding? Did any day go unrecorded?</td></tr>
+</table>
+
+<h2 class="break">3. Six routes to a thesis</h2>
+<p>Each route is a different question asked of the same tickers. Routes A and B have tested evidence today. C to F are where the information gaps are largest.</p>
+
+<div class="card route">
+<h3>Route A. Oversold bounce over several days <span class="chip good">Evidence exists</span></h3>
+<p><b>The idea.</b> After a sharp drop, SPY and QQQ have tended to recover over the next few sessions. This is the app's registered route and the only one that drives the headline.</p>
+<h4>Evidence for the entry still available the next morning (buy at the next open, after 2 bp costs)</h4>
+<table>
+<tr><th>ETF and rule</th><th>Exit</th><th class="num">Trades<br>2010 on / 1993-2009</th><th class="num">Win rate</th><th class="num">Mean per trade</th><th class="num">Return per unit of drawdown<br>rule vs buy-and-hold, 2010 on</th></tr>
+<tr><td>SPY, close below lower Bollinger band</td><td>First close above 5-day average</td><td class="num">98 / 96</td><td class="num">69% / 67%</td><td class="num">+0.46% / +0.56%</td><td class="num">0.11 vs 0.38</td></tr>
+<tr><td>QQQ, close below lower Bollinger band</td><td>First close above 5-day average</td><td class="num">103 / 63</td><td class="num">75% / 73%</td><td class="num">+0.80% / +1.43%</td><td class="num">0.28 vs 0.49</td></tr>
+<tr><td>QQQ, RSI(2) below 10</td><td>First close above 5-day average</td><td class="num">191 / 143</td><td class="num">70% / 73%</td><td class="num">+0.48% / +0.89%</td><td class="num">0.24 vs 0.49</td></tr>
+<tr><td>QQQ, RSI(14) below 30</td><td>First close above 5-day average</td><td class="num">25 / 23</td><td class="num">92% / 78%</td><td class="num">+2.80% / +2.32%</td><td class="num">0.34 vs 0.48</td></tr>
+<tr><td>SPY, RSI(14) below 30</td><td>First close above 5-day average</td><td class="num">24 / 24</td><td class="num">79% / 63%</td><td class="num">+0.77% / +0.86%</td><td class="num">0.04 vs 0.38</td></tr>
+</table>
+<p class="small">All five are rated "Lead" by the backtester: they beat random entries in both periods. The last column is the honest caution: since 2010, simply holding the ETF for the same share of time earned more per unit of drawdown in every row. The RSI(14) rows have about 24 trades per period, which is a small sample.</p>
+<div class="cols"><div>
+<h4>How I read it</h4>
+<ul><li>Which rule fired, on which ETF, and is its <i>next-open</i> pricing a Lead? If only the close pricing is, there is no setup the next morning.</li>
+<li>QQQ evidence is stronger than SPY's in every row. IWM has none.</li>
+<li>Then the cautions: an event inside the holding window, earnings, an inverted VIX curve.</li></ul>
+</div><div>
+<h4>Gaps</h4>
+<ul><li>The headline counts close-only evidence (SPY RSI(2) below 10 is a Lead only at the close; it fired 24 times last year).</li>
+<li>No view of the overnight gap against the evidence: a large gap up before the open has already taken part of the bounce.</li>
+<li>No tracker for a setup that is open.</li>
+<li>No test of whether the rules do better or worse by regime.</li></ul>
+</div></div>
+<p><b>Close them by:</b> requiring a next-open Lead for the headline and the log; splitting the next-open evidence by size of overnight gap in the backtester; adding an "open setups" panel (days held, distance to the exit level); registering one trend-and-volatility filter as a new backtester version before looking at results.</p>
+</div>
+
+<div class="card route">
+<h3>Route B. The close-to-open move <span class="chip good">Evidence exists</span> <span class="chip warn">Not usable from the page yet</span></h3>
+<p><b>The idea.</b> In every rule above, buying at the signal close beats buying at the next open: SPY Bollinger +0.54% vs +0.46% per trade, QQQ RSI(2) +0.60% vs +0.48%. Part of the bounce happens overnight. For SPY RSI(2) the whole rated edge is in the close entry (192 trades, 64% wins, +0.57%; "No edge" from the next open).</p>
+<div class="cols"><div>
+<h4>How I read it</h4>
+<ul><li>The decision has to be made a few minutes before 4:00 PM, on a close that has not printed yet.</li>
+<li>Last night's page already gives the levels: "fires at or below" for each rule. At 3:50 PM I compare the live price with them.</li></ul>
+</div><div>
+<h4>Gaps</h4>
+<ul><li>The page is built after the close, so it reports the signal when the close entry is gone.</li>
+<li>No test of how often a rule that looked fired at 3:50 PM was still fired at 4:00 PM.</li></ul>
+</div></div>
+<p><b>Close them by:</b> a "pre-close check" on the Daily thesis, filled by the 3:50 PM collection: each rule, its trigger level, the 3:50 price and the distance. Then, from the minute bars as they build up, measure the 3:50-to-close flip rate. This turns the close-only evidence into something that can honestly be acted on and logged before the fact.</p>
+</div>
+
+<div class="card route">
+<h3>Route C. Event and catalyst days <span class="chip warn">Size only, no direction</span></h3>
+<p><b>The idea.</b> CPI, jobs and Fed days, mega-cap earnings and single-stock shocks change how much the index moves. The app's own test found jobs-morning gaps about 1.2 times normal and no directional edge (p = 0.69). So this is a route about the <i>size</i> of the move, which is what options price.</p>
+<div class="cols"><div>
+<h4>How I read it</h4>
+<ul><li>Events table: typical SPY move on that kind of day against a normal day, with the number of days behind it.</li>
+<li>Earnings table: do Yahoo and Nasdaq agree on the date, and QQQ's median reaction.</li>
+<li>An event inside a Route A holding window is a caution to weigh against the setup, not a signal by itself.</li></ul>
+</div><div>
+<h4>Gaps</h4>
+<ul><li>No release values and no expectation, so "surprise" cannot be measured.</li>
+<li>News arrives late: on 12 November a 9:12 AM headline about Nvidia was first seen by the app at 7:39 PM, because collection ran only in the evening.</li>
+<li>No news or single-stock shock flag on the Daily thesis.</li>
+<li>No intraday profile of event days (when the move happens).</li></ul>
+</div></div>
+<p><b>Close them by:</b> the jobs and macro data fix already on the roadmap (BLS API, first-release values from ALFRED); a headline collection in the 8:00 AM run; a "large mover among the top holdings" flag from the daily prices already saved; event-day intraday profiles once enough minute bars exist (12 CPI days a year, so this takes a year to say much).</p>
+</div>
+
+<div class="card route">
+<h3>Route D. Intraday: opening range, VWAP and levels <span class="chip bad">Not enough data</span></h3>
+<p><b>The idea.</b> Trade the day's own structure: a break of the first 15 minutes' range confirmed by VWAP, or a fade back to it. The app has one registered rule (orb-continuation-v1) and the charting for it.</p>
+<div class="cols"><div>
+<h4>How I read it today</h4>
+<ul><li>As observation only. The rule shows 5 trades from a prototype that predates the liquidity gate.</li>
+<li>Levels are hypotheses. The options strike concentrations are unsigned and are not dealer positioning.</li></ul>
+</div><div>
+<h4>Gaps</h4>
+<ul><li>About 9 sessions of minute bars. Zero liquidity samples: no daytime run has ever happened.</li>
+<li>A suspect level: SPY's "observed overnight low" shows $711.46 against a $759.79 previous close. That looks like a bad print and needs a filter (not yet checked).</li>
+<li>No base rates by time of day, and no link from the daily regime to intraday behaviour.</li>
+<li>Paper observations are logged but outcomes are not resolved automatically.</li></ul>
+</div></div>
+<p><b>Close them by:</b> making the daytime runs happen (laptop awake or wake timers); a bad-tick filter on extended-hours levels; a descriptive page once 60 sessions exist (gap-fill rate, share of the day's range made in the first hour, how often the opening-range break holds), split by the daily regime; automatic outcome resolution for the ORB rule, which is fully determined by the bars.</p>
+</div>
+
+<div class="card route">
+<h3>Route E. Same-day options (0DTE) <span class="chip bad">Not built</span></h3>
+<p><b>The idea.</b> Express a view on today's move, its direction or its size, with options that expire at today's close. Section 4 sets out how I would add it.</p>
+</div>
+
+<div class="card route">
+<h3>Route F. Expression and leverage <span class="chip warn">Partial</span></h3>
+<p><b>The idea.</b> TQQQ, SQQQ and UPRO are ways to hold the same index view with more exposure; they scale gains and losses alike and lose ground in choppy markets.</p>
+<div class="cols"><div>
+<h4>How I read it</h4>
+<ul><li>The risk card: the index move that wipes out the account at each leverage, a typical day, the worst day and the worst 5 sessions.</li></ul>
+</div><div>
+<h4>Gaps</h4>
+<ul><li>The evidence is never shown in the instrument that would be traded. A +0.80% QQQ trade is not simply +2.4% in TQQQ over a 10-session hold.</li>
+<li>No risk limit has been set, so no "allowed size" can be shown.</li></ul>
+</div></div>
+<p><b>Close them by:</b> pricing the same historical trades in TQQQ and UPRO in the backtester (their history starts in 2010, so there is no 1993-2009 holdout and the page must say so); one decision from you on a maximum loss per trade, which unlocks the size view.</p>
+</div>
+
+<h2 class="break">4. Adding 0DTE research for these tickers</h2>
+<div class="cols"><div>
+<h4>What can be traded same-day</h4>
+<ul><li><b>SPY and QQQ:</b> an expiry every trading day.</li>
+<li><b>IWM:</b> I believe it also has daily expiries; to be confirmed from the collected chains.</li>
+<li><b>TQQQ, SQQQ, UPRO, SOXL and the rest, NVDL, TSLL:</b> weekly expiries, so same-day only on Fridays; to be confirmed the same way.</li></ul>
+<h4>The property that makes this researchable for free</h4>
+<p>A 0DTE position held to the close settles at a value fixed by the closing price alone. So the <i>outcome</i> needs only data the app already has. Only the <i>entry price</i> needs an option quote, taken at a fixed time. Forward paper scoring is therefore possible for hold-to-close structures. Anything that exits early needs intraday option quotes we do not have.</p>
+</div><div>
+<h4>What free data cannot do</h4>
+<ul><li>No history of 0DTE option prices before we start collecting. A true backtest of option profit and loss needs paid data.</li>
+<li>Free quotes are delayed and indicative. Results must be shown at mid-price and at the worst case (buy at the ask, sell at the bid).</li>
+<li>The current collector takes chains at 3:50 PM, ten minutes before expiry. That is too late to be useful here.</li></ul>
+<h4>Guardrails</h4>
+<ul><li>ETF options are American-style and settle in shares, and holders can exercise after the close. Short options can be assigned on an after-hours move, so research covers bought options and defined-risk spreads only.</li>
+<li>A separate registered study with its own frozen version. It never feeds the daily headline.</li></ul>
+</div></div>
+
+<table>
+<tr><th style="width:14%">Phase</th><th style="width:44%">What gets built</th><th style="width:15%">Elapsed time</th><th>What it tells us</th></tr>
+<tr><td><b>0. Check</b></td><td>Confirm each ticker's expiries from the chains. Test Cboe's free delayed-quotes feed as a second source beside Yahoo. Fix the snapshot times (for example 9:45 AM, 10:30, 12:30, 2:30 ET).</td><td>1 to 2 days</td><td>Whether the free quotes are good enough to proceed, per ticker</td></tr>
+<tr><td><b>1. Collect</b></td><td>At each snapshot: the same-day chain within about 3% of the price (bid, ask, implied volatility, volume, open interest). Daily history of Cboe's one-day and nine-day VIX.</td><td>Runs from then on</td><td>Spread as a share of premium; today's implied move</td></tr>
+<tr><td><b>2. Describe</b></td><td>Implied move (at-the-money straddle price over the share price at 9:45) against the realised move to the close. Base rates by regime, event day, overnight gap and weekday, each with its sample size.</td><td>60 sessions for a first read</td><td>Where same-day movement has been over- or under-priced</td></tr>
+<tr><td><b>3. Register</b></td><td>One or two studies written down before results, for example: a straddle bought at 9:45 on CPI mornings; a call spread on days after a registered oversold signal.</td><td>After phase 2</td><td>A testable claim with a fixed rule and cost</td></tr>
+<tr><td><b>4. Forward paper</b></td><td>The decision and the quoted entry logged at the snapshot, the result settled automatically from the close. Hash-chained like the other logs.</td><td>Months</td><td>Whether it holds on days not yet seen</td></tr>
+</table>
+<p><b>What the page would show:</b> a "Same-day options" card on the Intraday tab for SPY and QQQ with today's implied move, where the price sits inside that range, how often days like today closed inside it (with the count), the spread cost as a share of the premium, and an event flag.</p>
+<p class="small">Sample-size honesty: this gives one observation per ticker per day. A long-history stand-in is possible from daily open-to-close ranges against the VIX (1993 on), but it is a stand-in for option prices and would be labelled as one.</p>
+
+<h2 class="break">5. Information gap register</h2>
+<p>Ordered by what most affects whether the page can be trusted, then by what most improves a thesis.</p>
+<table>
+<tr><th style="width:3%">#</th><th style="width:27%">Gap</th><th style="width:28%">Why it matters</th><th style="width:28%">Close it by</th><th style="width:14%">Effort</th></tr>
+<tr><td>1</td><td>"Long" counts evidence for a price that has passed</td><td>The headline and the forward log overstate the setup</td><td>Require a next-open Lead; one shared check for page and log</td><td>Half a day to a day</td></tr>
+<tr><td>2</td><td>Missing, mismatched or stale evidence is not shown as such</td><td>"Flat" can mean "no evidence loaded"</td><td>An "evidence unavailable" state; compare the export's age and data fingerprint</td><td>Half a day</td></tr>
+<tr><td>3</td><td>A failed page build is not retried; nothing shows a missed day</td><td>Three days of forward records were lost unnoticed</td><td>Retry and a non-zero exit; a status line: last collection, decisions, page, backup</td><td>1 to 2 days</td></tr>
+<tr><td>4</td><td>Daytime jobs do not run when the laptop sleeps</td><td>No liquidity samples, snapshots or market-hours chains exist</td><td>Wake timers or power settings; five clean days as the test</td><td>Half a day</td></tr>
+<tr><td>5</td><td>No pre-close check</td><td>The close-entry evidence, the stronger half, cannot be used</td><td>A 3:50 PM panel of trigger levels against the live price</td><td>1 day</td></tr>
+<tr><td>6</td><td>No tracker for open setups</td><td>The exit is the other half of every rule</td><td>An "open setups" panel: days held, exit level, distance</td><td>1 day</td></tr>
+<tr><td>7</td><td>No overnight-gap context</td><td>A gap can use up the expected bounce before the open</td><td>Split next-open evidence by gap size; show the futures move beside it</td><td>1 to 2 days (backtester)</td></tr>
+<tr><td>8</td><td>News is late and absent from the Daily thesis</td><td>A single-stock shock changes what a QQQ signal means</td><td>Morning headline collection; a top-holdings mover flag</td><td>1 day</td></tr>
+<tr><td>9</td><td>No release values or expectations</td><td>Event days can be sized but not interpreted</td><td>BLS API and first-release values (roadmap item 2)</td><td>2 to 3 days</td></tr>
+<tr><td>10</td><td>Rules are not tested by regime</td><td>The regime panel cannot yet change a decision</td><td>One pre-registered filter as a new backtester version</td><td>1 to 2 days</td></tr>
+<tr><td>11</td><td>The stance is scored over 5 sessions, not the rule's exit</td><td>The scoreboard measures a different trade from the evidence</td><td>Score both, labelled separately</td><td>Half a day</td></tr>
+<tr><td>12</td><td>Evidence is not shown in TQQQ or UPRO terms</td><td>The instrument traded may behave differently over the hold</td><td>Price the same trades in the leveraged ETFs (2010 on)</td><td>1 day (backtester)</td></tr>
+<tr><td>13</td><td>Suspect extended-hours prints; no second VIX source</td><td>A bad level or one failed download can mislead or stall a day</td><td>A bad-tick filter; a fallback check for the VIX close</td><td>1 day</td></tr>
+<tr><td>14</td><td>No same-day options data</td><td>Routes C and E cannot be studied</td><td>Section 4, phases 0 to 2</td><td>2 to 3 days, then waiting</td></tr>
+<tr><td>15</td><td>Intraday base rates and outcome resolution</td><td>Route D stays observation only</td><td>After 60 sessions of bars and a working liquidity gate</td><td>Later</td></tr>
+</table>
+
+<h2>6. How an idea becomes an edge here</h2>
+<div class="cols"><div>
+<ol>
+<li><b>Write it down first.</b> The rule, the entry time, the exit and the cost, before looking at results.</li>
+<li><b>Backtest against three hurdles:</b> random entries in the same periods, buy-and-hold at the same exposure, and the untouched 1993-2009 holdout.</li>
+<li><b>Log it forward.</b> Recorded before the entry, never edited, scored automatically.</li>
+<li><b>Review on a schedule,</b> with the sample size in view. Change a rule only as a new version.</li>
+<li><b>Size last,</b> once margin and risk limits are set and forward evidence exists.</li>
+</ol>
+</div><div>
+<h4>Where each route stands</h4>
+<table>
+<tr><th>Route</th><th>Stage reached</th></tr>
+<tr><td>A. Oversold bounce</td><td>Step 3, with 4 forward stances</td></tr>
+<tr><td>B. Close-to-open</td><td>Step 2; needs the pre-close check to reach step 3</td></tr>
+<tr><td>C. Events</td><td>Step 1; data missing</td></tr>
+<tr><td>D. Intraday</td><td>Step 1; rule written, data too short</td></tr>
+<tr><td>E. 0DTE</td><td>Not started</td></tr>
+<tr><td>F. Leverage</td><td>Display only</td></tr>
+</table>
+</div></div>
+<div class="note"><b>The one thing to start today.</b> Record your own call each evening on the Daily thesis, with what would invalidate it. It costs a minute, it is the only scoreboard that measures your judgment against simply holding, and it is empty.</div>
+
+<h2 class="break">7. The two apps: keep both, tighten the join</h2>
+<div class="cols"><div>
+<div class="card"><h3>Research app: the desk</h3>
+<p>Collects the data, shows the thesis every evening and morning, and keeps the forward record. It has to be stable: its experiments are frozen and its logs cannot be edited.</p></div>
+</div><div>
+<div class="card"><h3>Backtester: the lab</h3>
+<p>Tests ideas on the desk's saved prices: 90 indicator tests and a trade simulator so far, each written down before it runs. It is small (under 1,000 lines) and meant to change often.</p></div>
+</div></div>
+<p><b>How they connect today.</b> The lab reads the desk's saved daily prices and uses its Python. It writes one evidence file. The desk reads that file, recomputes the same rules itself, and checks that the dates each rule fired agree.</p>
+<table>
+<tr><th style="width:50%">What works</th><th>What is weak</th></tr>
+<tr><td><ul>
+<li>A clean hand-off: one file, read-only in each direction, so a lab change cannot break the desk's records.</li>
+<li>The same discipline on both sides: registered before testing, a 1993-2009 holdout, append-only records.</li>
+<li>Reproducible: the lab's 90 results were identical when re-run on the new laptop.</li>
+<li>Honest verdicts: a "Lead" must beat random entries in both periods, and the report says where buy-and-hold was better.</li>
+</ul></td><td><ul>
+<li>The evidence refreshes only when you click "Run trade simulation". The current file is from 9 November and checks dates through 6 November.</li>
+<li>The desk does not notice an old or damaged file (gaps 1 and 2).</li>
+<li>Each rule is written twice, once per app. The date check guards this, and only this.</li>
+<li>"Backtests" live in three places: the desk's Backtests tab (four frozen older rules), the lab, and the intraday rule registry.</li>
+<li>The lab reads daily prices only, so it cannot yet test anything intraday. Its 24 Leads come from 48 related results with no correction for testing many at once.</li>
+</ul></td></tr>
+</table>
+<div class="cols"><div>
+<h4>My recommendation</h4>
+<p><b>Keep both, and do not merge the code.</b> The separation is what lets the lab change freely while the desk's forward record stays trustworthy. Merging would make every experiment a change to the app that holds the frozen logs. What they need is to behave as one product:</p>
+<ol>
+<li>Run the simulation automatically each week after an evening refresh.</li>
+<li>Give the evidence file a checked format, and have the desk show its age and refuse a damaged one.</li>
+<li>Link the Daily thesis evidence table to the lab's full report.</li>
+<li>Send all new testing to the lab; leave the desk's Backtests tab as the frozen record of the first four rules.</li>
+<li>Teach the lab to read the minute bars once 60 sessions exist.</li>
+</ol>
+</div><div>
+<h4>Is it worth working on both?</h4>
+<p>Yes. They answer different questions, and the edge-finding work is mostly in the lab:</p>
+<table>
+<tr><th>Work</th><th>Where it lands</th></tr>
+<tr><td>Gaps 1 to 6, 8, 9, 11, 13: correctness, reliability, what the page shows</td><td>Desk</td></tr>
+<tr><td>Gaps 7, 10, 12: gap-split evidence, regime filter, leveraged-ETF pricing</td><td>Lab</td></tr>
+<tr><td>The 3:50-to-close flip rate; 0DTE implied-against-realised base rates; intraday base rates</td><td>Lab, on data the desk collects</td></tr>
+</table>
+<p class="small">Order of work: the desk's correctness fixes first (gaps 1 to 4), because the lab's results are only as useful as the page that presents them and the log that scores them.</p>
+</div></div>
+
+<div class="foot">Sources: the app's thesis page and state as built 13 November 2026; the backtester's trade-simulation export generated 9 November 2026 (code bc33571); the app's logs and installed data. Evidence figures are after a 2 bp round-trip ETF cost. Items marked "to be confirmed" or "not yet checked" have not been verified.</div>
+
+</body>
+</html>
