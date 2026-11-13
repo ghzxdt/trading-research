@@ -11,7 +11,7 @@ This runs the app's own collector (intraday_collect.collect) for every active To
 - 8:10 PM ET ("bars" run): minute bars only, after the extended session ends, so each day's archive
   is complete. A late start (computer was off) also runs bars only; the five-day archive forgives it.
   This run then fetches OCC options volume and writes finished days to the snapshot liquidity journal
-  (liquidity_free.update), and backs up the collected data locally and to a cloud folder (data_backup.py).
+  (liquidity_free.update), and backs up the collected data and this project's Claude chats inside backups/ (data_backup.py).
 
 It waits for a running build (an offline rebuild refuses to publish if data/ changes underneath it)
 and for a collection started from the Today page. It never records paper decisions or trades.

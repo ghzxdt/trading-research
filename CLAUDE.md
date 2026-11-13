@@ -113,7 +113,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 ## How to run
 - Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
 - Dashboard: http://localhost:8766/thesis.html (Daily thesis; Intraday is `today.html`). Binds to 127.0.0.1 only.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (251 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (253 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).
@@ -128,9 +128,10 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   separately on Today and used only with `run_intraday.py research --liquidity-journal snapshot`; the strict
   `verified` journal stays the default. Yahoo keeps only ~5 days of minute bars, so this is what builds intraday history. It waits for
   builds and for a Today-page collection. Log: `work\intraday_collect.log`. The evening run then backs up all
-  of `data/` except `data/raw/` (`data_backup.py`) to `backups/data/` and to the first cloud folder in
-  `backup_targets.json` that exists (Google Drive for desktop or iCloud for Windows). It keeps 3 days plus one
-  per week for 4 weeks.
+  of `data/` except `data/raw/` (`data_backup.py`) to `backups/data/` (3 days plus one per week for 4 weeks) and
+  copies this project's Claude chats and memory (`~\.claude\projects\C--Claude-trading-research`) to
+  `backups/conversations/` (adds and updates, never deletes). No cloud sync (user, 2026-11-13): the user backs
+  up `C:\Claude` by hand; `backup_targets.json` lists no folders.
 - Companion app: **trading-backtester** (`C:\Claude\trading-backtester`, private repo
   https://github.com/ghzxdt/trading-backtester) reads this app's data read-only and tests indicator rules. Never
   make this app depend on it.

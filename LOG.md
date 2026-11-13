@@ -16,6 +16,9 @@
   the page's stances (SPY and QQQ flat), then pushed the data (05542c2). Its page build was refused because
   `setup_windows_tasks.ps1` was edited mid-build; an offline rebuild then published the Nov 12 page. The thesis
   now reads the backtester's Nov 9 export from the sibling folder. Shortcut uses `assets\app.ico`.
+- No Google Drive (user, 2026-11-13): "keep saving all our conversations to the claude folder and i will
+  manually back up". Cloud targets removed; the evening backup now also copies this project's Claude chats and
+  memory to `backups/conversations/`. 2 new tests (253 total).
 
 ## Intraday extension implementation (2026-11-07)
 - Added Today as the landing workspace and `/api/v1/thesis_state`, preserving existing tabs and controls.

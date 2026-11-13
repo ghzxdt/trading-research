@@ -1,4 +1,4 @@
 {
-  "description": "Cloud-synced folders for data_backup.py, in order of preference. The first that exists is used. Google Drive for desktop usually appears as G:\\My Drive; iCloud for Windows as %USERPROFILE%\\iCloudDrive.",
-  "cloud_folders": ["G:/My Drive", "%USERPROFILE%/My Drive", "%USERPROFILE%/Google Drive", "%USERPROFILE%/iCloudDrive"]
+  "description": "Extra copy folders for data_backup.py; the first that exists is used. Empty by the user's choice (2026-11-13): no cloud sync; the user backs up C:\\Claude by hand. Archives stay in backups/data and chat transcripts are copied to backups/conversations.",
+  "cloud_folders": []
 }
