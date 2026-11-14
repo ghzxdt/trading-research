@@ -96,7 +96,12 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
    (`thesis/movers.py`, flagged at 4%, also listed among the cautions); **latest release values**
    (`thesis/releases.py`: payrolls, unemployment, hourly earnings, CPI and core CPI from the BLS API v1, jobless
    claims from FRED; published values with revisions, no expectation, so no surprise). All three download in
-   online builds to `data/raw/` and keep the last good copy on failure.
+   online builds to `data/raw/` and keep the last good copy on failure. **2026-11-14: the backtester's export
+   moved to Lead v2** (same schema; `verdict_version`, `verdict_definition`, per-row `verdict_v1`, `q`, `v2` p-values
+   and the `risk_matched` benchmark). The page shows v2's statistics and definition and uses `risk_matched` in the
+   drawdown caution. Under v2 only QQQ has next-open Leads (Bollinger and RSI(14), both with the 5-day-average
+   exit); no SPY rule is a Lead, so SPY logs flat. Stance records logged before 2026-11-13 follow v1's exits in the
+   paper book (`verdict_v1`), so their trades don't vanish when a later verdict differs.
    Historical comparisons must show base rates, sample sizes and holdout results so the page can't manufacture
    confidence. Interactive candlestick charts with news pinned to the time it hit (TradingView Lightweight
    Charts is the candidate library).
@@ -141,7 +146,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 ## How to run
 - Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
 - Dashboard: http://localhost:8766/thesis.html (Daily thesis; Intraday is `today.html`). Binds to 127.0.0.1 only.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (289 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (291 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).

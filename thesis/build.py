@@ -3,8 +3,12 @@
 The stance rules only use registered evidence. Version 2 (2026-11-13; version 1 was fixed 2026-11-08), shared with
 the stance log through thesis/eligibility.py:
 - Long candidate: a registered oversold rule fired at the latest close on SPY or QQQ, and the backtester rated
-  its *next-open* pricing a Lead (random-entry test in both periods plus beating exposure-matched buy-and-hold).
-  Version 1 counted any Lead pricing, including "buy at the signal close", which has passed when the page is read.
+  its *next-open* pricing a Lead. What "Lead" means is the backtester's: since 2026-11-14 its export uses Lead v2
+  (the average trade beats every same-length trade, judged by resampling the rule's trades by calendar quarter,
+  corrected for testing many rules, and CAGR above buy-and-hold scaled to time in the market and volatility, in
+  both periods); the export's own `verdict_definition` is shown on the page. Earlier exports used v1 (a
+  random-entry percentile and time-matched buy-and-hold). Stance rules version 1 counted any Lead pricing,
+  including "buy at the signal close", which has passed when the page is read.
 - Flat: nothing with a next-open Lead fired. A rule that fired with only a closing-price Lead is listed as
   "fired, but not a setup now". The page lists the closes that would fire each next-open Lead rule.
 - No call: the evidence can't be used (missing, unreadable, incomplete, mismatched, unchecked or too old).
@@ -94,16 +98,23 @@ def stance(sig: list[dict], reg: dict, earn: dict, latest: str | None, check: di
     for s in fired:
         for e in _leads(s):
             dev, hold = e["development"], e["holdout"] or {}
+            # Lead v2 judges against buy-and-hold scaled to time in the market and volatility ("risk_matched");
+            # a v1 export only has the time-matched benchmark ("matched").
+            bench = lambda r: r.get("risk_matched") or r.get("matched") or {}  # noqa: E731
             basis.append({"symbol": s["symbol"], "rule": s["label"], "exit": e["exit_label"], "mode": e["mode_label"],
                           "dev_trades": dev["trades"], "dev_win_rate": dev.get("win_rate"), "dev_mean_net": dev.get("mean_net"),
                           "dev_random_percentile": dev.get("random_percentile"),
+                          "dev_excess": (dev.get("v2") or {}).get("mean_excess"), "dev_p": (dev.get("v2") or {}).get("p"),
+                          "dev_quarters": (dev.get("v2") or {}).get("quarters"), "q": e.get("q"),
+                          "holdout_p": (hold.get("v2") or {}).get("p"), "verdict_v1": e.get("verdict_v1"),
+                          "benchmark": "risk_matched" if dev.get("risk_matched") else "matched",
                           "dev_per_drawdown": dev["strategy"].get("return_per_drawdown"),
-                          "dev_matched_per_drawdown": dev["matched"].get("return_per_drawdown"),
+                          "dev_matched_per_drawdown": bench(dev).get("return_per_drawdown"),
                           "dev_max_drawdown": dev["strategy"].get("max_drawdown"), "dev_avg_loss": dev.get("avg_loss"),
                           "holdout_trades": hold.get("trades"), "holdout_win_rate": hold.get("win_rate"),
                           "holdout_mean_net": hold.get("mean_net"),
                           "holdout_per_drawdown": (hold.get("strategy") or {}).get("return_per_drawdown"),
-                          "holdout_matched_per_drawdown": (hold.get("matched") or {}).get("return_per_drawdown")})
+                          "holdout_matched_per_drawdown": bench(hold).get("return_per_drawdown")})
         if any(e["exit"] == "close_above_sma5" for e in _leads(s)):
             exits.append(f"{s['symbol']}: the first close above its 5-day average (about ${s['sma5']:.2f} now; it moves "
                          "daily) or after 10 sessions, whichever comes first.")
@@ -113,9 +124,12 @@ def stance(sig: list[dict], reg: dict, earn: dict, latest: str | None, check: di
     worse = [b for b in basis if b["dev_per_drawdown"] is not None and b["dev_matched_per_drawdown"] is not None
              and b["dev_per_drawdown"] < b["dev_matched_per_drawdown"]]
     if worse:
-        cautions.insert(0, "Per unit of drawdown, buy-and-hold at the same time in the market did better in 2010-2026 "
-                           f"for {len(worse)} of these {len(basis)} rule pricings. The edge showed up mainly in the "
-                           "1993-2009 holdout, which had two crashes.")
+        scaled = any(b["benchmark"] == "risk_matched" for b in worse)
+        what = ("buy-and-hold scaled to the same time in the market and the same volatility while in a trade"
+                if scaled else "buy-and-hold at the same time in the market")
+        cautions.insert(0, f"Per unit of drawdown, {what} did better in 2010-2026 for {len(worse)} of these "
+                           f"{len(basis)} rule pricings. The edge showed up mainly in the 1993-2009 period, which had "
+                           "two crashes.")
     cautions.append("The registered rules have no stop loss: daily data can't show whether a stop would have filled.")
     cautions.append(f"The evidence shown is for buying at the next open after the {latest} close. The closing-price "
                     "entry has passed.")
@@ -129,7 +143,8 @@ def stance(sig: list[dict], reg: dict, earn: dict, latest: str | None, check: di
                            "a later entry.")
     return {"direction": "long", "status": status, "headline": headline,
             "reason": "Backtested evidence below (ETF pricing, bought at the next open, after costs). A Lead is a "
-                      "rule worth watching forward, not proof of an edge.",
+                      "rule worth watching forward, not proof of an edge; the verdict's definition is under "
+                      "the registered signals.",
             "basis": basis, "cautions": cautions, "exit": exits, "changes": [], "close_only": close_only,
             "short_note": SHORT_NOTE}
 
@@ -157,6 +172,10 @@ def build_state(root: Path, now: pd.Timestamp) -> dict:
             call["cautions"].append(f"Since the 4 PM close ({view['futures']['snapshot_et']} ET snapshot): {moves}. "
                                     "A move up before the open has already taken part of any bounce; the evidence "
                                     "is not split by gap size yet.")
+    if call["direction"] == "long" and export_info.get("verdict_version") == "v2":
+        call["cautions"].append("These are Lead v2 verdicts, and provisional: the 1993-2009 period also helped choose "
+                                "these signals, so it is not independent confirmation. Only trades after 2026-11-08 are "
+                                "untouched evidence; the stance log and paper book below are that record.")
     moved = movers.build(root, now, latest)
     if moved.get("flagged") and moved.get("current"):
         call["cautions"].append(f"Large move in a top index holding on {moved['session']}: "

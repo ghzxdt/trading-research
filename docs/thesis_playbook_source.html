@@ -35,7 +35,7 @@
 <body>
 
 <h1>Thesis Playbook</h1>
-<div class="sub">How to read the trading-research terminal as a quant and day trader, where the information gaps are, and how we close them. Written 13 November 2026 against the app at commit 08c8e9a and data through the 12 November close.</div>
+<div class="sub">How to read the trading-research terminal as a quant and day trader, where the information gaps are, and how we close them. Written 13 November 2026 against the app at commit 08c8e9a and data through the 12 November close. Updated 14 November: Route A and B evidence re-judged with the backtester's Lead v2; gaps 1 to 6 and 8 have since been built, and parts of 7, 9, 13 and 14 (see docs/CHANGES_2026-11-12_13.md).</div>
 
 <div class="note"><b>What this is.</b> A research process for the tickers the app is built around (SPY, QQQ, IWM and their leveraged ETFs). It describes how evidence is read and tested, not what to buy. The app never places orders, sizing stays blocked, and nothing here is personal investment advice. Every number is taken from the app's own data; where something has not been checked it says so.</div>
 
@@ -68,26 +68,23 @@
 <div class="card route">
 <h3>Route A. Oversold bounce over several days <span class="chip good">Evidence exists</span></h3>
 <p><b>The idea.</b> After a sharp drop, SPY and QQQ have tended to recover over the next few sessions. This is the app's registered route and the only one that drives the headline.</p>
-<h4>Evidence for the entry still available the next morning (buy at the next open, after 2 bp costs)</h4>
+<h4>Evidence for the entry still available the next morning (buy at the next open, after 2 bp costs; Lead v2, updated 14 November)</h4>
 <table>
-<tr><th>ETF and rule</th><th>Exit</th><th class="num">Trades<br>2010 on / 1993-2009</th><th class="num">Win rate</th><th class="num">Mean per trade</th><th class="num">Return per unit of drawdown<br>rule vs buy-and-hold, 2010 on</th></tr>
-<tr><td>SPY, close below lower Bollinger band</td><td>First close above 5-day average</td><td class="num">98 / 96</td><td class="num">69% / 67%</td><td class="num">+0.46% / +0.56%</td><td class="num">0.11 vs 0.38</td></tr>
-<tr><td>QQQ, close below lower Bollinger band</td><td>First close above 5-day average</td><td class="num">103 / 63</td><td class="num">75% / 73%</td><td class="num">+0.80% / +1.43%</td><td class="num">0.28 vs 0.49</td></tr>
-<tr><td>QQQ, RSI(2) below 10</td><td>First close above 5-day average</td><td class="num">191 / 143</td><td class="num">70% / 73%</td><td class="num">+0.48% / +0.89%</td><td class="num">0.24 vs 0.49</td></tr>
-<tr><td>QQQ, RSI(14) below 30</td><td>First close above 5-day average</td><td class="num">25 / 23</td><td class="num">92% / 78%</td><td class="num">+2.80% / +2.32%</td><td class="num">0.34 vs 0.48</td></tr>
-<tr><td>SPY, RSI(14) below 30</td><td>First close above 5-day average</td><td class="num">24 / 24</td><td class="num">79% / 63%</td><td class="num">+0.77% / +0.86%</td><td class="num">0.04 vs 0.38</td></tr>
+<tr><th style="width:24%">ETF and rule</th><th style="width:17%">Exit</th><th class="num">Trades<br>2010 on / 1993-2009</th><th class="num">Win rate</th><th class="num">Mean per trade</th><th class="num">Edge over same-length trades, 2010 on</th><th class="num">Return per unit of drawdown<br>rule vs scaled buy-and-hold</th></tr>
+<tr><td>QQQ, close below lower Bollinger band</td><td>First close above 5-day average</td><td class="num">104 / 63</td><td class="num">74% / 73%</td><td class="num">+0.79% / +1.43%</td><td class="num">+0.60%, p 0.011</td><td class="num">0.27 vs 0.49</td></tr>
+<tr><td>QQQ, RSI(14) below 30</td><td>First close above 5-day average</td><td class="num">26 / 23</td><td class="num">92% / 78%</td><td class="num">+2.81% / +2.32%</td><td class="num">+2.68%, p 0.0001</td><td class="num">0.36 vs 0.49</td></tr>
 </table>
-<p class="small">All five are rated "Lead" by the backtester: they beat random entries in both periods. The last column is the honest caution: since 2010, simply holding the ETF for the same share of time earned more per unit of drawdown in every row. The RSI(14) rows have about 24 trades per period, which is a small sample.</p>
+<p class="small">On 14 November the backtester replaced its verdict with Lead v2: the average trade must beat every possible trade of the same length, judged by resampling the rule's trades by calendar quarter and corrected for testing many rules, and must beat buy-and-hold scaled to the same time in the market and volatility. Only these two of 12 next-open pricings pass (v1 passed six). <b>No SPY rule is a Lead at any entry</b>; SPY's Bollinger and RSI(14) rows above under v1 are now "No edge". The last column is still the honest caution: per unit of drawdown, scaled buy-and-hold did better since 2010. RSI(14) rests on about 25 trades per period. A v2 Lead is provisional: 1993-2009 also helped choose these signals, so only trades after 8 November are untouched evidence.</p>
 <div class="cols"><div>
 <h4>How I read it</h4>
 <ul><li>Which rule fired, on which ETF, and is its <i>next-open</i> pricing a Lead? If only the close pricing is, there is no setup the next morning.</li>
-<li>QQQ evidence is stronger than SPY's in every row. IWM has none.</li>
+<li>Under Lead v2 only QQQ has a setup; SPY has none and IWM was never simulated.</li>
 <li>Then the cautions: an event inside the holding window, earnings, an inverted VIX curve.</li></ul>
 </div><div>
 <h4>Gaps</h4>
-<ul><li>The headline counts close-only evidence (SPY RSI(2) below 10 is a Lead only at the close; it fired 24 times last year).</li>
+<ul><li><s>The headline counts close-only evidence.</s> Fixed 13 November: the headline and the log need a next-open Lead.</li>
 <li>No view of the overnight gap against the evidence: a large gap up before the open has already taken part of the bounce.</li>
-<li>No tracker for a setup that is open.</li>
+<li><s>No tracker for a setup that is open.</s> Fixed 13 November: the paper book follows each logged long to its exit.</li>
 <li>No test of whether the rules do better or worse by regime.</li></ul>
 </div></div>
 <p><b>Close them by:</b> requiring a next-open Lead for the headline and the log; splitting the next-open evidence by size of overnight gap in the backtester; adding an "open setups" panel (days held, distance to the exit level); registering one trend-and-volatility filter as a new backtester version before looking at results.</p>
@@ -95,7 +92,7 @@
 
 <div class="card route">
 <h3>Route B. The close-to-open move <span class="chip good">Evidence exists</span> <span class="chip warn">Not usable from the page yet</span></h3>
-<p><b>The idea.</b> In every rule above, buying at the signal close beats buying at the next open: SPY Bollinger +0.54% vs +0.46% per trade, QQQ RSI(2) +0.60% vs +0.48%. Part of the bounce happens overnight. For SPY RSI(2) the whole rated edge is in the close entry (192 trades, 64% wins, +0.57%; "No edge" from the next open).</p>
+<p><b>The idea.</b> Wherever both entries are tested, buying at the signal close beats buying at the next open (QQQ Bollinger +0.84% vs +0.79% per trade since 2010). Part of the bounce happens overnight. Under Lead v2 four closing-price pricings are Leads, all on QQQ, and QQQ RSI(2) below 10 with the 5-day-average exit is a Lead <i>only</i> at the close (192 trades, 70% wins, +0.59%, p 0.008). The SPY RSI(2) close-only edge that v1 showed did not survive v2.</p>
 <div class="cols"><div>
 <h4>How I read it</h4>
 <ul><li>The decision has to be made a few minutes before 4:00 PM, on a close that has not printed yet.</li>
@@ -105,7 +102,7 @@
 <ul><li>The page is built after the close, so it reports the signal when the close entry is gone.</li>
 <li>No test of how often a rule that looked fired at 3:50 PM was still fired at 4:00 PM.</li></ul>
 </div></div>
-<p><b>Close them by:</b> a "pre-close check" on the Daily thesis, filled by the 3:50 PM collection: each rule, its trigger level, the 3:50 price and the distance. Then, from the minute bars as they build up, measure the 3:50-to-close flip rate. This turns the close-only evidence into something that can honestly be acted on and logged before the fact.</p>
+<p><b>Close them by:</b> a "pre-close check" on the Daily thesis, filled by the 3:50 PM collection: each rule, its trigger level, the 3:50 price and the distance. Then, from the minute bars as they build up, measure the 3:50-to-close flip rate. This turns the close-only evidence into something that can honestly be acted on and logged before the fact. <b>Built 13 November</b>; its first market-day run is still to come.</p>
 </div>
 
 <div class="card route">
@@ -252,7 +249,7 @@
 <li>Reproducible: the lab's 90 results were identical when re-run on the new laptop.</li>
 <li>Honest verdicts: a "Lead" must beat random entries in both periods, and the report says where buy-and-hold was better.</li>
 </ul></td><td><ul>
-<li>The evidence refreshes only when you click "Run trade simulation". The current file is from 9 November and checks dates through 6 November.</li>
+<li>The evidence refreshes only when you click "Run trade simulation" (last run 14 November, with Lead v2). The page now cautions after 10 days and stops using it after 45.</li>
 <li>The desk does not notice an old or damaged file (gaps 1 and 2).</li>
 <li>Each rule is written twice, once per app. The date check guards this, and only this.</li>
 <li>"Backtests" live in three places: the desk's Backtests tab (four frozen older rules), the lab, and the intraday rule registry.</li>

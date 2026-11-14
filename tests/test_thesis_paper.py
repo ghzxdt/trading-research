@@ -69,6 +69,38 @@ class PaperBookTests(unittest.TestCase):
         self.assertEqual(paper_book.scoreboard(rows)["skipped"], 2)
 
 
+class VerdictV2Tests(unittest.TestCase):
+    """The backtester's export moved to Lead v2 on 2026-11-14 and keeps the v1 verdict per row."""
+    ROW = {"exit": "close_above_sma5", "mode": "etf_next_open", "verdict": "No edge", "verdict_v1": "Lead",
+           "development": {"mean_net": 0.004, "win_rate": 0.7, "trades": 98}}
+
+    def test_a_v1_record_keeps_its_paper_trade_when_the_verdict_changes(self):
+        f = frame([100 - i for i in range(12)])
+        sig = [{"symbol": "SPY", "signal": "bollinger_lower_close", "evidence": [self.ROW]}]
+        v1 = {"latest_close": f"{DAYS[5]:%Y-%m-%d}", "instrument": "SPY", "direction": "long", "rules": ["bollinger_lower_close"]}
+        rows = paper_book.trades([v1], {"SPY": f}, sig)
+        self.assertEqual([(r["exit"], r["logged_under"], r["current_verdict"]) for r in rows], [("close_above_sma5", "v1", "No edge")])
+        v2 = {**v1, "stance_rules": 2}  # a v2 record with no stored exits follows the current verdict: nothing
+        self.assertEqual(paper_book.trades([v2], {"SPY": f}, sig), [])
+        stored = {**v2, "rule_exits": {"bollinger_lower_close": ["close_above_sma5"]}}
+        self.assertEqual(len(paper_book.trades([stored], {"SPY": f}, sig)), 1)
+
+    def test_the_page_shows_v2_statistics_and_the_scaled_benchmark(self):
+        from thesis import build
+        period = {"trades": 104, "win_rate": 0.74, "mean_net": 0.0079, "random_percentile": 99,
+                  "v2": {"mean_excess": 0.006, "p": 0.011, "quarters": 49},
+                  "strategy": {"return_per_drawdown": 0.27}, "matched": {"return_per_drawdown": 0.49},
+                  "risk_matched": {"return_per_drawdown": 0.49}}
+        lead = {"exit": "close_above_sma5", "mode": "etf_next_open", "verdict": "Lead", "verdict_v1": "Lead", "q": 0.032,
+                "exit_label": "x", "mode_label": "Buy at the next open", "development": period, "holdout": period}
+        sig = [{"symbol": "QQQ", "signal": "bollinger_lower_close", "label": "Close below band", "fired": True,
+                "close": 100.0, "trigger_close": 98.0, "sma5": 101.0, "evidence": [lead]}]
+        out = build.stance(sig, {"events": {"upcoming": []}, "volatility": {}}, {}, "2026-11-13", {"usable": True})
+        basis = out["basis"][0]
+        self.assertEqual((basis["dev_p"], basis["q"], basis["dev_quarters"], basis["benchmark"]), (0.011, 0.032, 49, "risk_matched"))
+        self.assertIn("scaled to the same time in the market and the same volatility", out["cautions"][0])
+
+
 class PreCloseTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

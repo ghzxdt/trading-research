@@ -88,7 +88,11 @@ def load_export(path: Path | None = None) -> tuple[dict | None, dict]:
         return None, {"status": "invalid", "path": str(path), "reason": f"Export unreadable: {exc}"}
     return payload, {"status": "ok", "path": str(path), "sha256": hashlib.sha256(raw).hexdigest(),
                      "generated_at": payload.get("generated_at"), "code": payload.get("code"),
-                     "data_fingerprint": payload.get("data_fingerprint"), "report": payload.get("report")}
+                     "data_fingerprint": payload.get("data_fingerprint"), "report": payload.get("report"),
+                     # Lead v2 exports (2026-11-14) say which verdict they use; older ones are v1.
+                     "verdict_version": payload.get("verdict_version") or "v1",
+                     "verdict_definition": payload.get("verdict_definition"),
+                     "data_through": payload.get("data_through"), "trade_list": payload.get("trade_list")}
 
 
 def trigger_close(close: pd.Series, rule, tolerance: float = 1e-4) -> float | None:

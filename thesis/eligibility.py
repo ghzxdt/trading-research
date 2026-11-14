@@ -1,5 +1,8 @@
 """One shared answer to "can this be called long?", used by the page (build.stance) and the stance log.
 
+"Lead" is the backtester's verdict, whatever version its export uses (Lead v2 since 2026-11-14; the export's
+`verdict_version` and `verdict_definition` say which). These stance rules don't change with it.
+
 Stance rules v2 (2026-11-13; v1 was fixed 2026-11-08):
 - A fired rule counts only if the backtester rated its *next-open* pricing a Lead. The page is built after the
   close, so the closing-price entry has passed; a rule that is a Lead only at the close is shown as

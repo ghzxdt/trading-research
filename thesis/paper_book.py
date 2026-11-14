@@ -66,11 +66,15 @@ def simulate(frame: pd.DataFrame | None, signal_day: str, exit_name: str, entry:
     return out
 
 
-def _evidence_exits(signals: list[dict], symbol: str, rule: str, mode: str) -> dict[str, dict]:
-    """exit name -> the backtester's evidence row, for Lead pricings of this rule and entry mode."""
+def _evidence_exits(signals: list[dict], symbol: str, rule: str, mode: str, key: str = "verdict") -> dict[str, dict]:
+    """exit name -> the backtester's evidence row, for Lead pricings of this rule and entry mode.
+
+    `key` "verdict_v1" reads the v1 verdict that Lead v2 exports keep per row (falling back to "verdict" in a v1
+    export), so a record logged under v1 keeps the exits it was logged with."""
     for s in signals or []:
         if s.get("symbol") == symbol and s.get("signal") == rule:
-            return {e["exit"]: e for e in s.get("evidence") or [] if e.get("verdict") == "Lead" and e.get("mode") == mode}
+            return {e["exit"]: e for e in s.get("evidence") or []
+                    if (e.get(key) or e.get("verdict")) == "Lead" and e.get("mode") == mode}
     return {}
 
 
@@ -80,15 +84,21 @@ def trades(records: list[dict], etfs: dict, signals: list[dict], entry: str = "n
     out, busy = [], {}
     for record in sorted(records, key=lambda r: (r["latest_close"], r["instrument"])):
         symbol, frame = record["instrument"], etfs.get(record["instrument"])
+        # Records written before stance rules v2 (2026-11-13) don't store their exits; they were logged when the
+        # backtester's verdict was v1, so they follow v1's exits rather than vanishing when a later verdict differs.
+        verdict_key = "verdict" if record.get("rule_exits") or record.get("stance_rules", 1) >= 2 else "verdict_v1"
         for rule in record.get("rules") or []:
-            evidence = _evidence_exits(signals, symbol, rule, mode)
+            evidence = _evidence_exits(signals, symbol, rule, mode, verdict_key)
             exits = (record.get("rule_exits") or {}).get(rule) or sorted(evidence)
             for exit_name in exits:
                 key = (symbol, rule, exit_name)
                 dev = (evidence.get(exit_name) or {}).get("development") or {}
+                row = evidence.get(exit_name) or {}
                 base = {"instrument": symbol, "rule": rule, "exit": exit_name, "exit_text": EXIT_TEXT.get(exit_name, exit_name),
                         "entry_mode": entry, "backtest_mean_net": dev.get("mean_net"), "backtest_win_rate": dev.get("win_rate"),
-                        "backtest_trades": dev.get("trades"), "exit_from_current_evidence": "rule_exits" not in record}
+                        "backtest_trades": dev.get("trades"), "exit_from_current_evidence": "rule_exits" not in record,
+                        "logged_under": "v1" if verdict_key == "verdict_v1" else "current",
+                        "current_verdict": row.get("verdict")}
                 if key in busy and record["latest_close"] <= busy[key]:
                     out.append({**base, "status": "overlap_skipped", "signal_day": record["latest_close"]})
                     continue

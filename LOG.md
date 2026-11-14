@@ -1,5 +1,20 @@
 # Trading research log
 
+## 2026-11-14: backtester evidence is now Lead v2
+- The backtester re-judged its trade simulation with Lead v2 (its commits 25350c7, 213f39e; report
+  `2026-11-14-084052-trade-simulation`, data through 2026-11-13). Hand-over note read from the shared notes folder.
+- This app: shows v2's edge test (excess over every same-length trade, p, q, quarters) and the export's verdict
+  definition; the drawdown caution uses the scaled ("risk_matched") benchmark; a long call carries a caution that
+  v2 Leads are provisional (1993-2009 helped choose the signals). Paper book: records logged under v1 keep v1's
+  exits, marked "logged under v1; now No edge" where the verdict changed. 2 new tests (291).
+- Result: next-open Leads are QQQ Bollinger and QQQ RSI(14) (5-day-average exit) only. SPY has none, so SPY's
+  stance will log flat. "What would change the call" now lists only those two QQQ levels.
+- Idea ledger: new result lines on ideas 1 and 2 with the v2 figures. Playbook Route A and B re-rendered with v2.
+- **Open (user decisions):** (1) register a free FRED key for first-release values; (2) whether to measure a
+  CPI "surprise" against the Cleveland Fed nowcast and Kalshi's CPI/payrolls markets, which are already
+  collected; (3) intraday history: a free Alpaca or Polygon account for minute bars, or Yahoo hourly bars
+  (2 years, no account).
+
 ## 2026-11-13: review and first fix
 - Read-only review of the app (user's prompt). Findings to act on, in order: (1) the page and the stance log call
   "long" when any pricing of a fired rule is a Lead, including "buy at the signal close", which has passed (SPY
