@@ -12,10 +12,11 @@ import pandas as pd
 TEMPLATE = Path(__file__).with_name("report_template.html")
 
 # The hub: one tab per part of the app. Each part is its own page, so they never mix.
-TABS = [("thesis", "thesis.html", "Daily thesis"), ("today", "today.html", "Intraday"), ("indexes", "report.html", "Indexes"), ("tickers", "tickers.html", "Tickers"), ("leverage", "leverage.html", "Leverage (perps)"),
+TABS = [("thesis", "thesis.html", "Daily thesis"), ("today", "today.html", "Intraday"), ("macro", "macro.html", "Macro"),
+        ("indexes", "report.html", "Indexes"), ("tickers", "tickers.html", "Tickers"), ("leverage", "leverage.html", "Leverage (perps)"),
         ("gex", "gex.html", "GEX / DIX"), ("compare", "monitor.html", "Original vs fixed"),
         ("backtests", "backtests.html", "Backtests"), ("paper", "paper.html", "Paper monitor"),
-        ("quality", "quality.html", "Data quality"), ("jobs", "jobs.html", "Jobs & macro")]
+        ("quality", "quality.html", "Data quality"), ("jobs", "jobs.html", "Jobs study")]
 
 
 def hub_nav(active: str) -> str:

@@ -190,7 +190,8 @@ def events(root: Path, now, spy: pd.DataFrame | None, days_ahead: int = 14) -> d
     return {"status": "ok", "upcoming": upcoming, "history": history,
             "note": "Moves are SPY's absolute close-to-close change on the scheduled day since 2010 (CPI and jobs "
                     "come out at 8:30 AM ET, so their move includes the opening gap). Scheduled dates come from the "
-                    "app's calendar; release values are not available yet."}
+                    "app's calendar, checked against FRED's official dates on the Macro tab, which also has the "
+                    "release values."}
 
 
 def build(root: Path, now, etfs: dict) -> dict:

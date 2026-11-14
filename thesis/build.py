@@ -24,10 +24,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import (alfred, calls, data, earnings, earnings_calendar, eligibility, journal, ledger, morning, movers, news,
-               ops, paper_book, preclose, regime, releases, risk, signals, stance_log)
+from . import (alfred, calls, data, earnings, earnings_calendar, eligibility, journal, ledger, macro, morning, movers,
+               news, ops, paper_book, preclose, regime, releases, risk, signals, stance_log)
 
 TEMPLATE = Path(__file__).with_name("template.html")
+MACRO_TEMPLATE = Path(__file__).with_name("macro_template.html")
 SCHEMA = 2  # 2 (2026-11-13): stance direction "none", evidence_check, ops, journal, ideas
 
 
@@ -202,7 +203,7 @@ def build_state(root: Path, now: pd.Timestamp) -> dict:
             "preclose": preclose.summary(root, etfs, sig), "same_day_options": same_day,
             "news": news.build(root, now, latest), "movers": moved,
             "earnings_calendar": earnings_calendar.build(root, now), "releases": releases.build(root, now),
-            "first_release": alfred.build(root, now), "hourly_base_rates": hourly,
+            "first_release": alfred.build(root, now), "hourly_base_rates": hourly, "macro": macro.build(root, now),
             "next_entry_et": entry_at.isoformat() if entry_at is not None else None,
             "regime": reg, "signals": sig, "evidence_source": export_info, "evidence_check": check,
             "ops": ops.build(root, now, latest, check),
@@ -231,6 +232,7 @@ def render(root: Path, out: Path, state: dict | None = None) -> Path:
     page = re.sub(r"\{\{(HUB_NAV|STATE)\}\}", lambda m: {"HUB_NAV": hub_nav("thesis"), "STATE": embedded_json(state)}[m.group(1)], page)
     out.mkdir(parents=True, exist_ok=True)
     (out / "thesis.html").write_text(page, encoding="utf-8")
+    render_macro(out, state, page)
     (out / "thesis_state.json").write_text(json.dumps(state, indent=1, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8")
     write_component_manifest("thesis", out, {"state_schema_version": SCHEMA, "latest_close": state.get("latest_close"),
                                              "evidence_sha256": (state.get("evidence_source") or {}).get("sha256"),
@@ -238,12 +240,30 @@ def render(root: Path, out: Path, state: dict | None = None) -> Path:
     return out / "thesis.html"
 
 
+def render_macro(out: Path, state: dict, thesis_page: str) -> Path:
+    """The Macro tab (macro.html): releases, rates, conditions and gauges, from the same build as the thesis."""
+    from stage1.report import hub_nav
+    from today.build import embedded_json
+    style = re.search(r"<style>.*?</style>", thesis_page, re.S)
+    regime = state.get("regime") or {}
+    small = {"as_of": state.get("as_of"), "latest_close": state.get("latest_close"), "macro": state.get("macro"),
+             "releases": state.get("releases"), "first_release": state.get("first_release"),
+             "credit": regime.get("credit"), "rates": regime.get("rates")}
+    page = MACRO_TEMPLATE.read_text(encoding="utf-8")
+    page = re.sub(r"\{\{(STYLE|HUB_NAV|STATE)\}\}", lambda m: {"STYLE": style.group(0) if style else "",
+                                                             "HUB_NAV": hub_nav("macro"),
+                                                             "STATE": embedded_json(small)}[m.group(1)], page)
+    (out / "macro.html").write_text(page, encoding="utf-8")
+    return out / "macro.html"
+
+
 def refresh_sources(root: Path, say=print) -> None:
     """Online builds only: download credit spreads and earnings dates (each failure keeps the saved copy)."""
     from . import credit
     for name, job in (("credit spreads", credit.refresh), ("earnings dates", earnings.refresh),
                       ("earnings calendar", earnings_calendar.refresh), ("large-holding prices", movers.refresh),
-                      ("release values", releases.refresh), ("first-release values", alfred.refresh)):
+                      ("release values", releases.refresh), ("first-release values", alfred.refresh),
+                      ("FRED rates and conditions", macro.refresh)):
         try:
             result = job(root)
             say(f"Thesis sources: {name}: {result}")

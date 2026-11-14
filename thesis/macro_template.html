@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Macro · Trading Research</title>
+{{STYLE}}
+</head>
+<body>
+<div class="wrap">
+<header class="top"><div><div class="eyebrow">Trading research / macro</div><h1>Macro</h1><p class="subtitle">Rates, financial conditions, recession gauges and economic releases. Reference for the Daily thesis: none of it is a signal unless the backtester has tested it as a registered rule.</p></div><div><span class="tag" id="built">Saved view</span></div></header>
+{{HUB_NAV}}
+<main class="grid">
+<div class="stack">
+<section class="card" aria-labelledby="rel-title"><h2 id="rel-title">Economic releases</h2><h3>Latest values</h3><div id="releases" class="table-wrap"></div><h3>As first announced (FRED vintages)</h3><div id="first-release" class="table-wrap"></div></section>
+<section class="card" aria-labelledby="cond-title"><h2 id="cond-title">Financial conditions and credit</h2><div id="conditions" class="table-wrap"></div><h3>Credit spreads</h3><div id="credit" class="table-wrap"></div></section>
+</div>
+<aside class="stack">
+<section class="card" aria-labelledby="fed-title"><h2 id="fed-title">The Fed and rates</h2><div id="fed" class="kv"></div><div id="rates" class="table-wrap" style="margin-top:10px"></div></section>
+<section class="card" aria-labelledby="rec-title"><h2 id="rec-title">Recession gauges</h2><div id="recession" class="table-wrap"></div></section>
+<section class="card" aria-labelledby="chk-title"><h2 id="chk-title">Data check: VIX close</h2><div id="vixcheck"></div></section>
+</aside>
+</main>
+<p class="foot" id="foot"></p>
+</div>
+<script type="application/json" id="macro-state">{{STATE}}</script>
+<script>
+"use strict";
+(()=>{
+const $=id=>document.getElementById(id),list=v=>Array.isArray(v)?v:[],obj=v=>v&&typeof v==='object'&&!Array.isArray(v)?v:{};
+const ok=v=>v!==null&&v!==undefined&&v!==''&&!(typeof v==='number'&&!Number.isFinite(v));
+const fmt=(v,d=2)=>ok(v)?Number(v).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
+const pct=(v,d=1)=>ok(v)?(Number(v)>0?'+':'')+fmt(Number(v)*100,d)+'%':'—';
+const share=(v,d=0)=>ok(v)?fmt(Number(v)*100,d)+'%':'—';
+const signed=(v,d=2)=>ok(v)?(Number(v)>0?'+':'')+fmt(v,d):'—';
+function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(ok(text))n.textContent=String(text);return n;}
+function table(parent,cols,rows){const t=el('table'),h=el('thead'),tr=el('tr');cols.forEach(c=>{const th=el('th','',c);th.scope='col';tr.append(th);});h.append(tr);const b=el('tbody');rows.forEach(r=>{const row=el('tr');r.forEach(v=>{const td=el('td');if(v instanceof Node)td.append(v);else td.textContent=ok(v)?String(v):'—';row.append(td);});b.append(row);});t.append(h,b);parent.append(t);return t;}
+function kv(parent,label,value,sub){const d=el('div');d.append(el('div','label',label),el('div','value',ok(value)?value:'—'));if(sub)d.append(el('div','sub',sub));parent.append(d);}
+function notice(parent,items,warn,title){items=list(items).filter(ok);if(!items.length)return;const n=el('div','notice'+(warn?' warn':''));if(title)n.append(el('strong','',title));const ul=el('ul');items.forEach(x=>ul.append(el('li','',x)));n.append(ul);parent.append(n);}
+let state={};try{state=JSON.parse($('macro-state').textContent);}catch(_){state={};}
+const m=obj(state.macro),rows=list(m.rows),by=k=>rows.find(r=>r.series===k)||{};
+const unit=(r,v)=>!ok(v)?'—':r.unit==='%'?fmt(v,2)+'%':fmt(v,2);
+function seriesRows(parent,group){const mine=rows.filter(r=>r.group===group);if(!mine.length){parent.append(el('p','muted small',m.reason||'Unavailable.'));return;}
+ table(parent,['Series','Latest','1 month','3 months','Percentile','Since'],mine.map(r=>{const name=el('span');name.append(el('div','',r.label));if(r.read)name.append(el('div','small muted',r.read));return r.status!=='ok'?[name,'not downloaded','','','','']:[name,unit(r,r.value)+' · '+r.date,signed(r.change_1m),signed(r.change_3m),share(r.percentile),r.since];}));}
+function fed(){const box=$('fed');const f=by('DFF'),t=obj(m.target_range);kv(box,'Fed target range',ok(t.low)?fmt(t.low,2)+'–'+fmt(t.high,2)+'%':'—',t.date?'as of '+t.date:'');kv(box,'Effective fed funds',ok(f.value)?fmt(f.value,2)+'%':'—',f.date?f.date+' · '+signed(f.change_3m)+' in 3 months':'');
+ const r=obj(state.rates);if(r.status==='ok'){kv(box,'10-year Treasury',fmt(r.ten_year,2)+'%',r.date);kv(box,'10-year minus 2-year',signed(r.curve),'points');}seriesRows($('rates'),'rates');}
+function conditions(){seriesRows($('conditions'),'conditions');const c=$('credit');table(c,['Spread','Latest','1 month','3 months','Percentile','Since'],list(state.credit).map(x=>x.status==='ok'?[x.label,fmt(x.value,2)+'%',signed(x.change_1m),signed(x.change_3m),share(x.percentile),x.since+(x.history_note?' (3 years only)':'')]:[x.label,el('span','muted small',x.reason),'','','','']));}
+function recession(){const box=$('recession');seriesRows(box,'recession');const curve=by('T10Y3M');const lines=[];if(m.sahm_triggered)lines.push('The real-time Sahm rule is at or above 0.5.');if(ok(curve.value)&&curve.value<0)lines.push('The 10-year minus 3-month curve is inverted ('+signed(curve.value)+').');notice(box,lines,true,'Flags');
+ const t=by('T10Y3M');if(t.status==='ok'){const d=el('p','small muted','10-year minus 3-month Treasury: '+signed(t.value)+' on '+t.date+'. '+t.read);box.append(d);}}
+function releases(){const r=obj(state.releases),box=$('releases');if(r.status!=='ok'){box.append(el('p','muted small',r.reason||'Unavailable.'));return;}
+ table(box,['Release','Period','Latest','Before that','Source'],list(r.rows).map(x=>[x.name,x.period+(x.preliminary?' (P)':''),x.value,x.previous,x.source]));box.append(el('p','small muted',(r.note||'')+' Downloaded '+(r.fetched_utc||'')+' UTC.'));}
+function firstRelease(){const f=obj(state.first_release),box=$('first-release');if(f.status!=='ok'){box.append(el('p','muted small',f.reason||'Unavailable.'));return;}
+ const val=(k,v)=>!ok(v)?'—':k==='level_change'?(v>0?'+':'')+fmt(v,0)+'K':k==='pct_change'?pct(v,2):fmt(v,1)+'%';
+ table(box,['Release','Month','Released','First announced','Now','Typical revision'],list(f.rows).map(r=>[r.name,r.month,r.released,val(r.kind,r.first),val(r.kind,r.current),ok(r.typical_revision)?(r.kind==='level_change'?'±'+fmt(r.typical_revision,0)+'K':r.kind==='pct_change'?'±'+fmt(r.typical_revision*100,2)+' pts':'±'+fmt(r.typical_revision,1)+' pts')+' ('+r.revised_months+' months)':'—']));
+ const sch=list(f.schedule);if(sch.length)notice(box,sch.map(s=>s.label+': '+s.official.join(', ')+(s.missing_in_app.length||s.extra_in_app.length?' · the app\'s calendar differs (missing '+(s.missing_in_app.join(', ')||'none')+'; extra '+(s.extra_in_app.join(', ')||'none')+')':' · matches the app\'s calendar')),sch.some(s=>s.missing_in_app.length||s.extra_in_app.length),'Official release dates (FRED)');
+ Object.values(obj(f.history)).forEach(h=>{const d=el('details');d.append(el('summary','',h.label+': the last 12 releases, first announced against now'));table(d,['Month','Released','First announced','Now','Revision'],list(h.months).slice().reverse().map(x=>[x.month,x.released,val(h.kind,x.first),val(h.kind,x.current),h.kind==='level'?(ok(x.revision)?signed(x.revision,1)+' pts':'—'):val(h.kind,x.revision)]));box.append(d);});
+ box.append(el('p','small muted',(f.note||'')+' Downloaded '+(f.fetched_utc||'')+' UTC.'));}
+function vix(){const v=obj(m.vix_check),box=$('vixcheck');if(v.status!=='match'&&v.status!=='differ'){box.append(el('p','muted small',v.reason||'Unavailable.'));return;}
+ box.append(el('p',v.status==='match'?'':'notice warn',v.status==='match'?'Cboe and FRED agree on all '+v.compared+' closes from '+v.from+' to '+v.through+'.':v.differences+' of '+v.compared+' closes differ by more than 0.01 (largest '+fmt(v.largest,2)+').'));
+ if(list(v.examples).length)notice(box,v.examples,true,'Differences');if(list(v.fred_missing_latest).length)box.append(el('p','small muted','Not on FRED yet: '+v.fred_missing_latest.join(', ')+'. FRED posts the VIX close a day later, so the evening refresh still waits for Cboe.'));}
+$('built').textContent='Built '+String(state.as_of||'').slice(0,16).replace('T',' ')+' ET';
+releases();firstRelease();fed();conditions();recession();vix();
+$('foot').textContent=(m.note||'')+' Sources: FRED (St. Louis Fed), BLS, Chicago Fed, Cboe. Read-only.';
+})();
+</script>
+</body>
+</html>

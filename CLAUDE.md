@@ -110,6 +110,11 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
    headline as first announced against now and the typical revision, plus FRED's official Employment Situation and
    CPI dates checked against `data/events/events.csv`. Needs the user's free FRED key in
    `.secrets\fred_api_key.txt` (git-ignored, excluded from the build fingerprint; the key is never logged).
+   **Macro tab** (`macro.html`, user agreed 2026-11-14 to a separate tab): rendered by `thesis/build.render_macro`
+   from the same build, with the release values and first-release tables moved off the Daily thesis, plus FRED
+   series in `thesis/macro.py` (fed funds and target range, 10y-3m, 10y breakeven, NFCI, St. Louis stress index,
+   real-time Sahm rule) and a check of Cboe's VIX closes against FRED's `VIXCLS` (all 500 recent closes matched
+   on 2026-11-14). Context only. The old "Jobs & macro" tab is now labelled "Jobs study".
    **Future data option (user, 2026-11-14):** Alpaca (free account + API key) offers minute bars back to 2016 as
    far as known; add it only if the user chooses to.
    Historical comparisons must show base rates, sample sizes and holdout results so the page can't manufacture
@@ -155,8 +160,12 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 
 ## How to run
 - Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
-- Dashboard: http://localhost:8766/thesis.html (Daily thesis; Intraday is `today.html`). Binds to 127.0.0.1 only.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (297 tests).
+- Dashboard: http://localhost:8766/thesis.html (Daily thesis; Intraday is `today.html`, Macro is `macro.html`).
+  Binds to 127.0.0.1 only.
+- The FRED API key (registered 2026-11-14 on the user's account, with their OK to accept FRED's terms) is in
+  `.secrets\fred_api_key.txt`: git-ignored, outside `data/` so not in the data backup, covered by the user's manual
+  copy of `C:\Claude`. Never print it, commit it or put it in a URL that gets logged.
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (302 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).

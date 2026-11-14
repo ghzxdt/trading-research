@@ -16,9 +16,14 @@
   filled the same day only 27-37% of the time, 0.2-0.5% gaps 53-72%; after 10:30 the day kept the first hour's
   direction about half the time (49-59%), so the first hour alone says little. The first version of that measure
   counted the first hour twice (about 70%) and was corrected before commit.
-- First-release values (`thesis/alfred.py`) built and tested; waiting for the user's FRED key in
-  `.secrets\fred_api_key.txt` (Claude in Chrome was not connected, so the user pastes it into the file; Notepad
-  was opened on it). The next online refresh downloads them, or run `alfred.refresh` by hand.
+- First-release values (`thesis/alfred.py`) built and tested. The FRED API key was requested on the user's
+  account through Claude in Chrome (user: "Yes, I agree" to FRED's terms) and saved to `.secrets\fred_api_key.txt`.
+  Live: 5 series, every vintage since 2015; e.g. May payrolls first announced +172K, now +63K; typical payrolls
+  revision about ±69K. FRED's next official dates (jobs Dec 4, CPI Dec 10) match the app's calendar.
+- **Macro tab** (user agreed to a separate tab): releases and first-release tables moved there from the Daily
+  thesis, plus fed funds and target range, 10y-3m, 10y breakeven, NFCI, St. Louis stress index, real-time Sahm
+  rule, and a Cboe-vs-FRED check of the VIX close (500 of 500 matched). The old tab label "Jobs & macro" is now
+  "Jobs study" so the two aren't confused. 302 tests.
 - **Future data option (user, 2026-11-14):** Alpaca, a free account with an API key, offers minute bars back to
   2016 as far as known. It would give minute resolution and a longer history for the intraday base rates and the
   15-minute opening-range rule. Not set up; add only if the user chooses to.
