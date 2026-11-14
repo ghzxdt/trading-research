@@ -26,7 +26,9 @@
   "Jobs study" so the two aren't confused. 302 tests.
 - **Future data option (user, 2026-11-14):** Alpaca, a free account with an API key, offers minute bars back to
   2016 as far as known. It would give minute resolution and a longer history for the intraday base rates and the
-  15-minute opening-range rule. Not set up; add only if the user chooses to.
+  15-minute opening-range rule. Not set up; add only if the user chooses to. Claude's view (2026-11-14): worth
+  it before any intraday rule or the 3:50 PM flip rate is studied, since it turns months of waiting into a
+  10-year history; not needed for the daily thesis.
 - **Still open (user decision):** whether to measure a CPI "surprise" against the Cleveland Fed nowcast and
   Kalshi's CPI/payrolls markets, which are already collected (forward only; there is no free expectation history).
 
