@@ -121,7 +121,7 @@ def _extra(label: str, step, say) -> int:
 
 def run(root: Path = ROOT, *, now=lambda: pd.Timestamp.now(tz=NY), collect=None, symbols=None,
         sleep=time.sleep, say=log, lock_state=build_lock_state, wait_limit: int = 900,
-        backup=None, sample=None, liquidity=None, zero=None, preclose=None, indexes=None) -> int:
+        backup=None, sample=None, liquidity=None, zero=None, preclose=None, indexes=None, hourly=None) -> int:
     if collect is None:
         from intraday_collect import collect
     if symbols is None:
@@ -153,6 +153,8 @@ def run(root: Path = ROOT, *, now=lambda: pd.Timestamp.now(tz=NY), collect=None,
     if slot == "bars":  # after the close: liquidity records, then back everything up off this computer
         if indexes:
             _extra("One-day and nine-day VIX", lambda: indexes(root), say)
+        if hourly:
+            _extra("Hourly bars", lambda: hourly(root), say)
         for label, step in (("Liquidity update", liquidity), ("Data backup", backup)):
             if not step:
                 continue
@@ -169,10 +171,11 @@ def main(argv=None) -> int:
     try:
         import data_backup
         import liquidity_free
+        import intraday_hourly
         import zero_dte
         from thesis import preclose
         return run(ROOT, backup=lambda root, say: data_backup.run(root, say),
-                   zero=zero_dte.snapshot, indexes=zero_dte.update_indexes,
+                   zero=zero_dte.snapshot, indexes=zero_dte.update_indexes, hourly=intraday_hourly.refresh,
                    preclose=lambda root, when: preclose.record(root, when, liquidity_free.yahoo_quote),
                    sample=lambda root, symbols, when: liquidity_free.sample(root, symbols, when),
                    liquidity=lambda root, symbols, say: liquidity_free.update(root, symbols, pd.Timestamp.now(tz=NY), say=say))

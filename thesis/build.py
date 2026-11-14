@@ -24,8 +24,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import (calls, data, earnings, earnings_calendar, eligibility, journal, ledger, morning, movers, news, ops,
-               paper_book, preclose, regime, releases, risk, signals, stance_log)
+from . import (alfred, calls, data, earnings, earnings_calendar, eligibility, journal, ledger, morning, movers, news,
+               ops, paper_book, preclose, regime, releases, risk, signals, stance_log)
 
 TEMPLATE = Path(__file__).with_name("template.html")
 SCHEMA = 2  # 2 (2026-11-13): stance direction "none", evidence_check, ops, journal, ideas
@@ -186,6 +186,12 @@ def build_state(root: Path, now: pd.Timestamp) -> dict:
     except ValueError:
         stance_rows = []
     try:
+        import intraday_hourly
+        fresh = view["futures"].get("rows") if view["futures"].get("status") == "ok" and view["mode"] == "morning" else None
+        hourly = intraday_hourly.build(root, now, fresh)
+    except Exception as exc:  # research context only: never blocks the page
+        hourly = {"status": "unavailable", "reason": str(exc)[:200], "symbols": []}
+    try:
         import zero_dte
         same_day = zero_dte.summary(root, etfs)
     except Exception as exc:  # research data only: never blocks the page
@@ -196,6 +202,7 @@ def build_state(root: Path, now: pd.Timestamp) -> dict:
             "preclose": preclose.summary(root, etfs, sig), "same_day_options": same_day,
             "news": news.build(root, now, latest), "movers": moved,
             "earnings_calendar": earnings_calendar.build(root, now), "releases": releases.build(root, now),
+            "first_release": alfred.build(root, now), "hourly_base_rates": hourly,
             "next_entry_et": entry_at.isoformat() if entry_at is not None else None,
             "regime": reg, "signals": sig, "evidence_source": export_info, "evidence_check": check,
             "ops": ops.build(root, now, latest, check),
@@ -236,7 +243,7 @@ def refresh_sources(root: Path, say=print) -> None:
     from . import credit
     for name, job in (("credit spreads", credit.refresh), ("earnings dates", earnings.refresh),
                       ("earnings calendar", earnings_calendar.refresh), ("large-holding prices", movers.refresh),
-                      ("release values", releases.refresh)):
+                      ("release values", releases.refresh), ("first-release values", alfred.refresh)):
         try:
             result = job(root)
             say(f"Thesis sources: {name}: {result}")

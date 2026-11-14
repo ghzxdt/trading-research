@@ -10,10 +10,20 @@
 - Result: next-open Leads are QQQ Bollinger and QQQ RSI(14) (5-day-average exit) only. SPY has none, so SPY's
   stance will log flat. "What would change the call" now lists only those two QQQ levels.
 - Idea ledger: new result lines on ideas 1 and 2 with the v2 figures. Playbook Route A and B re-rendered with v2.
-- **Open (user decisions):** (1) register a free FRED key for first-release values; (2) whether to measure a
-  CPI "surprise" against the Cleveland Fed nowcast and Kalshi's CPI/payrolls markets, which are already
-  collected; (3) intraday history: a free Alpaca or Polygon account for minute bars, or Yahoo hourly bars
-  (2 years, no account).
+- **Later the same day (user chose Yahoo hourly, no account):** `intraday_hourly.py` downloads Yahoo's hourly
+  bars (730 sessions, Dec 2023 on) for SPY, QQQ and IWM and keeps adding to them each evening; the Daily thesis
+  shows gap-fill and first-hour base rates by gap size with 90% intervals. Findings at first look: gaps over 0.5%
+  filled the same day only 27-37% of the time, 0.2-0.5% gaps 53-72%; after 10:30 the day kept the first hour's
+  direction about half the time (49-59%), so the first hour alone says little. The first version of that measure
+  counted the first hour twice (about 70%) and was corrected before commit.
+- First-release values (`thesis/alfred.py`) built and tested; waiting for the user's FRED key in
+  `.secrets\fred_api_key.txt` (Claude in Chrome was not connected, so the user pastes it into the file; Notepad
+  was opened on it). The next online refresh downloads them, or run `alfred.refresh` by hand.
+- **Future data option (user, 2026-11-14):** Alpaca, a free account with an API key, offers minute bars back to
+  2016 as far as known. It would give minute resolution and a longer history for the intraday base rates and the
+  15-minute opening-range rule. Not set up; add only if the user chooses to.
+- **Still open (user decision):** whether to measure a CPI "surprise" against the Cleveland Fed nowcast and
+  Kalshi's CPI/payrolls markets, which are already collected (forward only; there is no free expectation history).
 
 ## 2026-11-13: review and first fix
 - Read-only review of the app (user's prompt). Findings to act on, in order: (1) the page and the stance log call

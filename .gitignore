@@ -26,3 +26,9 @@ data/liquidity/
 
 # Same-day option snapshots (large, in the nightly data backup)
 data/zero_dte/
+
+# Personal API keys (never committed)
+.secrets/
+
+# Hourly bars from Yahoo (grow over time; in the nightly data backup)
+data/intraday_hourly/

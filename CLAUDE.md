@@ -102,6 +102,16 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
    drawdown caution. Under v2 only QQQ has next-open Leads (Bollinger and RSI(14), both with the 5-day-average
    exit); no SPY rule is a Lead, so SPY logs flat. Stance records logged before 2026-11-13 follow v1's exits in the
    paper book (`verdict_v1`), so their trades don't vanish when a later verdict differs.
+   **Also 2026-11-14:** **intraday base rates** from Yahoo's free hourly bars (`intraday_hourly.py`,
+   `data/intraday_hourly/`, about 2.9 years, SPY/QQQ/IWM, refreshed each evening and kept, so the history grows):
+   gap fill, first-hour share of the range, whether the day kept the first hour's direction after 10:30, and
+   first-hour range breaks, by five gap buckets declared before looking, with 90% intervals. History only; the
+   morning view points to the row the futures move suggests. **First-release values** (`thesis/alfred.py`): the
+   headline as first announced against now and the typical revision, plus FRED's official Employment Situation and
+   CPI dates checked against `data/events/events.csv`. Needs the user's free FRED key in
+   `.secrets\fred_api_key.txt` (git-ignored, excluded from the build fingerprint; the key is never logged).
+   **Future data option (user, 2026-11-14):** Alpaca (free account + API key) offers minute bars back to 2016 as
+   far as known; add it only if the user chooses to.
    Historical comparisons must show base rates, sample sizes and holdout results so the page can't manufacture
    confidence. Interactive candlestick charts with news pinned to the time it hit (TradingView Lightweight
    Charts is the candidate library).
@@ -146,7 +156,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 ## How to run
 - Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
 - Dashboard: http://localhost:8766/thesis.html (Daily thesis; Intraday is `today.html`). Binds to 127.0.0.1 only.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (291 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (297 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).
@@ -161,7 +171,8 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   Central) runs `scheduled_collect.py`: at 10:00 AM ET a same-day option snapshot only (`zero_dte.snapshot`, also
   taken at every later daytime run); liquidity snapshots at 10:30, 12:30 and 2:30 PM ET (`liquidity_free.sample`); at
   3:50 PM ET first the pre-close check (`thesis/preclose.py`), then minute bars, option chains and a fourth
-  snapshot; at 8:10 PM ET Cboe's one-day and nine-day VIX histories, minute bars, then OCC options
+  snapshot; at 8:10 PM ET Cboe's one-day and nine-day VIX histories, Yahoo hourly bars (`intraday_hourly.py`),
+  minute bars, then OCC options
   volume and the day's record in the **snapshot** liquidity journal (`liquidity_free.update`), then the backup.
   The snapshot journal is a declared weaker policy (spreads from 4 snapshots, not session medians). It is shown
   separately on Today and used only with `run_intraday.py research --liquidity-journal snapshot`; the strict
