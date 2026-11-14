@@ -90,7 +90,13 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
    Cboe's free delayed feed, SPY/QQQ/IWM, `data/zero_dte/`, research data only, never a signal); a **News since
    the last close** card (`thesis/news.py`); a futures line among a long call's cautions; a bad-print filter for
    extended-hours levels (`intraday/features.py`, `BAD_PRINT`). `/api/v1/thesis/live` refreshes the ticket,
-   pre-close and 0DTE cards without a rebuild.
+   pre-close and 0DTE cards without a rebuild. **Added the evening of 2026-11-13 (user: "finish please"):** a
+   rolling two-week **earnings calendar** (`thesis/earnings_calendar.py`, Nasdaq.com's daily calendar, companies
+   of $25B or more; the ten mega-caps stay cross-checked with Yahoo); **large moves in the ten biggest holdings**
+   (`thesis/movers.py`, flagged at 4%, also listed among the cautions); **latest release values**
+   (`thesis/releases.py`: payrolls, unemployment, hourly earnings, CPI and core CPI from the BLS API v1, jobless
+   claims from FRED; published values with revisions, no expectation, so no surprise). All three download in
+   online builds to `data/raw/` and keep the last good copy on failure.
    Historical comparisons must show base rates, sample sizes and holdout results so the page can't manufacture
    confidence. Interactive candlestick charts with news pinned to the time it hit (TradingView Lightweight
    Charts is the candidate library).
@@ -99,7 +105,11 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
    in every result), normal-drop exposure overlay, risk engine and sizing.
 
 ## Jobs / macro data fix
-- Today: BLS web page and calendar requests return HTTP 403, so no release numbers. Static calendar dates are
+- Done 2026-11-13: latest values from the BLS API v1 and FRED claims are on the Daily thesis
+  (`thesis/releases.py`). Still open: first-release values (ALFRED, needs the user's FRED key), the official
+  release schedule, and any expectation to measure a surprise against. The older Jobs & macro tab still uses the
+  blocked BLS web page.
+- BLS web page and calendar requests return HTTP 403, so that tab has no release numbers. Static calendar dates are
   correct (checked in the 2026-11-06 audit).
 - Plan: BLS Public Data API (v1 needs no key; v2 key is free) for payrolls `CES0000000001`, unemployment
   `LNS14000000`, average hourly earnings `CES0500000003`; ALFRED (FRED's vintage archive; free FRED API key the
@@ -131,7 +141,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 ## How to run
 - Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
 - Dashboard: http://localhost:8766/thesis.html (Daily thesis; Intraday is `today.html`). Binds to 127.0.0.1 only.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (284 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (289 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).
@@ -172,9 +182,11 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   its stance logged (refreshing once more if not; exit 4 if the page still isn't published), then
   `git_backup.py` commits the data files and pushes `main`. Log: `work\scheduled_refresh.log`. Turn it off in
   Task Scheduler.
-- All three tasks have "wake the computer to run" set (2026-11-13). Windows only honours it when the power plan's
-  **Allow wake timers** is Enabled; on 2026-11-13 it was "Important wake timers only" plugged in and Disabled on
-  battery, which the user changes (Control Panel > Power Options > Change plan settings > Advanced > Sleep).
+- All three tasks have "wake the computer to run" set, and the user enabled **Allow wake timers** on mains and
+  battery (2026-11-13). A wake only works from sleep: on Fri 2026-11-13 the laptop was shut down from 1:17 AM to
+  9:25 PM Central, so every daytime run was missed (no snapshots, option data, pre-close check or liquidity
+  samples that day); the sign-in catch-up then logged the day's decisions and stance in time. For an unattended
+  day the laptop must be left asleep or on, not shut down.
 - Offline rebuild: `.venv\Scripts\python -B run_all.py --offline` (about 70 seconds).
 - Online refresh: the control panel's **Run / Refresh data**, or `run_all.py` without `--offline`. Both refuse,
   with the reason, while the latest session's paper decisions aren't logged and Cboe hasn't posted its VIX close

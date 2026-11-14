@@ -20,8 +20,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import (calls, data, earnings, eligibility, journal, ledger, morning, news, ops, paper_book, preclose, regime,
-               risk, signals, stance_log)
+from . import (calls, data, earnings, earnings_calendar, eligibility, journal, ledger, morning, movers, news, ops,
+               paper_book, preclose, regime, releases, risk, signals, stance_log)
 
 TEMPLATE = Path(__file__).with_name("template.html")
 SCHEMA = 2  # 2 (2026-11-13): stance direction "none", evidence_check, ops, journal, ideas
@@ -157,6 +157,11 @@ def build_state(root: Path, now: pd.Timestamp) -> dict:
             call["cautions"].append(f"Since the 4 PM close ({view['futures']['snapshot_et']} ET snapshot): {moves}. "
                                     "A move up before the open has already taken part of any bounce; the evidence "
                                     "is not split by gap size yet.")
+    moved = movers.build(root, now, latest)
+    if moved.get("flagged") and moved.get("current"):
+        call["cautions"].append(f"Large move in a top index holding on {moved['session']}: "
+                                + "; ".join(f"{r['name']} {r['move']:+.1%}" for r in moved["flagged"])
+                                + ". A single-stock shock can drive an index signal; it is not part of any registered rule.")
     try:
         stance_rows = calls.read(root, stance_log.LOG)
     except ValueError:
@@ -170,7 +175,8 @@ def build_state(root: Path, now: pd.Timestamp) -> dict:
             "view": view, "stance": call,
             "paper_book": paper_book.build(root, now, etfs, sig, stance_rows),
             "preclose": preclose.summary(root, etfs, sig), "same_day_options": same_day,
-            "news": news.build(root, now, latest),
+            "news": news.build(root, now, latest), "movers": moved,
+            "earnings_calendar": earnings_calendar.build(root, now), "releases": releases.build(root, now),
             "next_entry_et": entry_at.isoformat() if entry_at is not None else None,
             "regime": reg, "signals": sig, "evidence_source": export_info, "evidence_check": check,
             "ops": ops.build(root, now, latest, check),
@@ -209,7 +215,9 @@ def render(root: Path, out: Path, state: dict | None = None) -> Path:
 def refresh_sources(root: Path, say=print) -> None:
     """Online builds only: download credit spreads and earnings dates (each failure keeps the saved copy)."""
     from . import credit
-    for name, job in (("credit spreads", credit.refresh), ("earnings dates", earnings.refresh)):
+    for name, job in (("credit spreads", credit.refresh), ("earnings dates", earnings.refresh),
+                      ("earnings calendar", earnings_calendar.refresh), ("large-holding prices", movers.refresh),
+                      ("release values", releases.refresh)):
         try:
             result = job(root)
             say(f"Thesis sources: {name}: {result}")

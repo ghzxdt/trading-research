@@ -32,10 +32,17 @@
 - **Check on Fri Nov 13 (first live runs):** `work\intraday_collect.log` for "Same-day options: {'saved': 3...}"
   at 10:00 AM ET and "Pre-close check: {'recorded': True...}" at 3:50 PM ET; the System status card for
   snapshots and liquidity samples; whether the laptop woke from sleep for a run.
+- **Fri Nov 13 result:** the laptop was shut down 1:17 AM to 9:25 PM Central, so no daytime run happened (still
+  zero liquidity samples, option snapshots, pre-close checks and market snapshots). At sign-in the catch-up ran:
+  Friday's paper decisions logged before entry, page published, stance logged (v2 records, both flat), data
+  pushed. The first real daytime test is now Mon Nov 16, if the laptop is asleep or on.
+- **Evening of Nov 13 (user: "finish please"; asked why there was no earnings calendar):** rolling two-week
+  earnings calendar, large-holding movers flag, latest release values (BLS API v1 and FRED claims). 289 tests.
+  Sources checked live: Nasdaq calendar 40 companies over 10 sessions; Broadcom -4.8% flagged for Nov 13.
 - **Still open:** backtester items (gap split, regime filter, leveraged-ETF pricing, weekly automatic
-  simulation) wait until the backtester chat ends; the user wants the two-app review revisited then. Release
-  values (roadmap 2, needs the user's free FRED key). Top-holdings mover flag (needs a single-stock price
-  download; the playbook wrongly said saved prices cover it). Intraday base rates wait for data.
+  simulation) wait until the backtester chat ends; the user wants the two-app review revisited then.
+  First-release values and a surprise measure (needs the user's free FRED key and an expectation source).
+  Intraday base rates wait for data. A second source for the VIX close.
 - **Idea kept in mind, not built (user, brainstorm):** automatic paper trades in thinkorswim as a live running
   log. paperMoney has no supported API for automated orders as far as known, and this project's rule is no
   broker integration; options are a daily "ticket" the user enters by hand, or a paper-trading API built for

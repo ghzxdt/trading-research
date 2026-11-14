@@ -46,9 +46,10 @@ form.callform{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px
 </div>
 <aside class="stack">
 <section class="card" aria-labelledby="ops-title"><h2 id="ops-title">System status</h2><p class="small muted">When each unattended job last did its work.</p><div id="ops" class="table-wrap"></div></section>
-<section class="card" aria-labelledby="news-title"><h2 id="news-title">News since the last close</h2><div id="news"></div></section>
+<section class="card" aria-labelledby="news-title"><h2 id="news-title">News since the last close</h2><div id="movers"></div><div id="news"></div></section>
 <section class="card" aria-labelledby="overnight-title"><h2 id="overnight-title">Overnight and inflation</h2><div id="futures"></div><h3>Cleveland Fed CPI nowcast</h3><div id="nowcast"></div></section>
-<section class="card" aria-labelledby="events-title"><h2 id="events-title">Events and earnings</h2><div id="events"></div><h3>Mega-cap earnings</h3><div id="earnings" class="table-wrap"></div></section>
+<section class="card" aria-labelledby="events-title"><h2 id="events-title">Events and earnings</h2><div id="events"></div><h3>Latest release values</h3><div id="releases" class="table-wrap"></div><h3>Mega-cap earnings (two sources)</h3><div id="earnings" class="table-wrap"></div></section>
+<section class="card" aria-labelledby="ecal-title"><h2 id="ecal-title">Earnings calendar: next two weeks</h2><div id="ecal"></div></section>
 <section class="card" aria-labelledby="zero-title"><h2 id="zero-title">Same-day options (0DTE) research</h2><p class="small muted">Data collection only: what today's options priced in, against what the ETF then did. Not a signal.</p><div id="zero"></div></section>
 <section class="card" aria-labelledby="risk-title"><h2 id="risk-title">Expressions and risk by leverage</h2><p class="small muted">ETFs only. No size is recommended; these are loss scenarios, not limits.</p><div id="risk"></div></section>
 </aside>
@@ -154,6 +155,16 @@ function sameDay(){const z=obj(state.same_day_options),box=$('zero');box.replace
 function newsCard(){const n=obj(state.news),box=$('news');box.replaceChildren();if(n.status!=='ok'){box.append(el('p','muted small',n.reason||'Unavailable.'));return;}
  if(!list(n.rows).length)box.append(el('p','muted small','No new headline since '+n.since+' ET.'));else{const ul=el('ul');ul.style.cssText='margin:6px 0 0;padding-left:18px';n.rows.forEach(r=>{const li=el('li');li.style.marginBottom='7px';li.append(el('div','',r.title),el('div','small muted',[r.publisher,r.symbol&&r.symbol!=='*'?r.symbol:null,'first seen '+r.first_seen_et+' ET',ok(r.late_hours)?'published '+r.published_et+' ('+fmt(r.late_hours,0)+' h earlier)':null].filter(ok).join(' · ')));ul.append(li);});box.append(ul);}
  box.append(el('p','small muted','Showing '+list(n.rows).length+' of '+(n.count||0)+'. Last collected '+(n.last_collected_et||'never')+' ET. '+(n.note||'')));}
+function moversCard(){const m=obj(state.movers),box=$('movers');box.replaceChildren();if(m.status!=='ok'){box.append(el('p','muted small',m.reason||''));return;}
+ const fl=list(m.flagged);if(fl.length)notice(box,fl.map(r=>r.name+' '+pct(r.move,1)+' (its typical day: '+pm(r.typical_move,1)+')'),true,'Large moves in top holdings, '+m.session);
+ const d=el('details');d.append(el('summary','','Ten largest holdings on '+m.session+(fl.length?'':': no move of 4% or more')));table(d,['Company','Move','Typical day'],list(m.rows).map(r=>[r.name,pct(r.move,2),pm(r.typical_move,2)]),true);box.append(d);}
+function releasesCard(){const r=obj(state.releases),box=$('releases');box.replaceChildren();if(r.status!=='ok'){box.append(el('p','muted small',r.reason||'Unavailable.'));return;}
+ table(box,['Release','Period','Latest','Before that','Source'],list(r.rows).map(x=>[x.name,x.period+(x.preliminary?' (P)':''),x.value,x.previous,x.source]));box.append(el('p','small muted',(r.note||'')+' Downloaded '+(r.fetched_utc||'')+' UTC.'));}
+function ecal(){const c=obj(state.earnings_calendar),box=$('ecal');box.replaceChildren();if(c.status!=='ok'){box.append(el('p','muted small',c.reason||'Unavailable.'));return;}
+ const cap=v=>ok(v)?'$'+(v>=1e12?fmt(v/1e12,2)+'T':fmt(v/1e9,0)+'B'):'—';
+ list(c.days).forEach((d,i)=>{const det=el('details');if(i<3||list(d.largest).length)det.open=i<3;const big=list(d.largest);det.append(el('summary','',d.weekday+' '+d.date+' · '+d.rows.length+' compan'+(d.rows.length===1?'y':'ies')+(big.length?' · largest: '+big.join(', '):'')+(d.ok?'':' · last good copy')));
+  if(d.rows.length)table(det,['Company','Reports','Market value','Consensus EPS'],d.rows.map(r=>{const n=el('span',r.mega?'fired':'',r.symbol+' · '+r.name);return [n,r.timing,cap(r.market_cap),ok(r.eps_forecast)?'$'+fmt(r.eps_forecast,2)+(ok(r.estimates)?' ('+r.estimates+' est.)':''):'—'];}));else det.append(el('p','muted small','No company of $'+fmt(c.min_cap_billions,0)+' billion or more is scheduled.'));box.append(det);});
+ box.append(el('p','small muted',c.companies+' companies in the window. '+(c.note||'')+' Downloaded '+(c.fetched_utc||'')+' UTC.'));}
 async function reloadLive(){const r=await fetch('/api/v1/thesis/live',{cache:'no-store'});if(!r.ok)throw new Error('The local service returned '+r.status);const out=await r.json();state.preclose=out.preclose;state.same_day_options=out.same_day_options;state.paper_book=out.paper_book;paper();preclose();sameDay();}
 function journal(){const j=obj(state.journal),l=$('note-list');l.replaceChildren();const sel=$('note-instrument');if(sel.options.length<2)list(j.instruments).forEach(i=>sel.append(new Option(i,i)));
  if(j.status==='broken'){l.append(el('p','notice warn',j.reason));$('note-save').disabled=true;return;}
@@ -177,7 +188,7 @@ post('noteform','/api/v1/thesis/note','note-status','note-save',o=>'Saved note #
 post('ideaform','/api/v1/thesis/idea','idea-status','idea-save',o=>'Added idea #'+o.idea.idea+'.');
 post('ideaupdate','/api/v1/thesis/idea/update','idea-status','idea-update',o=>'Updated idea #'+o.idea.idea+'.');
 function foot(){const s=obj(state.sources);$('foot').textContent='Built '+(state.as_of||'')+' ET. Sources: '+Object.values(s).join(' · ')+'. Read-only: this page never places orders. Missing inputs stay unavailable.';}
-view();call();paper();preclose();sameDay();newsCard();signals();ops();regime();overnight();events();risk();calls();stanceLog();journal();ideas();foot();
+view();call();paper();preclose();sameDay();newsCard();moversCard();releasesCard();ecal();signals();ops();regime();overnight();events();risk();calls();stanceLog();journal();ideas();foot();
 if(location.protocol==='file:'){['record','note-save','idea-save','idea-update'].forEach(id=>$(id).disabled=true);$('call-status').textContent='Open through the dashboard (Trading Research Control Panel) to record calls, notes and ideas.';}else{reloadCalls().catch(()=>{});reloadJournal().catch(()=>{});reloadLive().catch(()=>{});}
 })();
 </script>
