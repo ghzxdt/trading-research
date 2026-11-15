@@ -165,7 +165,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - The FRED API key (registered 2026-11-14 on the user's account, with their OK to accept FRED's terms) is in
   `.secrets\fred_api_key.txt`: git-ignored, outside `data/` so not in the data backup, covered by the user's manual
   copy of `C:\Claude`. Never print it, commit it or put it in a URL that gets logged.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (302 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (309 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).
@@ -212,6 +212,14 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   9:25 PM Central, so every daytime run was missed (no snapshots, option data, pre-close check or liquidity
   samples that day); the sign-in catch-up then logged the day's decisions and stance in time. For an unattended
   day the laptop must be left asleep or on, not shut down.
+- Lid closed is fine (checked 2026-11-15): this ThinkPad uses classic S3 sleep, closing the lid means Sleep on
+  mains and battery, the tasks may start on battery, and a timer wakes it with the lid shut. Keep it out of a
+  bag while a wake is due (no airflow), and prefer mains: the evening refresh can hold it awake an hour or more
+  waiting for the VIX close. Since 2026-11-15 each scheduled script (`unattended.py`) waits up to 3 minutes for
+  the network before downloading and asks Windows to stay awake until it finishes (Windows otherwise puts a
+  timer-woken laptop back to sleep after about 2 minutes). On Sat 2026-11-14 the sign-in runs started 2.5
+  minutes after boot with no network: 0 of 16 bar downloads, Cboe failed, the GitHub push failed. A timer wake
+  had not yet been seen in the System log on 2026-11-15 (only power-button and USB wakes).
 - Offline rebuild: `.venv\Scripts\python -B run_all.py --offline` (about 70 seconds).
 - Online refresh: the control panel's **Run / Refresh data**, or `run_all.py` without `--offline`. Both refuse,
   with the reason, while the latest session's paper decisions aren't logged and Cboe hasn't posted its VIX close

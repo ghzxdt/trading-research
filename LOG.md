@@ -1,5 +1,23 @@
 # Trading research log
 
+## 2026-11-15: two-app review; scheduled runs survive a wake from sleep
+- **Two-app review (user asked; the backtester chat had finished).** The research app (116 Python files, about
+  18,300 lines) collects about 15 sources and keeps the forward record; the backtester (20 files, about 2,400
+  lines) turns ideas into evidence. They meet in two places: the backtester reads 3 of this app's raw files
+  (daily ETFs and VIX), and this app reads one export. Checked live: this app's paper book rebuilds all 4,800
+  backtester ETF trades (2026-11-14 run) with the same entry and exit dates, returns within 0.005 bp, and all
+  1,275 signal days match. Claude's view: keep both, but put new work into the backtester (forward scoring since
+  Nov 8, a regime filter, event-day and gap studies on data this app already collects); keep this app to
+  collection and reliability. Every call rests on two overlapping QQQ oversold rules (130 trades since 2010, at
+  most about 8 a year), and since 2010 neither beats buy-and-hold per unit of drawdown (0.30 and 0.38 against 0.49). The
+  rules and exits are coded in both apps; a new backtester exit needs a copy here or the paper book skips it.
+- **Wake from sleep.** Laptop checked: S3 sleep, lid and power button = Sleep on mains and battery, wake timers
+  allowed, no hibernation, tasks allowed on battery, so the lid can be closed. Found: Saturday's sign-in runs
+  (3:46 PM Central, 2.5 minutes after boot) had no network, so bars, Cboe and the GitHub push all failed. New
+  `unattended.py`: the collection, snapshot and evening-refresh scripts wait up to 3 minutes for the network and
+  hold a "system required" request while they run, so a timer-woken laptop doesn't fall back asleep mid-job.
+  7 new tests (309). Still unproven: an actual timer wake on this laptop.
+
 ## 2026-11-14: backtester evidence is now Lead v2
 - The backtester re-judged its trade simulation with Lead v2 (its commits 25350c7, 213f39e; report
   `2026-11-14-084052-trade-simulation`, data through 2026-11-13). Hand-over note read from the shared notes folder.

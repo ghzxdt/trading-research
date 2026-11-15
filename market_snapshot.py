@@ -313,12 +313,14 @@ def wait_for_build(root: Path, sleep, lock_state, limit: int = 600) -> int:
 
 def run(root: Path = ROOT, *, scheduled: bool = False, get=_get, bars_for=yahoo_bars, nowcast=cleveland_nowcast,
         now=lambda: pd.Timestamp.now(tz=NY), sleep=time.sleep, say=log, lock_state=build_lock_state,
-        headlines=None) -> int:
+        headlines=None, network=None) -> int:
     stamp = now()
     slot = slot_for(stamp)
     if scheduled and slot == "manual":
         say(f"Started at {stamp:%H:%M} ET, outside the 8:00-9:30 AM and 4:00-4:45 PM ET windows; skipped.")
         return 0
+    if network:  # after a wake from sleep, Wi-Fi can take a while to reconnect
+        network()
     problems: list[str] = []
     try:
         perps, events, kalshi_problems = collect_kalshi(get)
@@ -376,7 +378,10 @@ def main(argv=None) -> int:
                         help="skip when started outside the snapshot windows (used by the scheduled task)")
     args = parser.parse_args(argv)
     try:
-        return run(ROOT, scheduled=args.scheduled, headlines=collect_headlines)
+        import unattended
+        with unattended.keep_awake():  # a timer-woken laptop would otherwise go back to sleep mid-run
+            return run(ROOT, scheduled=args.scheduled, headlines=collect_headlines,
+                       network=lambda: unattended.wait_for_network(log))
     except Exception:
         log("Snapshot failed:\n" + traceback.format_exc())
         return 3

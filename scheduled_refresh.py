@@ -207,9 +207,12 @@ def main(argv=None) -> int:
     parser.add_argument("--no-git", action="store_true", help="skip the data commit and GitHub push")
     args = parser.parse_args(argv)
     try:
+        import unattended
         today = pd.Timestamp.now(tz=NY).date().isoformat()
-        return run(ROOT, refresh=lambda force=False: app_refresh(Controller(ROOT), force=force), page=page_status,
-                   backup=None if args.no_git else (lambda: git_backup.sync(ROOT, log, f"Evening refresh data, {today}")))
+        with unattended.keep_awake():  # it can wait an hour or more for the VIX close; a timer wake must not end it
+            unattended.wait_for_network(log)
+            return run(ROOT, refresh=lambda force=False: app_refresh(Controller(ROOT), force=force), page=page_status,
+                       backup=None if args.no_git else (lambda: git_backup.sync(ROOT, log, f"Evening refresh data, {today}")))
     except Exception:
         log("Unexpected error:\n" + traceback.format_exc())
         return 3

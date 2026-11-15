@@ -173,12 +173,15 @@ def main(argv=None) -> int:
         import liquidity_free
         import intraday_hourly
         import zero_dte
+        import unattended
         from thesis import preclose
-        return run(ROOT, backup=lambda root, say: data_backup.run(root, say),
-                   zero=zero_dte.snapshot, indexes=zero_dte.update_indexes, hourly=intraday_hourly.refresh,
-                   preclose=lambda root, when: preclose.record(root, when, liquidity_free.yahoo_quote),
-                   sample=lambda root, symbols, when: liquidity_free.sample(root, symbols, when),
-                   liquidity=lambda root, symbols, say: liquidity_free.update(root, symbols, pd.Timestamp.now(tz=NY), say=say))
+        with unattended.keep_awake():  # a timer-woken laptop would otherwise go back to sleep mid-run
+            unattended.wait_for_network(log)
+            return run(ROOT, backup=lambda root, say: data_backup.run(root, say),
+                       zero=zero_dte.snapshot, indexes=zero_dte.update_indexes, hourly=intraday_hourly.refresh,
+                       preclose=lambda root, when: preclose.record(root, when, liquidity_free.yahoo_quote),
+                       sample=lambda root, symbols, when: liquidity_free.sample(root, symbols, when),
+                       liquidity=lambda root, symbols, say: liquidity_free.update(root, symbols, pd.Timestamp.now(tz=NY), say=say))
     except Exception:
         log("Collection failed:\n" + traceback.format_exc())
         return 3

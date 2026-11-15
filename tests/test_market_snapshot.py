@@ -115,11 +115,21 @@ class SnapshotRunTests(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory(dir=SCRATCH);self.root=Path(self.tmp.name);self.said=[];self.slept=[]
     def tearDown(self):self.tmp.cleanup()
 
-    def go(self,get=fake_get,when=STAMP,busy=(),scheduled=True,bars_for=lambda s:FRIDAY_TO_MONDAY,nowcast=lambda:NOWCAST):
+    def go(self,get=fake_get,when=STAMP,busy=(),scheduled=True,bars_for=lambda s:FRIDAY_TO_MONDAY,nowcast=lambda:NOWCAST,network=None):
         states=list(busy)
         lock=lambda root:{'busy':states.pop(0) if states else False}
         return ms.run(self.root,scheduled=scheduled,get=get,bars_for=bars_for,nowcast=nowcast,now=lambda:when,
-                      sleep=self.slept.append,say=self.said.append,lock_state=lock)
+                      sleep=self.slept.append,say=self.said.append,lock_state=lock,network=network)
+
+    def test_waits_for_the_network_only_when_it_will_download(self):
+        order=[]
+        def get(*a,**k):
+            order.append('download');return fake_get(*a,**k)
+        self.assertEqual(self.go(get=get,network=lambda:order.append('network')),0)
+        self.assertEqual(order[0],'network')
+        skipped=[]
+        self.go(when=pd.Timestamp('2026-11-09 12:00',tz=NY),network=lambda:skipped.append(1))
+        self.assertEqual(skipped,[])
 
     def rows(self,name):
         path=self.root/name
