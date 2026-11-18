@@ -179,5 +179,21 @@ class CallScoringLabelTests(unittest.TestCase):
         self.assertIn("not applied", board["note"])  # review B7: invalidations are shown, never applied
 
 
+class ConsistencyTests(unittest.TestCase):
+    """Review C11 (2026-11-18): one close rule everywhere, early closes included, and a stale nowcast says so."""
+    def test_early_close_and_nowcast_staleness(self):
+        from thesis import data, morning
+        self.assertEqual(data.last_known_session(pd.Timestamp("2026-11-27 13:20", tz=NY)), pd.Timestamp("2026-11-27"))
+        self.assertEqual(data.last_known_session(pd.Timestamp("2026-11-27 13:10", tz=NY)), pd.Timestamp("2026-11-26"))
+        self.assertEqual(data.last_known_session(pd.Timestamp("2026-11-18 16:10", tz=NY)), pd.Timestamp("2026-11-17"))
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / morning.NOWCAST
+            path.parent.mkdir(parents=True)
+            path.write_text("snapshot_utc,target_month,series,value_mom_pct,as_of\n"
+                            "2026-11-12T21:05:00+00:00,2026-11,CPI,0.21,2026-11-12\n", encoding="utf-8")
+            self.assertEqual(morning.nowcast(Path(tmp), pd.Timestamp("2026-11-13 09:00", tz=NY))["status"], "ok")
+            self.assertEqual(morning.nowcast(Path(tmp), pd.Timestamp("2026-11-18 09:00", tz=NY))["status"], "stale")
+
+
 if __name__ == "__main__":
     unittest.main()

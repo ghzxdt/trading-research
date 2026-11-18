@@ -82,7 +82,7 @@ def compare(root,out,old,new):
          [section('diff','Calculation differences','Both versions below use the same current cached market inputs; the old algorithms are loaded from the frozen backup.',[table('Original algorithms vs corrected algorithms',['Measure','Original','Corrected','Interpretation'],rows)]),
           section('repairs','Repair coverage',tables=[table('What changed',['Area','Behavior','Status'],gate)]),
           section('tests','Statistical support across the full test family','Probabilities are decimals: 0.05 means 5%. Small nonzero values retain precision. Unavailable matched tests lack sufficient controls. Changed null methods and controls are part of the correction.',[table('All Indexes + GEX tests',['Test','Cases','Original raw p','Corrected raw p','BH adjusted','Holm adjusted'],tests)])],
-         '<p><a href="baseline/report.html">Open the frozen original Indexes report</a> · <a href="baseline/tickers.html">Original tickers</a> · <a href="baseline/leverage.html">Original leverage</a> · <a href="baseline/gex.html">Original GEX</a></p><p>Use Backtests for economic results. Use Paper monitor for decisions recorded before future entries.</p>')
+         '<p><a href="baseline/report.html">Open the frozen original Indexes report</a> · <a href="baseline/tickers.html">Original tickers</a> · <a href="baseline/leverage.html">Original leverage</a> · <a href="baseline/gex.html">Original GEX</a></p><p>Use the 4-rule backtests tab for economic results. Use the 4-rule paper log tab for decisions recorded before future entries.</p>')
     dump(out/'statistical_registry.json',registry)
     return registry
 
@@ -118,7 +118,7 @@ def backtests(root,out,t,costs):
         if not revised.empty:all_trades.append(revised)
     summary_table=table('Paired experiment scoreboard',['Frozen candidate','Trades','Original gross','Original scenario net','Corrected scenario net','Corrected drawdown','Net mean/trade','95% year-block mean interval'],summary)
     assumptions=table('Editable assumptions in monitor_config.json',['Setting','Value'],[[k,str(v)] for k,v in costs.items()])
-    page(out,'backtests.html','backtests','After-cost backtests','Historical ETF-proxy experiments, not a verified live trading record.',
+    page(out,'backtests.html','backtests','Four-rule experiment: after-cost backtests','The frozen four-rule experiment of 2026-11-07 (not the Trading Backtester app). Historical ETF-proxy experiments, not a verified live trading record.',
          [section('score','Compare economic outcomes','Rules were selected using this history. Year blocks and confidence intervals are diagnostics, not an untouched out-of-sample claim.',[summary_table,assumptions])]+sections,
          '<p>Costs are explicit assumptions: bid/ask and slippage are applied to fills, fees apply on entry/exit notional, and funding is a prorated calendar-time scenario. The model does not claim historical Kalshi quotes, exact funding events, stop fills or liquidation execution. No leverage recommendation is produced.</p><p><a href="backtest_trades.csv">Download corrected trade ledger</a> · <a href="backtest_summary.json">Download summary</a></p>')
     pd.concat(all_trades,ignore_index=True).to_csv(out/'backtest_trades.csv',index=False,float_format='%.17g') if all_trades else pd.DataFrame(columns=['strategy','signal_date','net']).to_csv(out/'backtest_trades.csv',index=False)
@@ -139,7 +139,7 @@ def paper_page(root,out,t,costs,quality_ok):
     for rule in backtest.STRATEGIES:
         r=[o['net'] for d,o in scored if d['strategy']==rule['id']]
         scores.append([rule['name'],len(r),fmt(np.mean(r),3) if r else 'No settled trades',fmt(np.prod(1+np.array(r))-1) if r else 'Pending'])
-    page(out,'paper.html','paper','Forward paper monitor','Only decisions recorded before their hypothetical entry can enter the forward scoreboard.',
+    page(out,'paper.html','paper','Four-rule experiment: forward paper log','Decisions of the frozen four-rule experiment (not the Daily thesis stance log or paper book). Only decisions recorded before their hypothetical entry can enter the forward scoreboard.',
          [section('paper_score','Forward scoreboard','Paper fills are next-open ETF-proxy scenarios. Each rule maintains a nonoverlapping research position; rules are scored separately.',[table('No retrospective backfilling',['Candidate','Settled signaled trades','Net mean','Compounded scenario return'],scores)]),
           section('paper_log','Immutable decision log','Hash chain is verified on every read. Rebuilds preserve prior decisions; late records and incomplete outcomes are excluded.',[table('Recent decisions',['Rule','Signal date','Recorded UTC','Decision','Planned entry','Eligibility','Outcome net'],rows or [['No records yet','—','—','—','—','Offline builds do not create forward observations','—']])])],
          '<p>Read-only build (offline, replay or data-only refresh): '+str(state['replay'])+'. Log chain verified: '+str(state['chain_verified'])+'. Existing experiment cost configuration changed: '+str(state['config_changed'])+'.</p><p>The first online refresh locks the rules and cost assumptions. A changed configuration does not rewrite that experiment. No settled sample means no evidence of forward profitability.</p>')

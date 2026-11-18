@@ -43,6 +43,9 @@ class SamplingTests(unittest.TestCase):
         self.assertEqual(lf.parse_occ(OCC_CSV, "SPY"),
                          {"all_series_sides": 4500, "standard_sides": 4000, "one_sided_estimate": 2000})
         self.assertIsNone(lf.parse_occ("quantity,underlying,symbol,actype,porc,exchange,actdate\n", "SPY"))
+        odd = OCC_CSV + "7,SPY,SPY,F,C,PHLX,11/06/2026,\n"  # one side only: the layout changed (review C12)
+        with self.assertRaises(ValueError):
+            lf.parse_occ(odd, "SPY")
 
 
 class DayRecordTests(unittest.TestCase):

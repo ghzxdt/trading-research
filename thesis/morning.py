@@ -15,6 +15,8 @@ from .data import NY
 
 FUTURES = Path("data/futures/futures_quotes.csv")
 NOWCAST = Path("data/macro/inflation_nowcast.csv")
+FUTURES_FRESH_HOURS = 16  # older than this, a futures snapshot says nothing about tonight or this morning
+NOWCAST_FRESH_HOURS = 96  # recorded each weekday at 4:05 PM ET; 4 days covers a weekend plus a holiday
 
 
 def _read(path: Path, now) -> pd.DataFrame:
@@ -41,9 +43,11 @@ def futures(root: Path, now) -> dict:
              "change_since_4pm": None if pd.isna(r.get("change_since_4pm_pct")) else float(r["change_since_4pm_pct"]) / 100}
             for r in latest.to_dict("records")]
     age = (now.tz_convert(NY) - taken).total_seconds() / 3600
-    return {"status": "ok" if age < 16 else "stale", "snapshot_et": f"{taken:%Y-%m-%d %H:%M}", "slot": latest["slot"].iloc[0],
-            "age_hours": age, "rows": rows,
-            "note": "Yahoo futures quotes can be delayed (delay shown). The change is from the 4:00 PM ET bar."}
+    return {"status": "ok" if age < FUTURES_FRESH_HOURS else "stale", "snapshot_et": f"{taken:%Y-%m-%d %H:%M}",
+            "slot": latest["slot"].iloc[0], "age_hours": age, "rows": rows,
+            "note": f"Yahoo futures quotes can be delayed (delay shown). The change is from the 4:00 PM ET bar. A "
+                    f"snapshot older than {FUTURES_FRESH_HOURS} hours is stale for this view (System status separately "
+                    "flags the snapshot job after 30 hours without a run)."}
 
 
 def nowcast(root: Path, now) -> dict:
@@ -54,7 +58,10 @@ def nowcast(root: Path, now) -> dict:
     latest = frame[frame["snapshot_utc"] == frame["snapshot_utc"].max()]
     rows = [{"target_month": r["target_month"], "series": r["series"], "value_mom_pct": r["value_mom_pct"],
              "as_of": r.get("as_of")} for r in latest.sort_values(["target_month", "series"]).to_dict("records")]
-    return {"status": "ok", "snapshot_et": f"{latest['snapshot_utc'].iloc[0].tz_convert(NY):%Y-%m-%d %H:%M}", "rows": rows,
+    taken = latest["snapshot_utc"].iloc[0].tz_convert(NY)
+    age = (now.tz_convert(NY) - taken).total_seconds() / 3600
+    return {"status": "ok" if age < NOWCAST_FRESH_HOURS else "stale", "snapshot_et": f"{taken:%Y-%m-%d %H:%M}",
+            "age_hours": age, "rows": rows,
             "note": "Month-over-month % change nowcasts from the Cleveland Fed. A nowcast is a model estimate, not "
                     "the market consensus; the official consensus is not available for free."}
 

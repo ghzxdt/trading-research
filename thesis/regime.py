@@ -72,6 +72,8 @@ def volatility(vix: pd.Series, vix3m: pd.Series, spy: pd.DataFrame | None) -> di
             "term_ratio": ratio,
             "term_state": None if ratio is None else ("Inverted: near-term fear above 3-month (stress)" if ratio > 1
                                                       else "Normal upward slope (contango)"),
+            # VIX/sqrt(252): a trading-session heuristic. Cboe's VIX is annualized over 365 calendar days, so this
+            # is an approximation of one session's standard deviation, labelled as such on the page.
             "implied_daily_move": last / 100 / math.sqrt(252), "realized_20d": realized,
             "change_5d": float(last - vix.iloc[-6]) if len(vix) > 6 else None}
 

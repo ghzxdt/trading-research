@@ -45,7 +45,10 @@ def _daily(root, symbol, now):
     data = pd.read_csv(path, parse_dates=['date'])
     date = now.tz_convert('America/New_York').tz_localize(None).normalize()
     # Today's completed/published close is never presumed available during trading.
-    eligible = data[data['date'] < date] if now.tz_convert('America/New_York').hour < 20 else data[data['date'] <= date]
+    # Same rule as the Daily thesis (thesis.data.last_known_session): final 15 minutes after the calendar's close.
+    # It waited until 8 PM ET before 2026-11-18 (review C11).
+    from thesis.data import last_known_session
+    eligible = data[data['date'] <= last_known_session(now)]
     if eligible.empty:
         return {}, []
     prefix = symbol.lower()
@@ -64,7 +67,7 @@ def _daily(root, symbol, now):
     previous = valid.iloc[-2][prefix + '_close'] if len(valid) > 1 else None
     context = {'last_price': last[prefix + '_close'], 'last_daily_session': str(last['date'].date()),
                'change_pct': last[prefix + '_close'] / previous - 1 if previous else None,
-               'vix': last.get('vix'), 'day_type': last.get('spy_day_type'),
+               'vix': last.get('vix'), 'day_type': last.get('spy_day_type'), 'day_type_symbol': 'SPY',  # only SPY has day types
                'source': 'Existing adjusted daily research table',
                'availability': 'legacy daily context; historical receipt times not archived',
                'execution_eligible': False}

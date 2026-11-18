@@ -23,7 +23,8 @@ def build(root: Path, now: pd.Timestamp, latest_close: str | None) -> dict:
     path = Path(root) / ARCHIVE
     if not path.exists() or not latest_close:
         return {"status": "unavailable", "rows": [], "reason": "No headlines archived yet."}
-    since = pd.Timestamp(latest_close).tz_localize(NY) + pd.Timedelta(hours=16)
+    from intraday.calendar import close_minutes  # 1 PM on an early close (review C11, 2026-11-18)
+    since = pd.Timestamp(latest_close).tz_localize(NY) + pd.Timedelta(minutes=close_minutes(latest_close) or 16 * 60)
     seen, rows, newest = set(), [], None
     for line in path.read_text(encoding="utf-8").splitlines():
         try:

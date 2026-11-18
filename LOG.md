@@ -1,12 +1,36 @@
 # Trading research log
 
 ## Open
-- Backtester hand-off, second batch (13 review findings A1-C13, received 2026-11-18): agree order and scope with
-  the user before starting. Details in the backtester chat's message; reviews in
+- Backtester hand-off, second batch (13 review findings A1-C13, received 2026-11-18). Step 1 (A2, A3, A5, B7,
+  C10, C11, C12) done 2026-11-18. Step 2, in this order: A1, B6, C9, A4, B8, C13 (user's go-ahead relayed from the
+  backtester chat; check with the user on any new data provider and on visible changes to the daily screen). Details in the backtester chat's message; reviews in
   `C:\Claude\trading-backtester\docs\reviews\APP_REVIEW_2026-11-18.md` and Codex's 2026-11-14 outputs.
 - The options import lock (`options_research/core.py` `_writer`) has the same no-recovery pattern the minute-bar
   lock had. Manual imports only, so lower risk; same fix if wanted.
 - Reminder from the hand-off: daytime jobs only run while the laptop is asleep or on, never shut down.
+
+## 2026-11-18 (late afternoon): review fixes, step 1 (A2, A3, A5, B7, C10, C11, C12)
+User's go-ahead relayed by the backtester chat ("send instructions for both 1 and 2 to get carried out in research chat").
+- A2 pre-close check, schema 2: window = the 30 minutes before the exchange calendar's close (`intraday.calendar.
+  close_minutes`; 1 PM ET on Nov 27); Yahoo's last-trade time and age; the page's evidence check recorded, and a
+  session with unusable evidence gets no paper trades. `scheduled_collect.slot_for` and the same-day option
+  snapshots follow the same close (on Nov 27 the 12:30 PM ET run is the pre-close run; later runs collect bars).
+  Today's 3:50 PM ET check ran on the old code (schema 1).
+- A3 same-day options settle on the session's raw close (`zero_dte.update_raw_closes`, saved by the 8:10 PM ET run
+  from Yahoo unadjusted closes); a day waits until its raw close is saved.
+- A5 `/api/v1/thesis/live` reports the export on disk; the page shows "Evidence state: current" or "Stale
+  evidence". Checked live after restarting the dashboard: current (sha256 793a58bd49ec).
+- B7 call scoreboard labelled fixed-horizon (invalidations shown, not applied). Structured invalidations would
+  change the call form, so that is the user's call.
+- C10 tabs "4-rule backtests" and "4-rule paper log", page headings "Daily thesis" and "Intraday", the paper
+  ticket, pre-close paper trades and the call log say which paper record they mean.
+- C11 a daily close counts 15 minutes after the calendar's close everywhere (the Intraday tab waited until 8 PM
+  ET); "since the last close" starts at 1 PM on early closes; the Intraday day type says it is SPY's; the nowcast
+  goes stale after 96 hours; the futures note names its 16-hour limit beside System status's 30 hours; the
+  page labels VIX/sqrt(252) as a trading-session rule of thumb.
+- C12 OCC volume is two-sided: all 152 series-group totals (SPY and QQQ Nov 17, IWM Nov 16) were even while
+  single rows were even about half the time; halving kept, and `parse_occ` now refuses a file with an odd total.
+333 tests. Pages checked in the browser: no console errors.
 
 ## 2026-11-18 (afternoon): daily archive, rule-exit scores, evidence cards, IWM history, rounding ties
 User: "Build all three" (backtester hand-off items 4, 2 and 5).

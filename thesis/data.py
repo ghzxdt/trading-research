@@ -15,7 +15,15 @@ def last_known_session(now: pd.Timestamp) -> pd.Timestamp:
     """Latest calendar date whose daily close is known at `now` (a partial daytime bar is never used)."""
     local = now.tz_convert(NY)
     day = local.normalize().tz_localize(None)
-    return day if local - local.normalize() >= CLOSE_KNOWN else day - pd.Timedelta(days=1)
+    return day if local - local.normalize() >= close_known(day) else day - pd.Timedelta(days=1)
+
+
+def close_known(day) -> pd.Timedelta:
+    """Time of day (ET) after which `day`'s daily close counts as final: 15 minutes after the exchange calendar's
+    close, so 4:15 PM, or 1:15 PM on an early close (review C11, 2026-11-18; it was always 4:15 PM before)."""
+    from intraday.calendar import close_minutes
+    close = close_minutes(day)
+    return pd.Timedelta(minutes=close + 15) if close else CLOSE_KNOWN
 
 
 def _etfs(path: Path) -> dict[str, pd.DataFrame]:

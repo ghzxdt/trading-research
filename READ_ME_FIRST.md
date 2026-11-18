@@ -8,7 +8,7 @@ The saved output was built and validated from the existing cached inputs. Use **
 
 - Original vs corrected: verified frozen original reports, same-input calculations, complete raw/BH/Holm test registry.
 - Backtests: original gross, original scenario net, and corrected-next-open scenario net, trade ledger, annual breakdown and execution-cost stress tests.
-- Paper monitor: timestamped decisions, pre-entry eligibility checks, frozen experiment configuration and hash-chained append-only log. Offline/replay builds never create a fictional forward record.
+- 4-rule paper log (tab formerly "Paper monitor"): timestamped decisions, pre-entry eligibility checks, frozen experiment configuration and hash-chained append-only log. Offline/replay builds never create a fictional forward record.
 - Data quality: freshness, transformation validation, run provenance, missing calibration, and external-vendor limitations.
 - Jobs & macro: static versus fetched BLS calendar, archived official release observations, and timestamp-validated imported surprises.
 

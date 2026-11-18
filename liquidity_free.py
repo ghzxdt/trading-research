@@ -8,8 +8,14 @@ Three free sources, combined into one immutable record per instrument per tradin
   which is why these records live in their own journal and every result using them says so.
 - Share volume: Yahoo's daily volume (full session).
 - Options volume: OCC's daily cleared volume for standard contracts on the underlying (adjusted contracts such as
-  2SPY are left out). OCC appears to count both sides of each trade, so the one-sided estimate is half the
-  total; if that is wrong it only understates volume, which is the safe direction for a minimum-volume test.
+  2SPY are left out). OCC counts both sides of each trade, so the one-sided estimate is half the total.
+  Checked 2026-11-18 against OCC's record layout (review C12): each row is one account type (C customer, F firm,
+  M market maker) of the cleared sides for a series group, put or call, and exchange, e.g. a 240-contract
+  customer-vs-market-maker trade shows as 240 C and 240 M. Every one of 152 group totals (SPY and QQQ on Nov 17,
+  IWM on Nov 16) was even while single rows were even about half the time; one-sided counts would make that
+  essentially impossible. SPY's total on Nov 17 was 27.2 million sides, against about 12.2 million one-sided
+  contracts in Cboe's series volumes by 3:36 PM ET on Nov 18. parse_occ refuses a file whose group totals are
+  not all even, so a layout change can't be halved silently.
 
 After the close, `update()` fetches missing OCC days and writes each finished day's record once every part is in
 (or after three trading days without OCC's figure, with options volume left blank). Public data only.
@@ -131,6 +137,10 @@ def parse_occ(text: str, symbol: str) -> dict | None:
     if frame.empty or "quantity" not in frame:
         return None
     standard = frame[frame["symbol"].astype(str).str.upper() == symbol.upper()]
+    keys = [k for k in ("symbol", "porc", "exchange") if k in frame]
+    if len(keys) == 3 and (frame.groupby(keys)["quantity"].sum() % 2).any():
+        # Both sides of every trade make each group's total even; an odd one means the layout changed.
+        raise ValueError("OCC's volume file no longer shows both sides of each trade (a group total is odd); not halving it")
     raw = int(standard["quantity"].sum())
     return {"all_series_sides": int(frame["quantity"].sum()), "standard_sides": raw, "one_sided_estimate": raw // 2}
 

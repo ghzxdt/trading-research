@@ -112,7 +112,7 @@ The corresponding read-only API is `/api/v1/thesis_state?symbol=SPY&as_of=2026-1
 | **GEX / DIX** | Manually imported aggregate daily GEX/DIX history and its freshness indicator. This is separate from Today's contract/strike information. |
 | **Original vs fixed** | The audit comparison showing calculation and statistical repairs relative to the original research app. |
 | **Backtests** | Existing frozen daily ETF-proxy strategy scenarios, timing comparisons, and cost sensitivity. These are separate from the new intraday baseline. |
-| **Paper monitor** | The existing daily experiment's immutable decisions and eligible later outcomes. It does not represent every new intraday observation. |
+| **4-rule paper log** (formerly Paper monitor) | The existing daily experiment's immutable decisions and eligible later outcomes. It does not represent every new intraday observation. |
 | **Data quality** | Source freshness, integrity, reconciliation, missing inputs, and remaining qualification limits. |
 | **Jobs & macro** | Scheduled-release context, archived source status, and valid imported release/consensus vintages where supplied. Missing expectations remain unavailable. |
 

@@ -118,6 +118,14 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
    missing or damaged is "unavailable"; IWM's daily history from 2000 in `etfs_long.csv` (only adds `iwm_*`
    columns; SPY/QQQ values unchanged); the date cross-check tolerates a **rounding tie** (a date whose verdict flips
    if that close moves 10 parts per million) and says so in the cautions (`signals.on_threshold`).
+   **Review fixes, 2026-11-18 (second batch, step 1):** the pre-close check, the collection schedule and the
+   same-day option snapshots use the exchange calendar's close (`intraday.calendar.close_minutes`; 1 PM on early
+   closes such as Nov 27, when the 12:30 PM ET run is the pre-close run), and pre-close records (schema 2) keep the
+   quote's age and the page's evidence check; same-day options settle on raw closes (`zero_dte.update_raw_closes`,
+   8:10 PM ET run); the page says when its backtester export is older than the one on disk; the call scoreboard is
+   labelled fixed-horizon; a daily close counts 15 minutes after the calendar's close everywhere; tabs renamed
+   "4-rule backtests" and "4-rule paper log" (the frozen experiment), headings "Daily thesis" and "Intraday";
+   OCC's options volume is confirmed two-sided (halving kept, `liquidity_free.parse_occ` refuses an odd total).
    **Also 2026-11-14:** **intraday base rates** from Yahoo's free hourly bars (`intraday_hourly.py`,
    `data/intraday_hourly/`, about 2.9 years, SPY/QQQ/IWM, refreshed each evening and kept, so the history grows):
    gap fill, first-hour share of the range, whether the day kept the first hour's direction after 10:30, and
@@ -183,7 +191,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - The FRED API key (registered 2026-11-14 on the user's account, with their OK to accept FRED's terms) is in
   `.secrets\fred_api_key.txt`: git-ignored, outside `data/` so not in the data backup, covered by the user's manual
   copy of `C:\Claude`. Never print it, commit it or put it in a URL that gets logged.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (329 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (333 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).
