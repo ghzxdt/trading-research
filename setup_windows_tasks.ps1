@@ -49,10 +49,16 @@ Register-ScheduledTask -TaskName 'Trading Research Dashboard' -Action $dash -Tri
     -Description 'Starts the local dashboard server (start_dashboard.py). It never refreshes data.' -Force | Out-Null
 Write-Output 'Registered: Trading Research Dashboard (at sign-in)'
 
+# Desktop shortcut: update one that already opens desktop_app.pyw, whatever it is called (on this laptop it is
+# "Research", beside the backtester's "Backtester"), so running this script again never adds a second icon. Only
+# when there is none is "Trading Research Control Panel" created (on 2026-11-17 a re-run added that duplicate).
 $shell = New-Object -ComObject WScript.Shell
-$lnk = $shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Desktop')) 'Trading Research Control Panel.lnk'))
+$desktop = [Environment]::GetFolderPath('Desktop')
+$app = Join-Path $root 'desktop_app.pyw'
+$existing = Get-ChildItem -LiteralPath $desktop -Filter *.lnk | Where-Object { $shell.CreateShortcut($_.FullName).Arguments -like "*$app*" } | Select-Object -First 1
+$lnk = $shell.CreateShortcut($(if ($existing) { $existing.FullName } else { Join-Path $desktop 'Trading Research Control Panel.lnk' }))
 $lnk.TargetPath = $pythonw
-$lnk.Arguments = "`"$(Join-Path $root 'desktop_app.pyw')`""
+$lnk.Arguments = "`"$app`""
 $lnk.WorkingDirectory = $root
 $lnk.IconLocation = "$(Join-Path $root 'assets\app.ico'),0"
 $lnk.Description = 'Trading Research Control Panel'

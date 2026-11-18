@@ -159,7 +159,9 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - The computer's clock is US Central; market times are Eastern (Central = Eastern minus 1 hour).
 
 ## How to run
-- Desktop shortcut **Trading Research Control Panel** opens `desktop_app.pyw` from this folder.
+- Desktop shortcut **Research** (beside the backtester's **Backtester**; older docs call it "Trading Research
+  Control Panel") opens `desktop_app.pyw` from this folder. `setup_windows_tasks.ps1` updates whichever desktop
+  shortcut already opens `desktop_app.pyw` and creates "Trading Research Control Panel" only if there is none.
 - Dashboard: http://localhost:8766/thesis.html (Daily thesis; Intraday is `today.html`, Macro is `macro.html`).
   Binds to 127.0.0.1 only.
 - The FRED API key (registered 2026-11-14 on the user's account, with their OK to accept FRED's terms) is in
@@ -220,8 +222,11 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   the VIX close (usually minutes after 8:15 PM Central; at most 4 hours). Since 2026-11-15 each scheduled script (`unattended.py`) waits up to 3 minutes for
   the network before downloading and asks Windows to stay awake until it finishes (Windows otherwise puts a
   timer-woken laptop back to sleep after about 2 minutes). On Sat 2026-11-14 the sign-in runs started 2.5
-  minutes after boot with no network: 0 of 16 bar downloads, Cboe failed, the GitHub push failed. A timer wake
-  had not yet been seen in the System log on 2026-11-15 (only power-button and USB wakes).
+  minutes after boot with no network: 0 of 16 bar downloads, Cboe failed, the GitHub push failed.
+  **Tested lid closed on 2026-11-17** with temporary copies of this app's evening task and the backtester's weekly
+  task: Windows woke the laptop about 30 seconds before each task's time (System log names the task), the
+  network was already up and GitHub reachable, the keep-awake held it for the full 3-minute hold, and it went
+  back to sleep within seconds of release (backtester copy: about 2 minutes after the wake).
 - Offline rebuild: `.venv\Scripts\python -B run_all.py --offline` (about 70 seconds).
 - Online refresh: the control panel's **Run / Refresh data**, the pages' **Refresh data + validate**, or
   `run_all.py` without `--offline`. Until Cboe posts the session's VIX close (its file updated at about 9:30 PM ET

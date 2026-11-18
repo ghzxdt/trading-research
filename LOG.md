@@ -1,5 +1,21 @@
 # Trading research log
 
+## 2026-11-17 (night): lid-closed wake test passed; duplicate desktop icon removed
+- User: "Yes, test now" / "inlcude backtester test too". Two temporary tasks with the exact settings and principal
+  of Trading Research Evening Refresh and Trading Backtester Weekly Run (wake to run, battery allowed, signed-in
+  only), at 10:22 and 10:32 PM Central; lid closed at about 10:19 PM, on mains.
+- System log (Power-Troubleshooter 1): wakes at 10:21:32 and 10:31:32 PM, each naming its test task; the lid
+  opening at 10:51 PM was a USB wake. Windows wakes about 30 seconds early, so Wi-Fi was already up.
+- This app's copy ran the real `unattended` code: network up at start, GitHub reachable (read-only `git ls-remote`),
+  a line every 15 seconds for the 3-minute keep-awake hold with no gap, then sleep at 10:25:02, the second it
+  released. The backtester copy ran like `run_weekly.ps1` (hidden PowerShell, the same Python): GitHub reachable at
+  5 seconds, when the real run pushes; back to sleep at 10:33:40, about 2 minutes after the wake. Its real run
+  takes about 6 seconds, well inside that. Both test tasks removed.
+- Why two desktop icons: re-running `setup_windows_tasks.ps1` earlier tonight (for the 8:15 PM schedule) created
+  its own "Trading Research Control Panel" shortcut next to the existing "Research" one (same target, same icon).
+  The new copy went to the Recycle Bin; the script now updates any shortcut that already opens
+  `desktop_app.pyw` and only creates one when there is none.
+
 ## 2026-11-17 (later): evening task starts when Cboe usually posts
 - User: "when does that information usually get posted? i feel like constant checking is useless". Measured from
   Cboe's Last-Modified headers and the evening task's log: `VIX_History.csv` changed at 9:30 PM ET (Nov 16),
