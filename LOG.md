@@ -14,6 +14,29 @@ The backtester's chat (with the user's OK) sent six follow-ups after its audit a
   sitting exactly at its threshold and block the stance as a mismatch; tolerate a difference where the rule's
   value is within about 1e-5 of its threshold, and say so.
 - 6. Not code: the daytime jobs have never recorded because the laptop was shut down during market hours.
+- Also open (found 2026-11-18): the options import lock (`options_research/core.py` `_writer`) has the same
+  no-recovery pattern the minute-bar lock had. Manual imports only, so lower risk; same fix if wanted.
+
+## 2026-11-18: minute bars were blocked for three days by a stale writer lock; fixed and backfilled
+- Reported by the backtester's chat (user: "we need to fix that problem asap"). The Sun Nov 15 11:16 PM ET
+  collection was cut off when the laptop was shut down at about 10:17 PM Central, leaving
+  `data/intraday/v1/.writer.lock` (PID 10148). The lock had no way to tell its owner was dead, so every run since
+  failed per symbol ("An intraday writer is active"): 0 of 16 on Nov 17 at 5:39, 5:41 and 8:10 PM ET. System
+  status still said "ok" because it judged the job by when it ran.
+- Checked PID 10148 was gone and no collector was running; moved the lock to
+  `work/stale_intraday_writer_lock_2026-11-15_pid10148.txt`; ran the bars collection once at 2:21 PM ET: 16 of
+  16. Archive now: Nov 16 11,949 bars and Nov 17 12,390 (16 tickers each, like earlier days), Nov 18 through
+  2:22 PM ET. Nothing lost (Yahoo serves about 5 days).
+- Code: `intraday/store.writer_lock` removes a lock whose writer is certainly gone (no process with that PID, or
+  the process now holding the PID started after the lock was written, since Windows reuses PIDs; an empty lock
+  after 10 minutes) and logs it in `data/intraday/v1/lock_recoveries.log`; a live or uncheckable owner is still
+  respected (`app_control.process_started` is new). The test kills a real writer mid-run.
+- System status's Intraday row now judges data delivered: 0 tickers collected is red with the first error,
+  partial is amber with the tickers missed, and the row is amber whenever the archive's newest bar is older
+  than the latest completed session.
+- TNA's "Bar timestamp must be aligned to its interval" (Nov 17 evening) came from one off-minute row in Yahoo's
+  reply; it collected fine in the backfill. The collector now skips such rows and lists them
+  (`bars_skipped_off_minute`) instead of losing the ticker's batch. 324 tests.
 
 ## 2026-11-18: backtester Lead v3 read correctly
 - The backtester's export is now Lead v3 (development window fixed at 2026-11-13, a forward record after it, and a

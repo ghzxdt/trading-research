@@ -44,6 +44,26 @@ def process_alive(pid):
     finally:k.CloseHandle(handle)
 
 
+def process_started(pid):
+    """When a running process started (seconds since the epoch), or None if it can't be read. A lock whose PID
+    belongs to a process that started after the lock was written was left by a different, dead process."""
+    if os.name != 'nt' or not isinstance(pid,int) or pid <= 0 or pid > 0xFFFFFFFF:
+        return None
+    from ctypes import wintypes as w
+    k=ctypes.WinDLL('kernel32',use_last_error=True)
+    k.OpenProcess.argtypes=[w.DWORD,w.BOOL,w.DWORD];k.OpenProcess.restype=w.HANDLE
+    k.GetProcessTimes.argtypes=[w.HANDLE]+[ctypes.POINTER(w.FILETIME)]*4;k.GetProcessTimes.restype=w.BOOL
+    k.CloseHandle.argtypes=[w.HANDLE]
+    handle=k.OpenProcess(0x1000,False,pid)  # PROCESS_QUERY_LIMITED_INFORMATION only
+    if not handle: return None
+    try:
+        times=[w.FILETIME() for _ in range(4)]
+        if not k.GetProcessTimes(handle,*[ctypes.byref(t) for t in times]): return None
+        created=(times[0].dwHighDateTime<<32)|times[0].dwLowDateTime  # 100 ns ticks since 1601
+        return created/1e7-11644473600
+    finally:k.CloseHandle(handle)
+
+
 def active_descendants(pid):
     """Find builder children that survived a parent. None means unsafe to clear."""
     parents={}

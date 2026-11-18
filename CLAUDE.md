@@ -173,7 +173,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - The FRED API key (registered 2026-11-14 on the user's account, with their OK to accept FRED's terms) is in
   `.secrets\fred_api_key.txt`: git-ignored, outside `data/` so not in the data backup, covered by the user's manual
   copy of `C:\Claude`. Never print it, commit it or put it in a URL that gets logged.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (318 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (324 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).
@@ -194,7 +194,10 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   The snapshot journal is a declared weaker policy (spreads from 4 snapshots, not session medians). It is shown
   separately on Today and used only with `run_intraday.py research --liquidity-journal snapshot`; the strict
   `verified` journal stays the default. Yahoo keeps only ~5 days of minute bars, so this is what builds intraday history. It waits for
-  builds and for a Today-page collection. Log: `work\intraday_collect.log`. The evening run then backs up all
+  builds and for a Today-page collection. Log: `work\intraday_collect.log`. Since 2026-11-18 a minute-bar writer
+  lock left by a dead run (e.g. a shutdown mid-collection) is removed automatically and logged in
+  `data/intraday/v1/lock_recoveries.log`; one such lock blocked collection from Nov 15 to 18, and System status
+  now judges this job by the bars delivered. The evening run then backs up all
   of `data/` except `data/raw/` (`data_backup.py`) to `backups/data/` (3 days plus one per week for 4 weeks).
   No cloud sync (user, 2026-11-13): the user backs up `C:\Claude` by hand; `backup_targets.json` lists no
   folders. This project's Claude chats are copied to `conversations/` (git-ignored) by the hub task

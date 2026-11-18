@@ -35,7 +35,10 @@ def yahoo_bars(symbol):
                                      actions=False, raise_errors=True)
 
 
-def bar_records(symbol, frame, received_at):
+def bar_records(symbol, frame, received_at, skipped=None):
+    """Store records for completed one-minute bars. A row whose time isn't on a whole minute (Yahoo sometimes
+    appends a last-trade row, e.g. 15:59:47) is skipped and its time added to `skipped`: on 2026-11-17 one such
+    row made the store reject all of TNA's bars."""
     now = utc(received_at)
     if frame is None or frame.empty:
         raise ValueError('No intraday bars returned')
@@ -46,6 +49,10 @@ def bar_records(symbol, frame, received_at):
         start = utc(at)
         if start + pd.Timedelta(minutes=1) > now:
             continue  # never ingest an unfinished bar
+        if start.value % 60_000_000_000:
+            if skipped is not None:
+                skipped.append(start.isoformat())
+            continue
         record = {'symbol': symbol, 'timestamp': start.isoformat(), 'available_at': now.isoformat(),
                   'recorded_at': now.isoformat(), 'interval_seconds': 60, 'source': 'Yahoo Finance / yfinance',
                   'availability_basis': 'retrieved_archive', 'adjusted': False}
@@ -136,9 +143,12 @@ def collect(root, symbols=None, *, include_options=True, bars_for=None, chain_fo
             try:
                 frame = (bars_for or yahoo_bars)(symbol)
                 receipt = utc(now) if now is not None else utc()
-                records = bar_records(symbol, frame, receipt)
+                skipped = []
+                records = bar_records(symbol, frame, receipt, skipped)
                 item['bars'] = ingest_bars(root, records)
                 item['bar_status'] = 'collected' if records else 'unavailable'
+                if skipped:
+                    item['bars_skipped_off_minute'] = skipped[:5] + ([f'and {len(skipped) - 5} more'] if len(skipped) > 5 else [])
             except Exception as exc:
                 item.update(bar_status='failed', bar_error=str(exc)[:500])
             if include_options:

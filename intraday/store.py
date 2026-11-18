@@ -14,6 +14,7 @@ import math
 import os
 import re
 import threading
+import time
 import pandas as pd
 from .calendar import utc
 
@@ -156,15 +157,79 @@ def read_events(path):
     return copy.deepcopy(rows)
 
 
+RECOVERY_LOG = "lock_recoveries.log"
+EMPTY_LOCK_GRACE = 600  # seconds: a lock still without its PID after this was left by a writer that died at once
+
+
+def _abandoned_by(lock: Path, *, alive=None, started=None) -> int | None:
+    """The PID that left `lock` if that writer is certainly gone, else None (alive, or it can't be told).
+
+    Gone means: no process has that PID, or the process now holding the PID started after the lock was written
+    (Windows reuses PIDs). An unreadable lock, or a PID that can't be checked, is kept: never guess.
+    """
+    if alive is None or started is None:
+        from app_control import process_alive, process_started
+        alive, started = alive or process_alive, started or process_started
+    try:
+        text, written = lock.read_text(encoding="ascii").strip(), lock.stat().st_mtime
+    except (OSError, UnicodeDecodeError):
+        return None
+    if not text:
+        return 0 if time.time() - written > EMPTY_LOCK_GRACE else None
+    try:
+        pid = int(text)
+    except ValueError:
+        return None
+    state = alive(pid)
+    if state is False:
+        return pid
+    began = started(pid) if state else None
+    return pid if began is not None and began > written + 1 else None
+
+
+def _recover(lock: Path, **checks) -> bool:
+    """Remove a lock left by a dead writer, logging it beside the lock. One process recovers at a time."""
+    guard = lock.with_name(lock.name + ".recover")
+    try:
+        held = os.open(guard, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        try:  # a recovery takes milliseconds; a guard older than a minute was left by a crash
+            if time.time() - guard.stat().st_mtime > 60:
+                guard.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return False
+    try:
+        pid = _abandoned_by(lock, **checks)
+        if pid is None:
+            return False
+        written = pd.Timestamp(lock.stat().st_mtime, unit="s", tz="UTC")
+        lock.unlink()
+        with (lock.parent / RECOVERY_LOG).open("a", encoding="utf-8") as log:
+            log.write(f"{pd.Timestamp.now(tz='UTC').isoformat()}  removed a writer lock written {written.isoformat()} "
+                      f"by PID {pid or 'unknown (empty lock)'}, which is no longer running. The journal is "
+                      "hash-checked on every read, so a damaged last batch would stop the next write.\n")
+        return True
+    finally:
+        os.close(held)
+        guard.unlink(missing_ok=True)
+
+
 @contextmanager
-def writer_lock(directory):
+def writer_lock(directory, **checks):
+    """Exclusive writer for the bar journal. A lock left by a writer that died (shut-down laptop, killed process)
+    is removed and logged in lock_recoveries.log; on 2026-11-15 one such lock blocked collection for three days."""
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     lock = directory / ".writer.lock"
-    try:
-        handle = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-    except FileExistsError as exc:
-        raise RuntimeError("An intraday writer is active; do not overwrite its lock") from exc
+    handle = None
+    for attempt in (1, 2):
+        try:
+            handle = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            break
+        except FileExistsError as exc:
+            if attempt == 2 or not _recover(lock, **checks):
+                raise RuntimeError("An intraday writer is active; do not overwrite its lock") from exc
     try:
         os.write(handle, str(os.getpid()).encode())
         yield

@@ -49,6 +49,60 @@ def _jsonl_dates(path: Path, key: str) -> list[str]:
     return [d for d in out if d]
 
 
+def newest_bar(path: Path, tail_bytes: int = 262144) -> pd.Timestamp | None:
+    """The newest bar time among the minute archive's last events (reads only the end of the file)."""
+    try:
+        with path.open("rb") as stream:
+            stream.seek(0, os.SEEK_END)
+            size = stream.tell()
+            stream.seek(max(0, size - tail_bytes))
+            lines = stream.read().decode("utf-8", "replace").splitlines()
+    except OSError:
+        return None
+    stamps = []
+    for line in lines[1:] if size > tail_bytes else lines:  # the first line of a partial read may be cut
+        try:
+            stamp = (json.loads(line).get("bar") or {}).get("timestamp")
+            if stamp:
+                stamps.append(pd.Timestamp(stamp))
+        except (ValueError, AttributeError, TypeError):
+            continue
+    return max(stamps).tz_convert(NY) if stamps else None
+
+
+def _intraday_row(root: Path, today: pd.Timestamp, sessions: list[str]) -> dict:
+    """Judged by minute bars delivered, not by when the job ran: on 2026-11-15..18 a stale writer lock made every
+    run collect 0 of 16 tickers while this row said "ok" (Codex review finding F2)."""
+    collected, results, failure = None, [], None
+    try:
+        status = json.loads((root / "data" / "terminal" / "collection_status.json").read_text(encoding="utf-8"))
+        stamp = status.get("finished_at") or status.get("started_at")
+        collected = pd.Timestamp(stamp).tz_convert(NY) if stamp else None
+        results = status.get("results") or []
+        failure = next((r.get("bar_error") for r in results if r.get("bar_error")), None)
+    except (OSError, ValueError, TypeError):
+        pass
+    newest = newest_bar(root / "data" / "intraday" / "v1" / "bars.jsonl")
+    archive = f" Newest archived bar: {newest:%Y-%m-%d %H:%M} ET." if newest is not None else " No bars archived yet."
+    if collected is None:
+        return _row("Intraday collection", "missing", None, "No collection recorded." + archive)
+    got = [r["symbol"] for r in results if r.get("bar_status") == "collected"]
+    missing = [r.get("symbol", "?") for r in results if r.get("bar_status") != "collected"]
+    age = (today - collected).total_seconds() / 3600
+    when = f"{collected:%Y-%m-%d %H:%M} ET"
+    if results and not got:
+        return _row("Intraday collection", "missing", when, f"The last run collected minute bars for none of the "
+                    f"{len(results)} tickers" + (f": {failure[:160]}" if failure else ".") + archive)
+    state = "ok" if age < 30 else "late"
+    detail = f"Minute bars for {len(got)} of {len(results)} tickers in the last run."
+    if missing:
+        state = "late"
+        detail += f" Not collected: {', '.join(missing)}" + (f" ({failure[:120]})." if failure else ".")
+    if sessions and (newest is None or f"{newest:%Y-%m-%d}" < sessions[-1]):
+        state = "late"  # the archive lacks the latest completed session, whatever the last run reported
+    return _row("Intraday collection", state, when, detail + archive)
+
+
 def build(root: Path, now: pd.Timestamp, latest_close: str | None, check: dict | None = None) -> dict:
     if os.environ.get("APP_REPLAY") == "1":
         return {"status": "not_shown", "reason": "Not shown in a replay: these files describe today.", "rows": []}
@@ -98,19 +152,7 @@ def build(root: Path, now: pd.Timestamp, latest_close: str | None, check: dict |
                      "Futures, Kalshi and the inflation nowcast, 9:00 AM and 4:05 PM ET." if snapshot is not None
                      else "No snapshot has been recorded on this computer yet."))
 
-    collected = None
-    try:
-        status = json.loads((root / "data" / "terminal" / "collection_status.json").read_text(encoding="utf-8"))
-        stamp = status.get("finished_at") or status.get("started_at")
-        collected = pd.Timestamp(stamp).tz_convert(NY) if stamp else None
-        results = status.get("results") or []
-        got = sum(1 for r in results if r.get("bar_status") == "collected")
-        detail = f"Minute bars for {got} of {len(results)} tickers in the last run."
-    except (OSError, ValueError, TypeError):
-        detail = "No collection recorded."
-    age = (today - collected).total_seconds() / 3600 if collected is not None else None
-    rows.append(_row("Intraday collection", "missing" if collected is None else "ok" if age < 30 else "late",
-                     f"{collected:%Y-%m-%d %H:%M} ET" if collected is not None else None, detail))
+    rows.append(_intraday_row(root, today, sessions))
 
     samples = sorted(p.stem for p in (root / "data" / "liquidity" / "samples").glob("*.jsonl")) if (root / "data" / "liquidity" / "samples").is_dir() else []
     rows.append(_row("Liquidity samples", "missing" if not samples else "ok" if latest and samples[-1] >= latest else "late",
