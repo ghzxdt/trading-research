@@ -71,6 +71,11 @@ def evidence_check(source: dict | None, signals: list[dict], latest_close: str |
     if unchecked:
         return {**out, "status": "unchecked",
                 "reason": "The rule definitions could not be checked against the backtester: " + ", ".join(unchecked) + "."}
+    ties = [f"{name(s)} on {', '.join(s['crosscheck']['ties'])}" for s in rows if (s.get("crosscheck") or {}).get("ties")]
+    if ties:  # tolerated rounding ties: the definitions match, but the page says where the data sat on a threshold
+        out["notes"] = [f"Date cross-check: {'; '.join(ties)} differ(s) from the backtester only because the rule sat "
+                        "on its threshold (its verdict flips if that close moves by 10 parts per million, about the "
+                        "rounding between two Yahoo downloads). Tolerated, not a mismatch."]
     through = [s["crosscheck"]["checked_through"] for s in rows if s["crosscheck"].get("checked_through")]
     if through and latest_close:
         oldest = min(through)

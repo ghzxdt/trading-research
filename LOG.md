@@ -1,21 +1,33 @@
 # Trading research log
 
-## Open: backtester hand-off of 2026-11-18 (items 2, 4, 5 wait for the user's scope)
-The backtester's chat (with the user's OK) sent six follow-ups after its audit and Lead v3 (its commit 3fb52c2,
-`C:\Claude\trading-backtester\docs\CHANGES_2026-11-18.md`). Done: 1 and 3 (below). Waiting on the user:
-- 2. Evidence card from the new `exports/evidence.json` beside each fired or near-trigger rule (trades and per
-  year, excess with its 90% interval, worst point inside a trade, the TQQQ/UPRO version, forward status,
-  limitations, age); validated like the trade export, "unavailable" when missing or damaged.
-- 4. A daily append-only, hash-chained archive of the page's key values (regime, VIX and VIX/VIX3M, credit,
-  breadth, events and earnings ahead, news count, futures move, each rule's state and trigger distance), since
-  `thesis_state.json` is overwritten each build; score each stance by its rule's own exit as well as 5 sessions;
-  IWM daily history from 2000 in `etfs_long.csv` for a pre-2010 check.
-- 5. Date cross-check: Yahoo re-downloads move adjusted prices by about a part per million, which can flip a rule
-  sitting exactly at its threshold and block the stance as a mismatch; tolerate a difference where the rule's
-  value is within about 1e-5 of its threshold, and say so.
-- 6. Not code: the daytime jobs have never recorded because the laptop was shut down during market hours.
-- Also open (found 2026-11-18): the options import lock (`options_research/core.py` `_writer`) has the same
-  no-recovery pattern the minute-bar lock had. Manual imports only, so lower risk; same fix if wanted.
+## Open
+- Backtester hand-off, second batch (13 review findings A1-C13, received 2026-11-18): agree order and scope with
+  the user before starting. Details in the backtester chat's message; reviews in
+  `C:\Claude\trading-backtester\docs\reviews\APP_REVIEW_2026-11-18.md` and Codex's 2026-11-14 outputs.
+- The options import lock (`options_research/core.py` `_writer`) has the same no-recovery pattern the minute-bar
+  lock had. Manual imports only, so lower risk; same fix if wanted.
+- Reminder from the hand-off: daytime jobs only run while the laptop is asleep or on, never shut down.
+
+## 2026-11-18 (afternoon): daily archive, rule-exit scores, evidence cards, IWM history, rounding ties
+User: "Build all three" (backtester hand-off items 4, 2 and 5).
+- **Daily archive** (`thesis/archive.py`, `data/thesis/daily_archive.jsonl`): one append-only, hash-chained record
+  per close with the stance and evidence status, regime condition, VIX, VIX3M and their ratio, trend, credit,
+  rates, breadth, events and earnings in the next 5 sessions, news count, futures (when a snapshot exists), movers
+  and each rule's state and distance to its trigger. Written with the stance log by recording builds only, before
+  the next open; the first record comes with tonight's evening refresh. New System status row.
+- **Stances scored to the rule's own exit** as well as the fixed 5 sessions (new column and summary line; each
+  long record separately, the paper book's simulation).
+- **Evidence cards** from `exports/evidence.json` beside each rule that fired or is within 3% of its trigger
+  (next-open entry). Checked on the rebuilt page: 6 cards (SPY and QQQ RSI(2) fired, plus one near rule), no
+  console errors, footer says the cards come from the same simulation run as the export. Wording is the
+  backtester's: historical tendencies with sample sizes and intervals, not probabilities.
+- **IWM from 2000** in `data/raw/etfs_long.csv` (downloaded and validated: 6,659 sessions from 2000-05-26).
+  `build_long` only gains `iwm_*` columns: SPY, QQQ and VIX columns are identical with and without IWM. The
+  frozen experiment's probe moved in the sixth decimal of study 7 and 4 rows of one count, from the usual
+  re-download drift of SPY/QQQ adjusted closes (up to 1.5 parts per million), not from IWM.
+- **Rounding ties** in the date cross-check: a date that differs from the backtester only because its verdict
+  flips when that close moves 10 parts per million is tolerated, listed, and named in the cautions; any other
+  difference still blocks the stance. 329 tests.
 
 ## 2026-11-18: minute bars were blocked for three days by a stale writer lock; fixed and backfilled
 - Reported by the backtester's chat (user: "we need to fix that problem asap"). The Sun Nov 15 11:16 PM ET

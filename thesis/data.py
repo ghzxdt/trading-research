@@ -30,7 +30,7 @@ def _etfs(path: Path) -> dict[str, pd.DataFrame]:
 
 
 def etfs(root: Path, now: pd.Timestamp) -> dict[str, pd.DataFrame]:
-    """Longest saved daily history per ETF (SPY since 1993, QQQ since 1999, the rest since 2010)."""
+    """Longest saved daily history per ETF (SPY since 1993, QQQ since 1999, IWM since 2000, the rest since 2010)."""
     raw = Path(root) / "data" / "raw"
     short, long = _etfs(raw / "etfs.csv"), _etfs(raw / "etfs_long.csv")
     cutoff = last_known_session(now)

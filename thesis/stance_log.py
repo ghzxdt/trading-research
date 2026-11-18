@@ -16,7 +16,8 @@ Rules fixed 2026-11-08 (user asked for the page's stance to be scored like their
   "forward_below_rules" and the record is flat; the rules themselves are unchanged (only "Lead" counts).
 - One record per ETF per close; the first one stands (append-only, hash-chained, never edited by hand).
 - Scored like a call: from the next session's open to the close 5 sessions later (a fixed horizon declared here,
-  not the rule's own exit), against simply holding the ETF over the same days.
+  not the rule's own exit), against simply holding the ETF over the same days. Since 2026-11-18 a long record is
+  also scored to its rule's own exit ("rule_exit"), as the backtester prices it; the fixed horizon stays.
 Offline and replay builds never write.
 """
 from __future__ import annotations
@@ -90,7 +91,21 @@ def append_daily(root: Path, state: dict, now: pd.Timestamp, entry_time=None) ->
     return {"logged": logged, "skipped": None if logged else f"the {latest} stance was already logged"}
 
 
-def summary(root: Path, etfs: dict) -> dict:
+def rule_exit(row: dict, etfs: dict, signals: list[dict] | None) -> dict | None:
+    """A long record scored to its rule's own exit (2026-11-18, besides the fixed 5 sessions): each of its rules
+    and exits as one paper trade from the next open, the same simulation as the paper book but per record, so
+    overlapping records are each scored. None for a flat record."""
+    if row.get("direction") != "long" or not row.get("rules"):
+        return None
+    from . import paper_book
+    legs = [t for t in paper_book.trades([row], etfs, signals or []) if t.get("status") != "no_data"]
+    closed = [t for t in legs if t["status"] == "closed"]
+    return {"legs": [{k: t.get(k) for k in ("rule", "exit", "status", "net", "exit_date", "sessions")} for t in legs],
+            "status": "closed" if legs and len(closed) == len(legs) else "open" if legs else "no_data",
+            "net": sum(t["net"] for t in closed) / len(closed) if closed and len(closed) == len(legs) else None}
+
+
+def summary(root: Path, etfs: dict, signals: list[dict] | None = None) -> dict:
     check = calls.verify(root, LOG)
     if not check["ok"]:
         return {"status": "broken", "reason": check["reason"], "records": [], "scoreboard": calls.scoreboard([])}
@@ -100,13 +115,18 @@ def summary(root: Path, etfs: dict) -> dict:
         result = calls.score(row, etfs.get(row["instrument"]))
         scored.append({**result, "latest_close": row["latest_close"], "rules": row.get("rules", []),
                        "close_only_rules": row.get("close_only_rules", []),
-                       "forward_below_rules": row.get("forward_below_rules", []), "stance_rules": row.get("stance_rules", 1)})
+                       "forward_below_rules": row.get("forward_below_rules", []), "stance_rules": row.get("stance_rules", 1),
+                       "rule_exit": rule_exit(row, etfs, signals)})
     by_symbol = {s: calls.scoreboard([x for x in scored if x["instrument"] == s]) for s in SYMBOLS}
     longs = [x for x in scored if x["direction"] == "long" and x.get("status") == "scored"]
     board = calls.scoreboard(scored)
     board["note"] = ("One record per ETF per close, each scored over the next 5 sessions from the next open, so "
                      "neighbouring days overlap and are not independent. Flat scores 0. Before costs, unlevered.")
+    exits = [x["rule_exit"]["net"] for x in scored if x.get("rule_exit") and x["rule_exit"]["net"] is not None]
     return {"status": "ok", "horizon_sessions": HORIZON, "first_close": rows[0]["latest_close"] if rows else None,
             "scoreboard": board, "by_symbol": by_symbol, "long_scored": len(longs),
             "long_mean": sum(x["call_return"] for x in longs) / len(longs) if longs else None,
+            "rule_exit_scored": len(exits), "rule_exit_mean": sum(exits) / len(exits) if exits else None,
+            "rule_exit_note": "Long records also scored to their rule's own exit, bought at the next open, after the "
+                              "backtester's 2 bp round trip; each record separately, so overlapping ones share days.",
             "records": list(reversed(scored))[:20]}

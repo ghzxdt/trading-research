@@ -201,7 +201,7 @@ def build(raw: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def build_long(raw: dict) -> pd.DataFrame:
-    """SPY (1993-) and QQQ (1999-) with the VIX, for risk numbers only: worst days, gaps, liquidation odds.
+    """SPY (1993-), QQQ (1999-) and IWM (2000-, since 2026-11-18) with the VIX, for risk numbers only: worst days, gaps, liquidation odds.
 
     Same column names as the main table (spy_close, spy_overnight, ...) so the same code reads both.
     Opens that exactly equal the prior close are left out of the overnight/daytime split, as in build().

@@ -116,15 +116,39 @@ def trigger_close(close: pd.Series, rule, tolerance: float = 1e-4) -> float | No
     return low
 
 
-def crosscheck(local: pd.Series, exported: dict | None) -> dict:
+TIE = 1e-5  # relative change to a day's close within which a rule's verdict counts as a rounding tie
+
+
+def on_threshold(close: pd.Series, rule, day: str, tie: float = TIE) -> bool:
+    """True if the rule's verdict on `day` flips when that day's close moves by `tie` either way.
+
+    Each Yahoo re-download moves adjusted prices by about a part per million, so a rule sitting exactly at its
+    threshold can fire in one copy of the data and not in another (backtester review, 2026-11-18: the QQQ
+    2013-12-12 and SPY 1993-07-22 signals)."""
+    upto = close.loc[:pd.Timestamp(day)]
+    if not len(upto) or f"{upto.index[-1]:%Y-%m-%d}" != day:
+        return False  # a date this data doesn't have is a real difference
+    verdicts = set()
+    for factor in (1 - tie, 1 + tie):
+        moved = upto.copy()
+        moved.iloc[-1] *= factor
+        verdicts.add(bool(rule(moved).fillna(False).iloc[-1]))
+    return len(verdicts) == 2
+
+
+def crosscheck(local: pd.Series, exported: dict | None, close: pd.Series | None = None, rule=None) -> dict:
+    """Do this app's fired dates match the backtester's? A date that differs only because the rule sits on its
+    threshold (a rounding tie, see on_threshold) is tolerated and listed, not a mismatch."""
     if not exported:
         return {"status": "unavailable"}
     end = pd.Timestamp(exported["last_date"])
     mine = {f"{d:%Y-%m-%d}" for d in local.index[local.fillna(False).to_numpy(bool)] if d <= end}
     theirs = set(exported.get("dates", []))
     differ = sorted(mine ^ theirs)
-    return {"status": "match" if not differ else "mismatch", "checked_through": exported["last_date"],
-            "dates_checked": len(mine | theirs), "differences": differ[:10]}
+    ties = [d for d in differ if close is not None and rule is not None and on_threshold(close, rule, d)]
+    real = [d for d in differ if d not in ties]
+    return {"status": "match" if not real else "mismatch", "checked_through": exported["last_date"],
+            "dates_checked": len(mine | theirs), "differences": real[:10], "ties": ties[:10]}
 
 
 def _evidence(payload: dict | None, symbol: str, signal: str) -> list[dict]:
@@ -157,6 +181,7 @@ def build(etfs: dict, payload: dict | None = None) -> dict:
                         "sma5": float(close.iloc[-5:].mean()),
                         "evidence": _evidence(payload, symbol, name) if symbol in EVIDENCE_SYMBOLS else [],
                         "evidence_note": None if symbol in EVIDENCE_SYMBOLS else
-                        "Not simulated: IWM's saved history starts in 2010, so it has no 1993-2009 holdout.",
-                        "crosscheck": crosscheck(fired, exported) if symbol in EVIDENCE_SYMBOLS else {"status": "not_applicable"}})
+                        "Not simulated: the backtester's trade simulation covers SPY and QQQ. IWM's daily history goes back "
+                        "to 2000 since 2026-11-18, for a pre-2010 check once it is simulated.",
+                        "crosscheck": crosscheck(fired, exported, close, rule) if symbol in EVIDENCE_SYMBOLS else {"status": "not_applicable"}})
     return {"signals": out}

@@ -129,6 +129,12 @@ def build(root: Path, now: pd.Timestamp, latest_close: str | None, check: dict |
     rows.append(_row("Page stance log", "missing" if not stances else "ok" if latest and last_stance >= latest else "late",
                      last_stance, "Logged before the next open by an online refresh." if stances else "Nothing logged yet."))
 
+    kept = _jsonl_dates(root / "data" / "thesis" / "daily_archive.jsonl", "latest_close")
+    rows.append(_row("Daily archive", "missing" if not kept else "ok" if latest and max(kept) >= latest else "late",
+                     max(kept) if kept else None,
+                     f"The page's key values for {len(kept)} close(s) since {min(kept)}, kept with the stance log."
+                     if kept else "Starts with the next evening refresh (one record per close, before the next open)."))
+
     rows.append(_row("Page built from", "ok" if latest and sessions and latest >= sessions[-1] else "late", latest,
                      f"Built {today:%Y-%m-%d %H:%M} ET. The latest completed session is {sessions[-1] if sessions else 'unknown'}."))
 

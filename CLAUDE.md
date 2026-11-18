@@ -108,6 +108,16 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
    and a rule rated "Forward below band" is never silent: if it fires the stance is flat with status
    `forward_below_band` and the stance record lists it in `forward_below_rules`; otherwise it is a caution.
    The same two QQQ next-open Leads remain.
+   **Also 2026-11-18 (backtester hand-off; user: "Build all three"):** a **daily archive** of the page's key values
+   (`thesis/archive.py`, `data/thesis/daily_archive.jsonl`, one hash-chained record per close, written with the stance
+   log by recording builds before the next open, because `thesis_state.json` is replaced at every build); long stance
+   records are also scored to their **rule's own exit** besides the fixed 5 sessions (`stance_log.rule_exit`);
+   **evidence cards** from the backtester's `exports/evidence.json` (`thesis/evidence_cards.py`: sample size, excess
+   with its 90% interval, worst point inside a trade, the TQQQ/UPRO version, 1993-2009, forward record, limitations)
+   beside each rule that fired or is within 3% of firing, next-open entry only, worded as historical tendencies;
+   missing or damaged is "unavailable"; IWM's daily history from 2000 in `etfs_long.csv` (only adds `iwm_*`
+   columns; SPY/QQQ values unchanged); the date cross-check tolerates a **rounding tie** (a date whose verdict flips
+   if that close moves 10 parts per million) and says so in the cautions (`signals.on_threshold`).
    **Also 2026-11-14:** **intraday base rates** from Yahoo's free hourly bars (`intraday_hourly.py`,
    `data/intraday_hourly/`, about 2.9 years, SPY/QQQ/IWM, refreshed each evening and kept, so the history grows):
    gap fill, first-hour share of the range, whether the day kept the first hour's direction after 10:30, and
@@ -156,7 +166,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   BLS, the Fed); Kalshi is the only source only for its own perps' quotes, depth and funding.
 - Sizing stays blocked until margin/liquidation is calibrated and a strategy has forward evidence.
 - Never edit `data/monitor/paper_events.jsonl`, `data/thesis/calls.jsonl`, `data/thesis/stance_log.jsonl`,
-  `data/thesis/journal.jsonl`, `data/thesis/ideas.jsonl` or `data/thesis/preclose.jsonl` by hand (append-only, hash-chained; a new fact is a
+  `data/thesis/journal.jsonl`, `data/thesis/ideas.jsonl`, `data/thesis/preclose.jsonl` or `data/thesis/daily_archive.jsonl` by hand (append-only, hash-chained; a new fact is a
   new record). Never change a frozen
   experiment (`data/monitor/experiment_lock.json`); a new experiment gets a new version.
 - After every change: run the tests, commit with a clear message, then push `main` (`git push`) to the private
@@ -173,7 +183,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - The FRED API key (registered 2026-11-14 on the user's account, with their OK to accept FRED's terms) is in
   `.secrets\fred_api_key.txt`: git-ignored, outside `data/` so not in the data backup, covered by the user's manual
   copy of `C:\Claude`. Never print it, commit it or put it in a URL that gets logged.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (324 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (329 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).

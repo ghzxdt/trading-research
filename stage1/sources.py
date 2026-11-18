@@ -32,8 +32,10 @@ RAW = ROOT / "data" / "raw"
 EVENTS_FILE = ROOT / "data" / "events" / "events.csv"
 
 START = "2010-01-01"
-LONG_START = "1993-01-01"  # SPY began trading Jan 1993; QQQ in Mar 1999
-LONG_ETFS = ["SPY", "QQQ"]
+LONG_START = "1993-01-01"  # SPY began trading Jan 1993; QQQ in Mar 1999; IWM in May 2000
+# IWM added 2026-11-18 (backtester review) so IWM rules can get a pre-2010 check. Only the long file changes:
+# build_long adds iwm_* columns beside the SPY/QQQ ones, which keep their values.
+LONG_ETFS = ["SPY", "QQQ", "IWM"]
 
 # What we analyze and what we might trade.
 ETFS = ["SPY", "QQQ", "IWM", "DIA", "RSP", "TQQQ", "SQQQ", "UPRO", "SPXU"]
@@ -149,8 +151,8 @@ def fetch_etfs(offline: bool = False, status: dict | None = None) -> dict[str, p
 
 
 def fetch_etfs_long(offline: bool = False, status: dict | None = None) -> dict[str, pd.DataFrame]:
-    """SPY and QQQ from their first trading days, for risk numbers (worst days, gaps) that should
-    include 2000-2002 and 2008. Kept separate from the main table, which starts in 2010."""
+    """SPY, QQQ and IWM from their first trading days, for risk numbers (worst days, gaps) that should
+    include 2000-2002 and 2008, and for the backtester's pre-2010 checks. Kept separate from the main table, which starts in 2010."""
     status = {} if status is None else status
     return _fetch_etf_file(_cache("etfs_long.csv"), LONG_ETFS, LONG_START, offline, status)
 

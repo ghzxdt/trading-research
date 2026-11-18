@@ -27,8 +27,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import (alfred, calls, data, earnings, earnings_calendar, eligibility, journal, ledger, macro, morning, movers,
-               news, ops, paper_book, preclose, regime, releases, risk, signals, stance_log)
+from . import (alfred, archive, calls, data, earnings, earnings_calendar, eligibility, evidence_cards, journal, ledger,
+               macro, morning, movers, news, ops, paper_book, preclose, regime, releases, risk, signals, stance_log)
 
 TEMPLATE = Path(__file__).with_name("template.html")
 MACRO_TEMPLATE = Path(__file__).with_name("macro_template.html")
@@ -93,6 +93,7 @@ def stance(sig: list[dict], reg: dict, earn: dict, latest: str | None, check: di
                       "reading. Not part of any registered rule, so it isn't scored here.")
     if check.get("warning"):
         common.append(check["warning"])
+    common.extend(check.get("notes") or [])  # e.g. a tolerated rounding tie in the date cross-check
     common.extend(demoted_other)
     if not check.get("usable", True):
         return {"direction": "none", "status": "evidence_unavailable",
@@ -204,6 +205,8 @@ def build_state(root: Path, now: pd.Timestamp) -> dict:
     reg = regime.build(root, now, etfs)
     payload, export_info = signals.load_export()
     sig = signals.build(etfs, payload)["signals"]
+    cards = evidence_cards.load(export_info)  # the backtester's evidence.json; "unavailable" never blocks the page
+    evidence_cards.attach(sig, cards)
     earn = earnings.build(root, now, etfs)
     latest = f"{etfs['SPY'].index[-1]:%Y-%m-%d}" if "SPY" in etfs else None
     check = eligibility.evidence_check(export_info, sig, latest)
@@ -252,9 +255,10 @@ def build_state(root: Path, now: pd.Timestamp) -> dict:
             "first_release": alfred.build(root, now), "hourly_base_rates": hourly, "macro": macro.build(root, now),
             "next_entry_et": entry_at.isoformat() if entry_at is not None else None,
             "regime": reg, "signals": sig, "evidence_source": export_info, "evidence_check": check,
+            "evidence_cards": evidence_cards.meta(cards), "archive": archive.summary(root),
             "ops": ops.build(root, now, latest, check),
             "risk": risk.build(root, etfs, vix, reg["volatility"].get("implied_daily_move")),
-            "earnings": earn, "calls": calls.summary(root, etfs), "stance_log": stance_log.summary(root, etfs),
+            "earnings": earn, "calls": calls.summary(root, etfs), "stance_log": stance_log.summary(root, etfs, sig),
             "journal": journal.summary(root, etfs), "ideas": ledger.summary(root),
             "sources": {
                 "prices": "Yahoo Finance daily bars (dividend-adjusted), checked against FRED's index closes on the Data quality tab",
@@ -324,7 +328,13 @@ def log_stance(root: Path, state: dict, now: pd.Timestamp, say=print) -> dict:
     except Exception as exc:  # a logging failure never blocks the page
         result = {"logged": 0, "skipped": f"error: {exc}"}
     say(f"Thesis stance log: {result}")
-    state["stance_log"] = stance_log.summary(root, data.etfs(root, now))
+    try:  # the day's key values, kept because thesis_state.json is replaced at every build
+        kept = archive.append_daily(root, state, now)
+    except Exception as exc:  # never blocks the page
+        kept = {"logged": 0, "skipped": f"error: {exc}"}
+    say(f"Daily archive: {kept}")
+    state["archive"] = {**archive.summary(root), "last_attempt": kept}
+    state["stance_log"] = stance_log.summary(root, data.etfs(root, now), state.get("signals"))
     state["stance_log"]["last_attempt"] = result
     try:  # the ticket must include a stance logged in this same build
         etfs = data.etfs(root, now)
