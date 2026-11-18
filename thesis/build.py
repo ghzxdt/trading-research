@@ -11,6 +11,9 @@ the stance log through thesis/eligibility.py:
   including "buy at the signal close", which has passed when the page is read.
 - Flat: nothing with a next-open Lead fired. A rule that fired with only a closing-price Lead is listed as
   "fired, but not a setup now". The page lists the closes that would fire each next-open Lead rule.
+  Since the backtester's Lead v3 (2026-11-18), a rule whose forward record fell below its band is rated
+  "Forward below band", not Lead: if it fires, the page says so (status "forward_below_band"); otherwise it is a
+  caution, so a rule never drops out of the call silently.
 - No call: the evidence can't be used (missing, unreadable, incomplete, mismatched, unchecked or too old).
 - Short: never suggested. No short rule has evidence (the rally shorts failed the 1993-2009 holdout).
 The user makes the actual call and records it in the call log.
@@ -47,6 +50,19 @@ def _close_only_note(signal: dict, latest: str | None) -> str:
             f"which has passed; buying at the next open was rated {' / '.join(later) or 'untested'}, so it is not a setup now.")
 
 
+def _forward_below_note(signal: dict, row: dict, latest: str | None, fired: bool) -> str:
+    """A Lead the backtester demoted (Lead v3) because its forward trades fell below its development band."""
+    fwd = row.get("forward") or {}
+    detail = ""
+    if all(isinstance(fwd.get(k), (int, float)) for k in ("trades", "mean_excess", "band_lower")):
+        detail = (f" ({fwd['trades']} trades signalled after {fwd.get('since') or 'its development window'}: average "
+                  f"excess {fwd['mean_excess']:+.2%} a trade, below the band's floor of {fwd['band_lower']:+.2%})")
+    name = f"{signal['symbol']} · {signal['label']} ({row.get('exit_label') or row.get('exit')})"
+    head = f"{name} fired at the {latest} close, but" if fired else f"{name}:"
+    return (f"{head} the backtester now rates buying at the next open \"{eligibility.FORWARD_BELOW}\" instead of "
+            f"Lead{detail}. Its forward record fell short of its history, so it no longer counts as a setup.")
+
+
 def stance(sig: list[dict], reg: dict, earn: dict, latest: str | None, check: dict | None = None,
            entry_passed: bool = False) -> dict:
     """The page's call. `check` is eligibility.evidence_check(...); None means the evidence is taken as usable."""
@@ -54,6 +70,13 @@ def stance(sig: list[dict], reg: dict, earn: dict, latest: str | None, check: di
     _leads = eligibility.open_leads
     fired = [s for s in sig if s["fired"] and _leads(s)]
     close_only = [_close_only_note(s, latest) for s in sig if s["fired"] and eligibility.close_only_leads(s)]
+    # Lead v3: a fired rule whose only next-open verdict is "Forward below band" is listed with the fired-but-not-a-
+    # setup rules; any other demoted pricing (not fired, or beside a remaining Lead) is a caution, so it is never silent.
+    demoted_fired = [_forward_below_note(s, e, latest, True) for s in sig if s["fired"] and not _leads(s)
+                     for e in eligibility.forward_below(s)]
+    demoted_other = [_forward_below_note(s, e, latest, False) for s in sig if not (s["fired"] and not _leads(s))
+                     for e in eligibility.forward_below(s)]
+    close_only = demoted_fired + close_only
     window = _sessions_after(pd.Timestamp(latest), 10) if latest else []
     window_end = f"{window[-1]:%Y-%m-%d}" if window else None
     events_inside = [e for e in reg["events"].get("upcoming", []) if window_end and e["date"] <= window_end]
@@ -70,6 +93,7 @@ def stance(sig: list[dict], reg: dict, earn: dict, latest: str | None, check: di
                       "reading. Not part of any registered rule, so it isn't scored here.")
     if check.get("warning"):
         common.append(check["warning"])
+    common.extend(demoted_other)
     if not check.get("usable", True):
         return {"direction": "none", "status": "evidence_unavailable",
                 "headline": "No call: the backtested evidence can't be used",
@@ -83,6 +107,14 @@ def stance(sig: list[dict], reg: dict, earn: dict, latest: str | None, check: di
             if _leads(s) and s["trigger_close"]:
                 changes.append({"symbol": s["symbol"], "rule": s["label"], "close_at_or_below": s["trigger_close"],
                                 "distance": s["trigger_close"] / s["close"] - 1})
+        if demoted_fired:
+            return {"direction": "flat", "status": "forward_below_band",
+                    "headline": f"Flat: a rule fired at the {latest} close, but its forward record fell below its band",
+                    "reason": "The backtester no longer rates the rule that fired a Lead for buying at the next open: "
+                              "its trades since its development window ended fell below the range its history "
+                              "allowed. Regime and events below are context only.",
+                    "basis": [], "cautions": common, "exit": [], "changes": changes, "close_only": close_only,
+                    "short_note": SHORT_NOTE}
         if close_only:
             return {"direction": "flat", "status": "close_only_setup",
                     "headline": f"Flat: a rule fired at the {latest} close, but its tested entry has passed",
@@ -150,6 +182,21 @@ def stance(sig: list[dict], reg: dict, earn: dict, latest: str | None, check: di
             "short_note": SHORT_NOTE}
 
 
+def verdict_caution(export_info: dict) -> str | None:
+    """The caution a long call carries about what the backtester's Lead means (v2 and later), or None (v1)."""
+    version = (export_info or {}).get("verdict_version")
+    if version not in ("v2", "v3"):
+        return None
+    window = ""
+    if version == "v3":
+        end = export_info.get("development_end") or "2026-11-13"
+        window = (f" The backtester's development window is fixed to end {end}; trades signalled after it are its "
+                  "forward record, and a Lead that falls below its band there stops being a Lead.")
+    return (f"These are Lead {version} verdicts, and provisional: the 1993-2009 period also helped choose these "
+            "signals, so it is not independent confirmation. Only trades after 2026-11-08 are untouched evidence; "
+            f"the stance log and paper book below are that record.{window}")
+
+
 def build_state(root: Path, now: pd.Timestamp) -> dict:
     root = Path(root)
     etfs = data.etfs(root, now)
@@ -173,10 +220,9 @@ def build_state(root: Path, now: pd.Timestamp) -> dict:
             call["cautions"].append(f"Since the 4 PM close ({view['futures']['snapshot_et']} ET snapshot): {moves}. "
                                     "A move up before the open has already taken part of any bounce; the evidence "
                                     "is not split by gap size yet.")
-    if call["direction"] == "long" and export_info.get("verdict_version") == "v2":
-        call["cautions"].append("These are Lead v2 verdicts, and provisional: the 1993-2009 period also helped choose "
-                                "these signals, so it is not independent confirmation. Only trades after 2026-11-08 are "
-                                "untouched evidence; the stance log and paper book below are that record.")
+    provisional = verdict_caution(export_info)
+    if call["direction"] == "long" and provisional:
+        call["cautions"].append(provisional)
     moved = movers.build(root, now, latest)
     if moved.get("flagged") and moved.get("current"):
         call["cautions"].append(f"Large move in a top index holding on {moved['session']}: "

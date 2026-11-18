@@ -89,9 +89,11 @@ def load_export(path: Path | None = None) -> tuple[dict | None, dict]:
     return payload, {"status": "ok", "path": str(path), "sha256": hashlib.sha256(raw).hexdigest(),
                      "generated_at": payload.get("generated_at"), "code": payload.get("code"),
                      "data_fingerprint": payload.get("data_fingerprint"), "report": payload.get("report"),
-                     # Lead v2 exports (2026-11-14) say which verdict they use; older ones are v1.
+                     # Lead v2 exports (2026-11-14) say which verdict they use; older ones are v1. v3 (2026-11-18)
+                     # fixes the development window's end; later trades are the backtester's forward record.
                      "verdict_version": payload.get("verdict_version") or "v1",
                      "verdict_definition": payload.get("verdict_definition"),
+                     "development_end": payload.get("development_end"),
                      "data_through": payload.get("data_through"), "trade_list": payload.get("trade_list")}
 
 

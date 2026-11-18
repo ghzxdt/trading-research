@@ -12,6 +12,8 @@ Rules fixed 2026-11-08 (user asked for the page's stance to be scored like their
   long needs a rule whose *next-open* pricing is a Lead, the entry the record is scored from. Under v1 any Lead
   pricing counted, including "buy at the signal close", which had passed by the time the stance was logged.
   Rules that fired with only a closing-price Lead are kept in "close_only_rules" and the record is flat.
+  Since 2026-11-18 (backtester Lead v3) a fired rule whose next-open verdict is "Forward below band" is kept in
+  "forward_below_rules" and the record is flat; the rules themselves are unchanged (only "Lead" counts).
 - One record per ETF per close; the first one stands (append-only, hash-chained, never edited by hand).
 - Scored like a call: from the next session's open to the close 5 sessions later (a fixed horizon declared here,
   not the rule's own exit), against simply holding the ETF over the same days.
@@ -45,9 +47,12 @@ def records_for(state: dict) -> tuple[list[dict], str | None]:
         mine = [s for s in signals if s["symbol"] == symbol]
         leads = [s["signal"] for s in mine if s["fired"] and eligibility.open_leads(s)]
         passed = [s["signal"] for s in mine if s["fired"] and eligibility.close_only_leads(s)]
+        # Lead v3 (2026-11-18): fired, but demoted from Lead by its forward record, so it doesn't make the record long.
+        demoted = [s["signal"] for s in mine if s["fired"] and not eligibility.open_leads(s) and eligibility.forward_below(s)]
         exits = {s["signal"]: sorted({e["exit"] for e in eligibility.open_leads(s)}) for s in mine if s["signal"] in leads}
         out.append({"instrument": symbol, "direction": "long" if leads else "flat", "rules": leads,
-                    "close_only_rules": passed, "rule_exits": exits})  # exits: what the paper book follows
+                    "close_only_rules": passed, "forward_below_rules": demoted,
+                    "rule_exits": exits})  # exits: what the paper book follows
     return out, None
 
 
@@ -94,7 +99,8 @@ def summary(root: Path, etfs: dict) -> dict:
     for row in rows:
         result = calls.score(row, etfs.get(row["instrument"]))
         scored.append({**result, "latest_close": row["latest_close"], "rules": row.get("rules", []),
-                       "close_only_rules": row.get("close_only_rules", []), "stance_rules": row.get("stance_rules", 1)})
+                       "close_only_rules": row.get("close_only_rules", []),
+                       "forward_below_rules": row.get("forward_below_rules", []), "stance_rules": row.get("stance_rules", 1)})
     by_symbol = {s: calls.scoreboard([x for x in scored if x["instrument"] == s]) for s in SYMBOLS}
     longs = [x for x in scored if x["direction"] == "long" and x.get("status") == "scored"]
     board = calls.scoreboard(scored)

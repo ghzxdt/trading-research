@@ -102,6 +102,12 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
    drawdown caution. Under v2 only QQQ has next-open Leads (Bollinger and RSI(14), both with the 5-day-average
    exit); no SPY rule is a Lead, so SPY logs flat. Stance records logged before 2026-11-13 follow v1's exits in the
    paper book (`verdict_v1`), so their trades don't vanish when a later verdict differs.
+   **2026-11-18: the export moved to Lead v3** (same schema; development window fixed at 2010-01-01 to
+   2026-11-13, later trades are the backtester's forward record; a Lead whose forward record falls below its band
+   becomes "Forward below band"). The page keeps the provisional-Lead caution for v3 (`build.verdict_caution`),
+   and a rule rated "Forward below band" is never silent: if it fires the stance is flat with status
+   `forward_below_band` and the stance record lists it in `forward_below_rules`; otherwise it is a caution.
+   The same two QQQ next-open Leads remain.
    **Also 2026-11-14:** **intraday base rates** from Yahoo's free hourly bars (`intraday_hourly.py`,
    `data/intraday_hourly/`, about 2.9 years, SPY/QQQ/IWM, refreshed each evening and kept, so the history grows):
    gap fill, first-hour share of the range, whether the day kept the first hour's direction after 10:30, and
@@ -167,7 +173,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - The FRED API key (registered 2026-11-14 on the user's account, with their OK to accept FRED's terms) is in
   `.secrets\fred_api_key.txt`: git-ignored, outside `data/` so not in the data backup, covered by the user's manual
   copy of `C:\Claude`. Never print it, commit it or put it in a URL that gets logged.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (316 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (318 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).

@@ -89,6 +89,33 @@ class SharedRuleTests(unittest.TestCase):
         self.assertEqual(page["status"], "registered_setup_entry_passed")
         self.assertIn("has passed", page["headline"])
 
+    def test_a_rule_demoted_by_its_forward_record_is_flat_and_named(self):
+        """Lead v3 (2026-11-18): 'Forward below band' is not a Lead, and the page and the log say why."""
+        demoted = row("etf_next_open", eligibility.FORWARD_BELOW)
+        demoted["forward"] = {"since": "2026-11-13", "trades": 6, "mean_excess": -0.031, "band_lower": -0.012}
+        page, (records, reason) = self.both(state(signal("SPY", True, [row("etf_close", "Lead"), demoted])))
+        self.assertEqual((page["direction"], page["status"]), ("flat", "forward_below_band"))
+        self.assertIn("forward record fell below its band", page["headline"])
+        self.assertIn("Forward below band", page["close_only"][0])
+        self.assertIn("6 trades signalled after 2026-11-13", page["close_only"][0])
+        self.assertEqual(len(page["close_only"]), 1)  # not also listed as a closing-price Lead
+        self.assertIsNone(reason)
+        spy = records[0]
+        self.assertEqual((spy["direction"], spy["rules"], spy["close_only_rules"], spy["forward_below_rules"]),
+                         ("flat", [], [], ["rsi2_below_10"]))
+        # Not fired: the demotion is a caution on whatever the call is, and the rule leaves "what would change the call".
+        page, _ = self.both(state(signal("SPY", False, [demoted])))
+        self.assertEqual(page["status"], "no_registered_setup")
+        self.assertTrue(any("SPY · RSI(2) below 10" in c and "Forward below band" in c for c in page["cautions"]))
+        self.assertNotIn("SPY", [c["symbol"] for c in page["changes"]])
+
+    def test_lead_v2_and_v3_verdicts_carry_the_provisional_caution(self):
+        self.assertIsNone(build.verdict_caution({"verdict_version": "v1"}))
+        self.assertIn("Lead v2 verdicts, and provisional", build.verdict_caution({"verdict_version": "v2"}))
+        v3 = build.verdict_caution({"verdict_version": "v3", "development_end": "2026-11-13"})
+        self.assertIn("Lead v3 verdicts, and provisional", v3)
+        self.assertIn("fixed to end 2026-11-13", v3)
+
     def test_new_records_carry_the_rule_version(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = stance_log.append_daily(Path(tmp), state(signal("SPY", True, CLOSE_ONLY)),

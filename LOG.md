@@ -1,5 +1,30 @@
 # Trading research log
 
+## Open: backtester hand-off of 2026-11-18 (items 2, 4, 5 wait for the user's scope)
+The backtester's chat (with the user's OK) sent six follow-ups after its audit and Lead v3 (its commit 3fb52c2,
+`C:\Claude\trading-backtester\docs\CHANGES_2026-11-18.md`). Done: 1 and 3 (below). Waiting on the user:
+- 2. Evidence card from the new `exports/evidence.json` beside each fired or near-trigger rule (trades and per
+  year, excess with its 90% interval, worst point inside a trade, the TQQQ/UPRO version, forward status,
+  limitations, age); validated like the trade export, "unavailable" when missing or damaged.
+- 4. A daily append-only, hash-chained archive of the page's key values (regime, VIX and VIX/VIX3M, credit,
+  breadth, events and earnings ahead, news count, futures move, each rule's state and trigger distance), since
+  `thesis_state.json` is overwritten each build; score each stance by its rule's own exit as well as 5 sessions;
+  IWM daily history from 2000 in `etfs_long.csv` for a pre-2010 check.
+- 5. Date cross-check: Yahoo re-downloads move adjusted prices by about a part per million, which can flip a rule
+  sitting exactly at its threshold and block the stance as a mismatch; tolerate a difference where the rule's
+  value is within about 1e-5 of its threshold, and say so.
+- 6. Not code: the daytime jobs have never recorded because the laptop was shut down during market hours.
+
+## 2026-11-18: backtester Lead v3 read correctly
+- The backtester's export is now Lead v3 (development window fixed at 2026-11-13, a forward record after it, and a
+  new verdict "Forward below band"). Checked: the page loads it (status ok, cross-checks match) and sees the same
+  two QQQ next-open Leads; tonight's page is flat (QQQ RSI(2) fired, a Lead only at the close).
+- Item 1: the "provisional Lead" caution on a long call only appeared for v2; it now covers v3 too and names the
+  fixed development window (`build.verdict_caution`).
+- Item 3: a rule rated "Forward below band" is no longer silent. Fired: flat with its own headline (status
+  `forward_below_band`), listed under "Fired, but not a setup now", and the stance record carries
+  `forward_below_rules`. Not fired: a caution. The stance rules are unchanged (only "Lead" counts). 318 tests.
+
 ## 2026-11-17 (night): lid-closed wake test passed; duplicate desktop icon removed
 - User: "Yes, test now" / "inlcude backtester test too". Two temporary tasks with the exact settings and principal
   of Trading Research Evening Refresh and Trading Backtester Weekly Run (wake to run, battery allowed, signed-in

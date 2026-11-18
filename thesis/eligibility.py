@@ -1,7 +1,10 @@
 """One shared answer to "can this be called long?", used by the page (build.stance) and the stance log.
 
-"Lead" is the backtester's verdict, whatever version its export uses (Lead v2 since 2026-11-14; the export's
-`verdict_version` and `verdict_definition` say which). These stance rules don't change with it.
+"Lead" is the backtester's verdict, whatever version its export uses (Lead v2 since 2026-11-14, v3 since
+2026-11-18; the export's `verdict_version` and `verdict_definition` say which). These stance rules don't change
+with it. Lead v3 adds "Forward below band": a Lead whose forward record (trades signalled after the development
+window ends) has fallen below its development band. It is not "Lead", so such a rule is no longer a setup; the
+page and the stance log name it (`forward_below`) instead of leaving it out silently.
 
 Stance rules v2 (2026-11-13; v1 was fixed 2026-11-08):
 - A fired rule counts only if the backtester rated its *next-open* pricing a Lead. The page is built after the
@@ -16,6 +19,7 @@ from __future__ import annotations
 import pandas as pd
 
 ENTRY_MODE = "etf_next_open"  # the only entry still available when the page is read
+FORWARD_BELOW = "Forward below band"  # backtester Lead v3 (2026-11-18): demoted by its forward record
 RULES_VERSION = 2
 WARN_AFTER_DAYS = 10   # show the evidence's age as a caution
 MAX_AGE_DAYS = 45      # beyond this the evidence is not used at all
@@ -27,9 +31,15 @@ def open_leads(signal: dict) -> list[dict]:
     return [e for e in signal.get("evidence") or [] if e.get("verdict") == "Lead" and e.get("mode") == ENTRY_MODE]
 
 
+def forward_below(signal: dict) -> list[dict]:
+    """Next-open rows the backtester demoted from Lead because their forward record fell below its band."""
+    return [e for e in signal.get("evidence") or [] if e.get("verdict") == FORWARD_BELOW and e.get("mode") == ENTRY_MODE]
+
+
 def close_only_leads(signal: dict) -> list[dict]:
-    """Lead rows for an entry that has passed, when the next-open entry is not a Lead."""
-    if open_leads(signal):
+    """Lead rows for an entry that has passed, when the next-open entry is not a Lead (nor demoted by its
+    forward record, which is the more important thing to say about such a rule)."""
+    if open_leads(signal) or forward_below(signal):
         return []
     return [e for e in signal.get("evidence") or [] if e.get("verdict") == "Lead"]
 
