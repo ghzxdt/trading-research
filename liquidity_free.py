@@ -67,7 +67,9 @@ def in_sampling_window(now: pd.Timestamp) -> bool:
 def yahoo_quote(symbol: str) -> dict:
     import yfinance as yf
     info = yf.Ticker(symbol).info
-    return {"bid": info.get("bid"), "ask": info.get("ask"), "price": info.get("regularMarketPrice")}
+    # "time": Yahoo's reported last-trade time (epoch seconds), so the pre-close check can record the quote's age.
+    return {"bid": info.get("bid"), "ask": info.get("ask"), "price": info.get("regularMarketPrice"),
+            "time": info.get("regularMarketTime")}
 
 
 def yahoo_near_chain(symbol: str, spot: float) -> list[dict]:

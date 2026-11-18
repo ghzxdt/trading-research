@@ -46,17 +46,21 @@ def log(message: str) -> None:
 
 
 def slot_for(now: pd.Timestamp) -> str:
-    """'open' 9:50-10:10 AM ET (same-day option snapshot only), 'sample' 10:10 AM-3:30 PM ET, 'options'
-    3:30-4:00 PM ET (trading days only), otherwise 'bars'."""
+    """'open' 9:50-10:10 AM ET (same-day option snapshot only), 'sample' from 10:10 AM to 30 minutes before the
+    close, 'options' in the last 30 minutes before the close (trading days only), otherwise 'bars'. The close is
+    the exchange calendar's (since 2026-11-18): on a 1 PM early close the 12:30 PM ET run is the pre-close run
+    and the later daytime runs collect bars only."""
+    from intraday.calendar import close_minutes
     t = now.tz_convert(NY)
     day = t.tz_localize(None).normalize()
     minutes = t.hour * 60 + t.minute
-    if len(equity_sessions(day, day)) == 1:
+    close = close_minutes(day) if len(equity_sessions(day, day)) == 1 else None
+    if close:
         if 9 * 60 + 50 <= minutes < 10 * 60 + 10:
             return "open"
-        if 10 * 60 + 10 <= minutes < 15 * 60 + 30:
+        if 10 * 60 + 10 <= minutes < close - 30:
             return "sample"
-        if 15 * 60 + 30 <= minutes < 16 * 60:
+        if close - 30 <= minutes < close:
             return "options"
     return "bars"
 
@@ -121,7 +125,8 @@ def _extra(label: str, step, say) -> int:
 
 def run(root: Path = ROOT, *, now=lambda: pd.Timestamp.now(tz=NY), collect=None, symbols=None,
         sleep=time.sleep, say=log, lock_state=build_lock_state, wait_limit: int = 900,
-        backup=None, sample=None, liquidity=None, zero=None, preclose=None, indexes=None, hourly=None) -> int:
+        backup=None, sample=None, liquidity=None, zero=None, preclose=None, indexes=None, hourly=None,
+        raw=None) -> int:
     if collect is None:
         from intraday_collect import collect
     if symbols is None:
@@ -153,6 +158,8 @@ def run(root: Path = ROOT, *, now=lambda: pd.Timestamp.now(tz=NY), collect=None,
     if slot == "bars":  # after the close: liquidity records, then back everything up off this computer
         if indexes:
             _extra("One-day and nine-day VIX", lambda: indexes(root), say)
+        if raw:  # what the day's same-day options settle on (zero_dte.update_raw_closes)
+            _extra("Raw closes for same-day options", lambda: raw(root), say)
         if hourly:
             _extra("Hourly bars", lambda: hourly(root), say)
         for label, step in (("Liquidity update", liquidity), ("Data backup", backup)):
@@ -179,6 +186,7 @@ def main(argv=None) -> int:
             unattended.wait_for_network(log)
             return run(ROOT, backup=lambda root, say: data_backup.run(root, say),
                        zero=zero_dte.snapshot, indexes=zero_dte.update_indexes, hourly=intraday_hourly.refresh,
+                       raw=zero_dte.update_raw_closes,
                        preclose=lambda root, when: preclose.record(root, when, liquidity_free.yahoo_quote),
                        sample=lambda root, symbols, when: liquidity_free.sample(root, symbols, when),
                        liquidity=lambda root, symbols, say: liquidity_free.update(root, symbols, pd.Timestamp.now(tz=NY), say=say))

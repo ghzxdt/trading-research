@@ -131,6 +131,19 @@ class PreCloseTests(unittest.TestCase):
         self.assertEqual(calls.verify(self.root, preclose.LOG), {"ok": True, "calls": 1})
         row = calls.read(self.root, preclose.LOG)[0]
         self.assertEqual((row["session"], row["history_through"], len(row["checks"])), ("2026-11-13", "2026-11-12", 9))
+        self.assertEqual((row["schema"], row["close_et"]), (2, "16:00"))
+        self.assertIsNone(row["quotes"]["SPY"]["age_seconds"])  # this quote had no time
+        self.assertIn("usable", row["evidence_check"])  # the same check as the page and the stance log
+
+    def test_early_close_window_and_quote_age(self):
+        self.assertEqual(preclose.window("2026-11-27"), (12 * 60 + 30, 13 * 60))  # day after Thanksgiving: 1 PM close
+        self.assertEqual(preclose.window("2026-11-13"), (15 * 60 + 30, 16 * 60))
+        self.assertIsNone(preclose.window("2026-11-26"))  # Thanksgiving
+        stamp = pd.Timestamp("2026-11-13 15:48", tz=NY).tz_convert("UTC").timestamp()
+        quote = lambda s: {"price": self.last[s], "time": int(stamp)}  # noqa: E731  (Yahoo's regularMarketTime)
+        preclose.record(self.root, pd.Timestamp("2026-11-13 15:50", tz=NY), quote)
+        row = calls.read(self.root, preclose.LOG)[0]
+        self.assertEqual(row["quotes"]["QQQ"]["age_seconds"], 120)
 
     def test_stale_history_is_not_logged(self):
         quote = lambda s: {"price": self.last[s]}  # noqa: E731
@@ -189,8 +202,14 @@ class ZeroDteTests(unittest.TestCase):
             self.assertEqual(len((root / zero_dte.FOLDER / "chains" / "2026-11-13.jsonl").read_text().splitlines()), 2)
             waiting = zero_dte.summary(root, {})
             self.assertEqual((waiting["status"], waiting["days"], waiting["rows"][0]["days_settled"]), ("ok", 1, 0))
-            spy = pd.DataFrame({"close": [763.0]}, index=[pd.Timestamp("2026-11-13")])
-            row = zero_dte.summary(root, {"SPY": spy})["rows"][0]
+            adjusted = pd.DataFrame({"close": [761.0]}, index=[pd.Timestamp("2026-11-13")])  # dividend-adjusted: ignored
+            self.assertEqual(zero_dte.summary(root, {"SPY": adjusted})["rows"][0]["days_waiting_for_raw_close"], 1)
+            fetch = lambda symbols: pd.DataFrame([{"session": "2026-11-13", "symbol": "SPY", "close": 763.0},  # noqa: E731
+                                                  {"session": "2026-11-16", "symbol": "SPY", "close": 770.0}])
+            got = zero_dte.update_raw_closes(root, pd.Timestamp("2026-11-16 15:00", tz=NY), fetch, ("SPY",))
+            self.assertIn("1 new raw closes (through 2026-11-13)", got)  # the 16th isn't final at 3 PM
+            self.assertIn("0 new", zero_dte.update_raw_closes(root, pd.Timestamp("2026-11-16 15:00", tz=NY), fetch, ("SPY",)))
+            row = zero_dte.summary(root, {"SPY": adjusted})["rows"][0]
             self.assertEqual((row["days_collected"], row["days_settled"]), (1, 1))
             self.assertAlmostEqual(row["mean_realised"], 6 / 757)
             self.assertAlmostEqual(row["straddle_mean_at_mid"], 6 / 4.0 - 1)   # worth $6 at the close, cost $4.00 at mid
@@ -230,7 +249,10 @@ class NewsAndSlotTests(unittest.TestCase):
 
     def test_collection_slots(self):
         cases = {"2026-11-13 09:40": "bars", "2026-11-13 10:00": "open", "2026-11-13 10:30": "sample", "2026-11-13 14:30": "sample",
-                 "2026-11-13 15:50": "options", "2026-11-13 20:10": "bars", "2026-11-14 10:00": "bars"}
+                 "2026-11-13 15:50": "options", "2026-11-13 20:10": "bars", "2026-11-14 10:00": "bars",
+                 # 2026-11-27 closes at 1 PM: the 12:30 PM ET run is the pre-close run, the 2:30 PM ET run collects bars
+                 "2026-11-27 12:10": "sample", "2026-11-27 12:31": "options", "2026-11-27 13:00": "bars",
+                 "2026-11-27 14:30": "bars"}
         for when, slot in cases.items():
             self.assertEqual(sc.slot_for(pd.Timestamp(when, tz=NY)), slot, when)
 

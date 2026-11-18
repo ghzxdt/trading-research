@@ -9,6 +9,12 @@ One record per session in data/thesis/preclose.jsonl (append-only, hash-chained;
 reads add what actually happened: whether each rule was still fired at the real close (the flip rate), and a
 paper trade from that close to the rule's registered exit for rules whose closing-price pricing is a Lead.
 The price is Yahoo's last trade when the check ran; it can be delayed and is not an executable quote.
+
+Schema 2 (2026-11-18, review A2): the window is the 30 minutes before the exchange calendar's actual close
+(1 PM ET on early-close days, intraday/calendar.py), not a fixed 3:30-4:00 PM; each record keeps Yahoo's
+reported last-trade time and its age when checked; and the same evidence check as the page and the stance log
+(thesis/eligibility.py) is recorded. A session whose evidence was unusable gets no paper trades. The estimate
+at the check and the real close's verdict stay side by side in the summary. Schema 1 records stay as written.
 """
 from __future__ import annotations
 
@@ -22,13 +28,32 @@ from .data import NY
 
 LOG = Path("data/thesis/preclose.jsonl")
 SYMBOLS = ("SPY", "QQQ", "IWM")
-WINDOW = (15 * 60 + 30, 16 * 60)  # minutes after midnight ET in which a check may be recorded
+SCHEMA = 2
+LEAD_MINUTES = 30  # a check may be recorded in the last 30 minutes before the session's close
 
 
-def evaluate(etfs: dict, prices: dict, day: pd.Timestamp, payload: dict | None) -> list[dict]:
+def window(day) -> tuple[int, int] | None:
+    """(start, end) in minutes after midnight ET for `day`'s check, or None if it isn't a trading day."""
+    from intraday.calendar import close_minutes
+    close = close_minutes(day)
+    return (close - LEAD_MINUTES, close) if close else None
+
+
+def _quote_time(value):
+    """Yahoo's regularMarketTime (epoch seconds) or an ISO time, as a UTC timestamp; None if absent."""
+    if value is None or value == "":
+        return None
+    try:
+        stamp = pd.Timestamp(value, unit="s", tz="UTC") if isinstance(value, (int, float)) else pd.Timestamp(value)
+        return stamp.tz_convert("UTC") if stamp.tzinfo else None
+    except (ValueError, TypeError):
+        return None
+
+
+def evaluate(etfs: dict, prices: dict, day: pd.Timestamp, payload: dict | None, built_signals: list[dict] | None = None) -> list[dict]:
     """Each rule's state if `day` closed at prices[symbol]. etfs must end before `day`."""
     rows = []
-    built = {(s["symbol"], s["signal"]): s for s in signals.build(etfs, payload)["signals"]}
+    built = {(s["symbol"], s["signal"]): s for s in (built_signals or signals.build(etfs, payload)["signals"])}
     for symbol in SYMBOLS:
         frame, price = etfs.get(symbol), prices.get(symbol)
         if frame is None or len(frame) < 60 or not price or frame.index[-1] >= day:
@@ -47,13 +72,15 @@ def evaluate(etfs: dict, prices: dict, day: pd.Timestamp, payload: dict | None) 
 
 
 def record(root: Path, now: pd.Timestamp, quote_for, force: bool = False) -> dict:
-    """Append today's check (once per session, only 3:30-4:00 PM ET on a trading day unless forced in a test)."""
+    """Append today's check (once per session, only in the 30 minutes before the session's actual close unless
+    forced in a test)."""
     from validation import equity_sessions
     local = now.tz_convert(NY)
     day = local.tz_localize(None).normalize()
     minutes = local.hour * 60 + local.minute
-    if not force and (len(equity_sessions(day, day)) != 1 or not WINDOW[0] <= minutes < WINDOW[1]):
-        return {"recorded": False, "skipped": "outside 3:30-4:00 PM ET on a trading day"}
+    span = window(day)
+    if not force and (span is None or not span[0] <= minutes < span[1]):
+        return {"recorded": False, "skipped": "outside the 30 minutes before the close on a trading day"}
     rows = calls.read(root, LOG)
     session = f"{day:%Y-%m-%d}"
     if any(r["session"] == session for r in rows):
@@ -66,23 +93,32 @@ def record(root: Path, now: pd.Timestamp, quote_for, force: bool = False) -> dic
         return {"recorded": False, "skipped": f"saved daily history ends {newest:%Y-%m-%d}; yesterday's refresh is missing"
                 if newest is not None else "no saved daily history"}
     payload, info = signals.load_export()
-    prices, problems = {}, []
+    utc = now.tz_convert("UTC")
+    prices, quotes, problems = {}, {}, []
     for symbol in SYMBOLS:
         try:
-            price = (quote_for(symbol) or {}).get("price")
+            quote = quote_for(symbol) or {}
+            price = quote.get("price")
             if not price or float(price) <= 0:
                 raise ValueError("no price")
             prices[symbol] = float(price)
+            stamp = _quote_time(quote.get("time"))
+            quotes[symbol] = {"time_utc": stamp.isoformat(timespec="seconds") if stamp is not None else None,
+                              "age_seconds": round((utc - stamp).total_seconds()) if stamp is not None else None}
         except Exception as exc:
             problems.append(f"{symbol}: {exc}")
-    checks = evaluate(etfs, prices, day, payload)
+    through = f"{max(f.index[-1] for f in etfs.values()):%Y-%m-%d}" if etfs else None
+    built = signals.build(etfs, payload)["signals"]
+    checks = evaluate(etfs, prices, day, payload, built)
     if not checks:
         return {"recorded": False, "skipped": "no price or history: " + "; ".join(problems)}
-    utc = now.tz_convert("UTC")
-    body = {"schema": 1, "id": len(rows) + 1, "session": session, "recorded_utc": utc.isoformat(timespec="seconds"),
+    usable = eligibility.evidence_check(info, built, through)  # the same check as the page and the stance log
+    body = {"schema": SCHEMA, "id": len(rows) + 1, "session": session, "recorded_utc": utc.isoformat(timespec="seconds"),
             "recorded_et": local.isoformat(timespec="seconds"), "source": "Yahoo last trade (may be delayed)",
-            "history_through": f"{max(f.index[-1] for f in etfs.values()):%Y-%m-%d}" if etfs else None,
-            "evidence_sha256": info.get("sha256"), "evidence_status": info.get("status"), "checks": checks,
+            "close_et": f"{span[1] // 60:02d}:{span[1] % 60:02d}" if span else None,
+            "history_through": through, "quotes": quotes,
+            "evidence_sha256": info.get("sha256"), "evidence_status": info.get("status"),
+            "evidence_check": {k: usable.get(k) for k in ("usable", "status", "reason", "warning")}, "checks": checks,
             "problems": problems, "previous_hash": rows[-1]["hash"] if rows else ""}
     row = {**body, "hash": calls._digest(body)}
     path = Path(root) / LOG
@@ -100,6 +136,7 @@ def summary(root: Path, etfs: dict, payload_signals: list[dict] | None = None) -
     sessions, held, flipped, close_records = [], 0, 0, []
     for row in calls.read(root, LOG):
         day = pd.Timestamp(row["session"])
+        usable = (row.get("evidence_check") or {"usable": True}).get("usable")  # schema 1 records predate the check
         out = []
         for c in row["checks"]:
             frame = etfs.get(c["symbol"])
@@ -108,13 +145,14 @@ def summary(root: Path, etfs: dict, payload_signals: list[dict] | None = None) -
                 rule = signals.RULES[c["signal"]][1]
                 actual = bool(rule(frame["close"][frame.index <= day]).iloc[-1])
                 held, flipped = held + (actual == c["fired"]), flipped + (actual != c["fired"])
-                if c["fired"] and c.get("close_lead_exits"):
+                if c["fired"] and c.get("close_lead_exits") and usable:
                     close_records.append({"latest_close": row["session"], "instrument": c["symbol"], "rules": [c["signal"]],
                                           "rule_exits": {c["signal"]: c["close_lead_exits"]}, "confirmed": actual})
             out.append({**c, "fired_at_close": actual,
                         "close": float(frame["close"].loc[day]) if frame is not None and day in frame.index else None})
         sessions.append({"session": row["session"], "recorded_et": row["recorded_et"], "source": row.get("source"),
-                         "checks": out, "problems": row.get("problems") or []})
+                         "close_et": row.get("close_et"), "quotes": row.get("quotes"),
+                         "evidence_check": row.get("evidence_check"), "checks": out, "problems": row.get("problems") or []})
     trades = paper_book.trades(close_records, etfs, payload_signals or [], entry="close")
     return {"status": "ok", "count": len(sessions), "sessions": list(reversed(sessions))[:10],
             "compared": held + flipped, "held": held, "flipped": flipped,

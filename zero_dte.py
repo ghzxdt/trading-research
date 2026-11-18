@@ -79,12 +79,15 @@ def parse(payload: dict, symbol: str, session: str) -> dict | None:
 
 
 def snapshot(root: Path, now: pd.Timestamp, symbols=SYMBOLS, get=_get) -> dict:
-    """Save one snapshot per ETF. Regular session of a trading day only (9:45 AM to 4:00 PM ET)."""
+    """Save one snapshot per ETF. Regular session of a trading day only (9:45 AM to the close: 4:00 PM ET, or
+    1:00 PM on an early close since 2026-11-18)."""
+    from intraday.calendar import close_minutes
     from validation import equity_sessions
     local = now.tz_convert(NY)
     day = local.tz_localize(None).normalize()
     minutes = local.hour * 60 + local.minute
-    if len(equity_sessions(day, day)) != 1 or not 9 * 60 + 45 <= minutes < 16 * 60:
+    close = close_minutes(day) if len(equity_sessions(day, day)) == 1 else None
+    if not close or not 9 * 60 + 45 <= minutes < close:
         return {"saved": 0, "skipped": "outside the regular session"}
     session = f"{day:%Y-%m-%d}"
     saved, failed, lines = [], [], []
@@ -140,8 +143,61 @@ def update_indexes(root: Path, get=None) -> dict:
     return out
 
 
+RAW_CLOSES = FOLDER / "raw_closes.csv"
+
+
+def _yahoo_raw(symbols) -> pd.DataFrame:
+    import yfinance as yf
+    frame = yf.download(list(symbols), period="1mo", auto_adjust=False, progress=False, group_by="ticker", threads=True)
+    rows = []
+    for symbol in symbols:
+        closes = frame[symbol]["Close"].dropna()
+        rows += [{"session": f"{day:%Y-%m-%d}", "symbol": symbol, "close": float(value)} for day, value in closes.items()]
+    return pd.DataFrame(rows)
+
+
+def update_raw_closes(root: Path, now: pd.Timestamp | None = None, fetch=_yahoo_raw, symbols=SYMBOLS) -> str:
+    """Evening: keep each session's raw (not dividend-adjusted) close, which is what an expiring option settles on.
+
+    Added 2026-11-18 (review A3): the outcome compared raw strikes and spot with the app's dividend-adjusted closes,
+    which sit below the raw close on every session before a later ex-dividend date. Only completed sessions are
+    kept (the session's close is final 30 minutes after 4 PM ET); the first value saved for a session stands."""
+    from validation import equity_sessions
+    now = (now or pd.Timestamp.now(tz=NY)).tz_convert(NY)
+    today = now.tz_localize(None).normalize()
+    done_through = today if now.hour * 60 + now.minute >= 16 * 60 + 30 else today - pd.Timedelta(days=1)
+    path = Path(root) / RAW_CLOSES
+    old = pd.read_csv(path) if path.exists() else pd.DataFrame(columns=["session", "symbol", "close", "fetched_utc"])
+    window = equity_sessions(done_through - pd.Timedelta(days=45), done_through)
+    if not len(window):
+        return "no completed session to save"
+    done_through = window[-1]
+    sessions = {f"{d:%Y-%m-%d}" for d in window}
+    got = fetch(symbols)
+    got = got[got["session"].isin(sessions) & (got["close"] > 0)]
+    known = set(zip(old["session"], old["symbol"]))
+    new = got[[(s, y) not in known for s, y in zip(got["session"], got["symbol"])]].assign(
+        fetched_utc=pd.Timestamp.now(tz="UTC").isoformat(timespec="seconds"))
+    if len(new):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        pd.concat([old, new]).sort_values(["session", "symbol"]).to_csv(path, index=False, lineterminator="\n")
+    return f"{len(new)} new raw closes (through {done_through:%Y-%m-%d})"
+
+
+def _raw_closes(root: Path) -> dict:
+    path = Path(root) / RAW_CLOSES
+    if not path.exists():
+        return {}
+    table = pd.read_csv(path)
+    return {(r["session"], r["symbol"]): float(r["close"]) for r in table.to_dict("records")}
+
+
 def summary(root: Path, etfs: dict) -> dict:
-    """Implied against realised move for the first usable snapshot of each ETF and day, with the count."""
+    """Implied against realised move for the first usable snapshot of each ETF and day, with the count.
+
+    Settled on the session's raw close (update_raw_closes), never the dividend-adjusted daily history: strikes
+    and the snapshot's spot are raw prices. A day without its raw close yet stays unsettled."""
+    raw = _raw_closes(root)
     path = Path(root) / SUMMARY
     if not path.exists():
         return {"status": "empty", "days": 0, "rows": [], "latest": [],
@@ -153,19 +209,20 @@ def summary(root: Path, etfs: dict) -> dict:
     first = table.sort_values("snapshot_et").groupby(["session", "symbol"], as_index=False).first()
     rows = []
     for symbol in SYMBOLS:
-        mine, frame = first[first["symbol"] == symbol], etfs.get(symbol)
-        settled = []
+        mine = first[first["symbol"] == symbol]
+        settled, waiting = [], 0
         for r in mine.to_dict("records"):
-            day = pd.Timestamp(r["session"])
-            if frame is None or day not in frame.index:
+            close = raw.get((r["session"], symbol))
+            if close is None:
+                waiting += 1
                 continue
-            close = float(frame["close"].loc[day])
             value = abs(close - r["strike"])
             settled.append({"implied": r["implied_move"], "realised": abs(close / r["spot"] - 1),
                             "pnl_mid": value / r["straddle_mid"] - 1, "pnl_ask": value / r["straddle_ask"] - 1,
                             "spread": r["spread_share"]})
         mean = lambda key: sum(s[key] for s in settled) / len(settled) if settled else None  # noqa: E731
         rows.append({"symbol": symbol, "days_collected": int(len(mine)), "days_settled": len(settled),
+                     "days_waiting_for_raw_close": waiting,
                      "mean_implied": mean("implied"), "mean_realised": mean("realised"),
                      "realised_above_implied": sum(s["realised"] > s["implied"] for s in settled) / len(settled) if settled else None,
                      "straddle_mean_at_mid": mean("pnl_mid"), "straddle_mean_at_ask": mean("pnl_ask"),
@@ -177,6 +234,6 @@ def summary(root: Path, etfs: dict) -> dict:
             "latest": json.loads(latest.to_json(orient="records")),
             "note": "Research data from Cboe's delayed feed (about 15 minutes behind; not executable quotes). "
                     "Implied move is the at-the-money straddle's mid price over the share price at the day's first "
-                    "snapshot; realised is the move from then to the close. The straddle result is its value at the "
-                    "close against its cost, per day, before fees. About 60 settled days are needed before these "
-                    "averages mean anything."}
+                    "snapshot; realised is the move from then to the session's raw close (Yahoo, not dividend-"
+                    "adjusted, saved each evening). The straddle result is its value at that close against its cost, "
+                    "per day, before fees. About 60 settled days are needed before these averages mean anything."}

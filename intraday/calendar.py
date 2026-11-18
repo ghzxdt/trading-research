@@ -39,5 +39,16 @@ def session(date):
             "timezone": NY, "calendar_source": "NYSE published 2025–2028 cash-equity hours"}
 
 
+def close_minutes(date):
+    """Minutes after midnight ET when `date`'s regular session closes: 13:00 on the NYSE early-close days above,
+    otherwise 16:00. None when `date` is not a trading day. (Used by the pre-close check and the collection
+    schedule since 2026-11-18; both assumed 4 PM before.)"""
+    info = session(pd.Timestamp(date).strftime("%Y-%m-%d"))
+    if not info["is_session"]:
+        return None
+    close = pd.Timestamp(info["close"]).tz_convert(NY)
+    return close.hour * 60 + close.minute
+
+
 def date_of(value):
     return utc(value).tz_convert(NY).strftime("%Y-%m-%d")

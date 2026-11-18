@@ -35,9 +35,13 @@ def handle_get(root, route, query):
             from thesis import calls, data, paper_book, preclose, signals, stance_log
             now = pd.Timestamp.now(tz='America/New_York')
             etfs = data.etfs(root, now)
-            sig = signals.build(etfs, signals.load_export()[0])['signals']
+            payload, info = signals.load_export()
+            sig = signals.build(etfs, payload)['signals']
+            # The export on disk now, so the page can say when it embeds an older one (review A5, 2026-11-18).
+            export = {k: info.get(k) for k in ('status', 'reason', 'sha256', 'generated_at', 'report', 'verdict_version')}
             return 200, {'preclose': preclose.summary(root, etfs, sig), 'same_day_options': zero_dte.summary(root, etfs),
-                         'paper_book': paper_book.build(root, now, etfs, sig, calls.read(root, stance_log.LOG))}
+                         'paper_book': paper_book.build(root, now, etfs, sig, calls.read(root, stance_log.LOG)),
+                         'export': export}
         if route == '/api/v1/thesis/journal':
             import pandas as pd
             from thesis import data, journal, ledger

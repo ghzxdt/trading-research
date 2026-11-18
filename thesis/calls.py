@@ -152,8 +152,13 @@ def scoreboard(scored: list[dict]) -> dict:
             "hit_rate": mean([1.0 if s["call_return"] > 0 else 0.0 for s in directional]),
             "mean_call_return": mean([s["call_return"] for s in final]),
             "mean_always_long": mean([s["always_long_return"] for s in final]),
-            "note": "Returns are per call, unlevered, before costs. A handful of calls says little; the sample "
-                    "size is shown so it can't look more certain than it is."}
+            # Review B7 (2026-11-18): the invalidation is free text, so it is shown but never applied.
+            "scoring": "fixed_horizon",
+            "note": "Fixed-horizon scores: each call is held from the next open for its chosen number of sessions, "
+                    "whatever happens on the way. The invalidation written with a call is shown beside it but not "
+                    "applied: a call is not closed early when it is invalidated. Returns are per call, unlevered, "
+                    "before costs. A handful of calls says little; the sample size is shown so it can't look more "
+                    "certain than it is."}
 
 
 def summary(root: Path, etfs: dict) -> dict:

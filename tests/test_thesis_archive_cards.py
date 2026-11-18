@@ -153,5 +153,31 @@ class RoundingTieTests(unittest.TestCase):
         self.assertTrue(any("Tolerated, not a mismatch" in c for c in page["cautions"]))
 
 
+class LiveExportTests(unittest.TestCase):
+    def test_the_live_endpoint_reports_the_export_on_disk(self):
+        """Review A5: the page compares the export it embeds with the one on disk now."""
+        from terminal_api import handle_get
+        with tempfile.TemporaryDirectory() as tmp:
+            export = Path(tmp) / "trade_simulation.json"
+            export.write_text(json.dumps({"kind": "trade_simulation", "schema": 1, "generated_at": "2026-11-18T07:08:04+00:00",
+                                          "strategies": [{"symbol": "SPY", "signal": "rsi2_below_10", "exit": "hold_5",
+                                                          "mode": "etf_next_open", "verdict": "Lead", "holdout": None,
+                                                          "development": {"trades": 1, "strategy": {}, "matched": {}}}],
+                                          "signal_days": {"SPY:rsi2_below_10": {"last_date": "2026-11-06", "dates": []}}}),
+                              encoding="utf-8")
+            with patch.dict(os.environ, {"THESIS_BACKTESTER_EXPORT": str(export)}):
+                code, body = handle_get(Path(tmp), "/api/v1/thesis/live", {})
+            self.assertEqual(code, 200, body)
+            self.assertEqual((body["export"]["status"], body["export"]["generated_at"]), ("ok", "2026-11-18T07:08:04+00:00"))
+            self.assertEqual(len(body["export"]["sha256"]), 64)
+
+
+class CallScoringLabelTests(unittest.TestCase):
+    def test_the_scoreboard_says_it_is_fixed_horizon(self):
+        board = calls.scoreboard([])
+        self.assertEqual(board["scoring"], "fixed_horizon")
+        self.assertIn("not applied", board["note"])  # review B7: invalidations are shown, never applied
+
+
 if __name__ == "__main__":
     unittest.main()
