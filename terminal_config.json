@@ -221,6 +221,11 @@
       "QQQ",
       "IWM"
     ],
+    "live_minute_symbols": [
+      "SPY",
+      "QQQ",
+      "IWM"
+    ],
     "auto_collect": false
   },
   "liquidity": {

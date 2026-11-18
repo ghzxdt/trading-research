@@ -186,6 +186,11 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - Desktop shortcut **Research** (beside the backtester's **Backtester**; older docs call it "Trading Research
   Control Panel") opens `desktop_app.pyw` from this folder. `setup_windows_tasks.ps1` updates whichever desktop
   shortcut already opens `desktop_app.pyw` and creates "Trading Research Control Panel" only if there is none.
+- **Live minute bars: what is gathered minute by minute (user, 2026-11-18: "poll yahoo"; revisit any time).** The
+  list is `collection.live_minute_symbols` in `terminal_config.json` (now SPY, QQQ, IWM; read by
+  `terminal_config.live_minute_symbols`). To add an ETF or stock: it must first be an active instrument in that
+  file's `universe` (add an entry there if it is new to the app), then add it to `live_minute_symbols`; at most
+  20, since one Yahoo request a minute covers them all. The poller itself is still to be built (LOG.md, Open).
 - Dashboard: http://localhost:8766/thesis.html (Daily thesis; Intraday is `today.html`, Macro is `macro.html`).
   Binds to 127.0.0.1 only.
 - The FRED API key (registered 2026-11-14 on the user's account, with their OK to accept FRED's terms) is in

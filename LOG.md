@@ -5,6 +5,17 @@
   C10, C11, C12) done 2026-11-18. Step 2, in this order: A1, B6, C9, A4, B8, C13 (user's go-ahead relayed from the
   backtester chat; check with the user on any new data provider and on visible changes to the daily screen). Details in the backtester chat's message; reviews in
   `C:\Claude\trading-backtester\docs\reviews\APP_REVIEW_2026-11-18.md` and Codex's 2026-11-14 outputs.
+- A1 live minute bars (user chose Yahoo polling, 2026-11-18). Done: the configurable list
+  (`collection.live_minute_symbols`). Left, as designed: (1) `live_minute.py`, polling Yahoo 1-minute bars
+  each minute from the open to the calendar's close with keep-awake, storing each completed regular-session
+  bar with `availability_basis` "observed_live" and `available_at` = receipt time, into small per-day
+  hash-chained journals `data/intraday/v1/live/<date>.jsonl` with their own lock (writing into the 92 MB main
+  journal costs about 10 s a call: verify 3.2, deepcopy 2.0, normalize 1.1, canonical 2x); (2) `store.load_bars`
+  merges them, keeping the earliest of identical-OHLCV versions; (3) `features.snapshot` computes
+  `availability_bases` over the current session's regular bars (today it spans the symbol's whole history, so
+  every paper decision would be data_blocked; `data/intraday/v1/paper.jsonl` has no records yet, so nothing
+  recorded changes); (4) a scheduled task Mon-Fri 8:28 AM Central plus sign-in; (5) a System status row
+  listing the polled tickers; then B6, C9 (ask the user first), A4, B8, C13.
 - The options import lock (`options_research/core.py` `_writer`) has the same no-recovery pattern the minute-bar
   lock had. Manual imports only, so lower risk; same fix if wanted.
 - Reminder from the hand-off: daytime jobs only run while the laptop is asleep or on, never shut down.

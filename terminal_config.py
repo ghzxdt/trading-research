@@ -44,7 +44,10 @@ def defaults():
                      for s, g, l, p, m, n in INSTRUMENTS],
         'provider': 'yahoo_free_indicative',
         'collection': {'period': '5d', 'interval': '1m', 'quote_max_age_seconds': 120,
-                       'default_symbols': ['SPY', 'QQQ', 'IWM'], 'auto_collect': False},
+                       'default_symbols': ['SPY', 'QQQ', 'IWM'], 'auto_collect': False,
+                       # What is polled minute by minute during market hours (user, 2026-11-18): edit this list
+                       # in terminal_config.json to add or drop tickers; each must be an active instrument.
+                       'live_minute_symbols': ['SPY', 'QQQ', 'IWM']},
         'liquidity': {'min_share_volume': 1000000, 'max_share_spread_bps': 10,
                       'min_options_volume': 10000, 'max_options_spread_bps': 100},
         'risk': {'account_equity': None, 'max_trade_debit': None,
@@ -92,6 +95,20 @@ def load_config(root):
 
 def active_symbols(root):
     return [r['symbol'] for r in load_config(root)['universe'] if r.get('active')]
+
+
+def live_minute_symbols(root):
+    """Tickers polled every minute during market hours (collection.live_minute_symbols). Each must be an active
+    instrument in the universe; at most 20, since one Yahoo request a minute covers all of them."""
+    config = load_config(root)
+    wanted = [str(s).upper() for s in config['collection'].get('live_minute_symbols') or []]
+    active = {r['symbol'] for r in config['universe'] if r.get('active')}
+    unknown = [s for s in wanted if s not in active]
+    if unknown:
+        raise ValueError(f"live_minute_symbols must be active instruments; not active: {', '.join(unknown)}")
+    if len(wanted) > 20 or len(set(wanted)) != len(wanted):
+        raise ValueError('live_minute_symbols: at most 20 distinct tickers')
+    return wanted
 
 
 def instrument(root, symbol):
