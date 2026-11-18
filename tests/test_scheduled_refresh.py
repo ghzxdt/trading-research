@@ -15,6 +15,7 @@ ROOT=Path(__file__).resolve().parents[1]
 SCRATCH=ROOT/'work'/'scheduled_refresh_tests'
 SCRATCH.mkdir(parents=True,exist_ok=True)
 MONDAY_EVENING=pd.Timestamp('2026-11-09 16:45',tz=NY)
+TUESDAY_MORNING=pd.Timestamp('2026-11-10 08:45',tz=NY)  # the 7:45 AM Central backstop run
 
 
 class FakeClock:
@@ -80,15 +81,22 @@ class RunTests(unittest.TestCase):
         code=self.go(lambda:date(2026,11,9),lambda:{'k':'recorded_before_entry'} if len(refreshes)>=2 else None,refresh)
         self.assertEqual((code,refreshes),(0,[False,False]))
 
-    def test_deadline_without_vix_forces_one_refresh_and_reports_data_blocked(self):
+    def test_evening_run_stops_waiting_after_four_hours_without_forcing(self):
         refreshes=[]
+        code=self.go(lambda:date(2026,11,6),lambda:None,lambda force:refreshes.append(force))
+        self.assertEqual((code,refreshes,self.backups),(sr.STOPPED_WAITING,[],1))
+        self.assertEqual(self.clock.t,MONDAY_EVENING+sr.MAX_WAIT)
+        self.assertTrue(any('Stopped waiting after 4 hours' in s for s in self.said))
+
+    def test_deadline_without_vix_forces_one_refresh_and_reports_data_blocked(self):
+        self.clock=FakeClock(TUESDAY_MORNING);refreshes=[]
         def refresh(force):refreshes.append((self.clock.t,force));return 'Refresh succeeded.'
         code=self.go(lambda:date(2026,11,6),lambda:{'k':'data_blocked'} if refreshes else None,refresh)
         self.assertEqual(code,1)
         self.assertEqual(refreshes,[(pd.Timestamp('2026-11-10 09:00',tz=NY),True)])
 
     def test_nothing_logged_by_deadline_returns_2(self):
-        refreshes=[]
+        self.clock=FakeClock(TUESDAY_MORNING);refreshes=[]
         code=self.go(lambda:date(2026,11,6),lambda:None,lambda force:refreshes.append(force) or 'Refresh failed: x')
         self.assertEqual((code,refreshes,self.backups),(2,[True],1))
         self.assertLessEqual(self.clock.t,pd.Timestamp('2026-11-10 09:00',tz=NY))
@@ -96,7 +104,7 @@ class RunTests(unittest.TestCase):
     def test_vix_download_errors_count_as_not_posted(self):
         def vix():raise OSError('offline')
         code=self.go(vix,lambda:None,lambda force:'Refresh failed: offline')
-        self.assertEqual(code,2)
+        self.assertEqual(code,sr.STOPPED_WAITING)
         self.assertTrue(any("Could not read Cboe" in s for s in self.said))
 
 

@@ -165,7 +165,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - The FRED API key (registered 2026-11-14 on the user's account, with their OK to accept FRED's terms) is in
   `.secrets\fred_api_key.txt`: git-ignored, outside `data/` so not in the data backup, covered by the user's manual
   copy of `C:\Claude`. Never print it, commit it or put it in a URL that gets logged.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (315 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (316 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).
@@ -202,8 +202,10 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   outside 8:00-9:30 AM or 4:00-4:45 PM ET records nothing.
 - The Data quality tab checks Yahoo's SPY/QQQ daily returns against FRED's S&P 500 and Nasdaq-100 closes
   (`crosscheck.py`; online refreshes cache the FRED series in `data/raw/crosscheck/`).
-- Scheduled task **Trading Research Evening Refresh** (Mon-Fri 3:45 PM Central) runs `scheduled_refresh.py`:
-  waits for the day's VIX close, runs the app's refresh, checks that the page was published for that session and
+- Scheduled task **Trading Research Evening Refresh** (Mon-Fri 8:15 PM Central, Tue-Sat 7:45 AM Central as the
+  backstop before the open, and at sign-in; it started at 3:45 PM Central until 2026-11-17, when the user asked
+  why it kept checking) runs `scheduled_refresh.py`: waits for the day's VIX close (at most 4 hours, exit 5, so
+  the laptop can sleep), runs the app's refresh, checks that the page was published for that session and
   its stance logged (refreshing once more if not; exit 4 if the page still isn't published), then
   `git_backup.py` commits the data files and pushes `main`. Log: `work\scheduled_refresh.log`. Turn it off in
   Task Scheduler.
@@ -214,8 +216,8 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   day the laptop must be left asleep or on, not shut down.
 - Lid closed is fine (checked 2026-11-15): this ThinkPad uses classic S3 sleep, closing the lid means Sleep on
   mains and battery, the tasks may start on battery, and a timer wakes it with the lid shut. Keep it out of a
-  bag while a wake is due (no airflow), and prefer mains: the evening refresh can hold it awake an hour or more
-  waiting for the VIX close. Since 2026-11-15 each scheduled script (`unattended.py`) waits up to 3 minutes for
+  bag while a wake is due (no airflow), and prefer mains: the evening refresh holds it awake while it waits for
+  the VIX close (usually minutes after 8:15 PM Central; at most 4 hours). Since 2026-11-15 each scheduled script (`unattended.py`) waits up to 3 minutes for
   the network before downloading and asks Windows to stay awake until it finishes (Windows otherwise puts a
   timer-woken laptop back to sleep after about 2 minutes). On Sat 2026-11-14 the sign-in runs started 2.5
   minutes after boot with no network: 0 of 16 bar downloads, Cboe failed, the GitHub push failed. A timer wake
@@ -250,7 +252,9 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   positive means longs pay shorts.
 - Open-session index perp half-spreads were ~0.2-0.7 bp; SPY/QQQ perps are thin.
 - Kalshi perps fees (checked 2026-11-07): 0.12% taker / 0.02% maker per side at the base tier, on notional.
-- Cboe posts the VIX close well after 4:30 PM ET, so evening jobs must wait for it (see LOG.md).
+- Cboe posts the VIX close well after 4:30 PM ET, so evening jobs must wait for it. Measured: `VIX_History.csv`
+  changed at 9:30 PM ET (Nov 16) and 9:11 PM ET (Nov 17), and about 10 PM ET on Nov 9; the VIX1D, VIX9D and VIX3M
+  files at about 5:31 PM ET (Last-Modified headers and the evening task's log).
 
 ## Open decisions (user)
 - Risk limits: the user has set no max drawdown or max leverage (2026-11-07); the goal is good trades and large

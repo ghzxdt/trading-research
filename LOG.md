@@ -1,5 +1,19 @@
 # Trading research log
 
+## 2026-11-17 (later): evening task starts when Cboe usually posts
+- User: "when does that information usually get posted? i feel like constant checking is useless". Measured from
+  Cboe's Last-Modified headers and the evening task's log: `VIX_History.csv` changed at 9:30 PM ET (Nov 16),
+  9:11 PM ET (Nov 17) and about 10 PM ET (Nov 9). The 3:45 PM Central start meant about 4.5 hours of checks, and
+  since 2026-11-15 the task holds the laptop awake while it waits.
+- Evening Refresh now starts Mon-Fri 8:15 PM Central (9:15 PM ET), stops waiting after 4 hours (exit 5), and has a
+  Tue-Sat 7:45 AM Central backstop that forces the refresh at 9:00 AM ET if Cboe never posted. Sign-in trigger
+  unchanged. Tasks re-registered from `setup_windows_tasks.ps1`. 316 tests.
+- Tonight's run (old schedule) logged Nov 17's decisions at 9:41 PM ET (VIX 25.46), published the page, logged the
+  stance and pushed (`de87559`).
+- **Lost: Mon Nov 16.** The laptop was shut down from Sun 10:17 PM to Tue 4:37 PM Central, so Monday's paper
+  decisions and stance were never logged (now past Tuesday's open) and Monday's and Tuesday's daytime collection
+  didn't run. Sleep, not shut down, is what lets the tasks run.
+
 ## 2026-11-17: refresh at any time (data-only refresh); Cboe check retries
 - User got "Couldn't check whether Cboe has posted the VIX close for Tue Nov 17 (Connection aborted ...
   RemoteDisconnected)" from Run / Refresh data and asked for a refresh that works whenever they want.

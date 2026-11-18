@@ -11,9 +11,10 @@ $user = "$env:USERDOMAIN\$env:USERNAME"
 $days = 'Monday','Tuesday','Wednesday','Thursday','Friday'
 $start = (Get-Date).Date.AddDays(1)
 
-function Register-AppTask($name, $script, $arguments, $times, $limitHours, $description) {
+function Register-AppTask($name, $script, $arguments, $times, $limitHours, $description, $extraTriggers = @()) {
     $action = New-ScheduledTaskAction -Execute $pythonw -Argument ("`"$(Join-Path $root $script)`" $arguments").Trim() -WorkingDirectory $root
     $triggers = @(foreach ($t in $times) { New-ScheduledTaskTrigger -Weekly -DaysOfWeek $days -At ($start + [TimeSpan]::Parse($t)) })
+    $triggers += $extraTriggers
     # Also two minutes after sign-in (user, 2026-11-13): after a night with the laptop off, each job catches up
     # as soon as the user is back in. Each script decides what to do from the time of day, so this is safe.
     $logon = New-ScheduledTaskTrigger -AtLogOn -User $user
@@ -29,8 +30,12 @@ function Register-AppTask($name, $script, $arguments, $times, $limitHours, $desc
     Write-Output "Registered: $name ($($times -join ', '))"
 }
 
-Register-AppTask 'Trading Research Evening Refresh' 'scheduled_refresh.py' '' @('15:45') 20 `
-    'Waits for the VIX close, refreshes the app, records paper decisions, commits and pushes data. Log: work\scheduled_refresh.log'
+# Evening refresh (2026-11-17): Cboe posts the VIX close at about 9:10-10:00 PM ET, so start at 8:15 PM Central instead
+# of 3:45 PM (it used to check for hours with nothing to find, and now holds the laptop awake while it waits).
+# Tue-Sat 7:45 AM Central is the backstop before the open; it forces the refresh at 9:00 AM ET if Cboe never posted.
+$morning = New-ScheduledTaskTrigger -Weekly -DaysOfWeek 'Tuesday','Wednesday','Thursday','Friday','Saturday' -At ($start + [TimeSpan]::Parse('07:45'))
+Register-AppTask 'Trading Research Evening Refresh' 'scheduled_refresh.py' '' @('20:15') 20 `
+    'Waits for the VIX close, refreshes the app, records paper decisions, commits and pushes data. Log: work\scheduled_refresh.log' @($morning)
 Register-AppTask 'Trading Research Market Snapshots' 'market_snapshot.py' '--scheduled' @('08:00','15:05') 2 `
     'Kalshi perps and macro markets, futures, inflation nowcast. Log: work\market_snapshot.log'
 Register-AppTask 'Trading Research Intraday Collection' 'scheduled_collect.py' '' @('09:00','09:30','11:30','13:30','14:50','19:10') 4 `

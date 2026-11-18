@@ -1,9 +1,16 @@
 """Weekday evening refresh, run by the Windows scheduled task "Trading Research Evening Refresh".
 
+When it runs (setup_windows_tasks.ps1, since 2026-11-17): weekdays at 8:15 PM Central (9:15 PM ET), just
+before Cboe usually posts the VIX close (its VIX_History.csv changed at 9:30 PM ET on Nov 16 and 9:11 PM ET on
+Nov 17, and about 10 PM ET on Nov 9; the VIX1D/VIX9D/VIX3M files come at about 5:30 PM ET), then Tue-Sat at
+7:45 AM Central as the backstop before the open, and two minutes after sign-in. It used to start at 3:45 PM
+Central and check for four and a half hours with nothing to find.
+
 Steps:
 1. If the paper log already has the latest completed session's decisions, go to step 5.
-2. Wait until Cboe has posted that session's VIX close, checking every 15 minutes. A refresh
-   before then logs the session as data_blocked, and the append-only log can't be corrected.
+2. Wait until Cboe has posted that session's VIX close, checking every 15 minutes, for at most MAX_WAIT; then
+   stop (exit 5) so the laptop can sleep, and leave it to the morning run. A refresh before the close is
+   posted logs the session as data_blocked, and the append-only log can't be corrected.
 3. Run the app's own Run / Refresh data path (app_control.Controller.refresh), so the build
    lock and the dashboard's busy checks apply exactly as they do for the button.
 4. Check that the decisions were logged; if not, try again every 15 minutes. At the deadline
@@ -17,7 +24,8 @@ Steps:
 
 It never trades and never commits code. Log: work/scheduled_refresh.log.
 Exit codes: 0 decisions logged before entry; 1 logged but late or data-blocked;
-2 not logged by the deadline; 3 unexpected error; 4 decisions logged but the page was not published.
+2 not logged by the deadline; 3 unexpected error; 4 decisions logged but the page was not published;
+5 stopped waiting for the VIX close (the morning run checks again before the open).
 """
 from __future__ import annotations
 
@@ -37,6 +45,8 @@ from validation import NY, equity_sessions, expected_session
 ROOT = Path(__file__).resolve().parent
 LOG_PATH = ROOT / "work" / "scheduled_refresh.log"
 CHECK_EVERY = pd.Timedelta(minutes=15)
+MAX_WAIT = pd.Timedelta(hours=4)  # an evening run holds the laptop awake while it waits, so it doesn't wait all night
+STOPPED_WAITING = 5
 BUILD_TIMEOUT = pd.Timedelta(minutes=60)
 SCORED_STATES = {"recorded_before_entry", "overlap_skipped"}
 
@@ -164,6 +174,7 @@ def run(root: Path = ROOT, *, say=log, now=lambda: pd.Timestamp.now(tz=NY), slee
     start = now()
     session = expected_session(start)
     deadline = deadline_for(start, session)
+    stop_at = min(deadline, start + MAX_WAIT)
     say(f"Started. Latest completed session: {session:%a %b %d}. Deadline: {deadline:%a %b %d %I:%M %p} ET.")
     code = 2
     while True:
@@ -194,7 +205,12 @@ def run(root: Path = ROOT, *, say=log, now=lambda: pd.Timestamp.now(tz=NY), slee
         if final:
             say(f"Deadline passed without decisions for {session:%b %d}.")
             break
-        sleep(max(min(CHECK_EVERY, deadline - moment).total_seconds(), 1.0))
+        if moment >= stop_at:
+            say(f"Stopped waiting after {MAX_WAIT.total_seconds() / 3600:.0f} hours without the VIX close for "
+                f"{session:%b %d}, so the laptop can sleep. The morning run (7:45 AM Central) checks again before the open.")
+            code = STOPPED_WAITING
+            break
+        sleep(max(min(CHECK_EVERY, stop_at - moment).total_seconds(), 1.0))
     if page and code in (0, 1):  # decisions exist: check the rest of the evening's work
         code = max(code, finish(root, session, page, refresh, say, now))
     if backup:
