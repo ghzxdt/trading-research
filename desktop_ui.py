@@ -275,7 +275,7 @@ class ControlPanel:
                 elif action in ("refresh", "rebuild"):
                     self.controller.start()
                     result = self.controller.refresh(offline=action == "rebuild")
-                    text = "Fresh data refresh started. Follow the status here or open View logs." if action == "refresh" else "Offline rebuild started. No data downloads or new paper decisions are created."
+                    text = (result.get("note") or "Fresh data refresh started. Follow the status here or open View logs.") if action == "refresh" else "Offline rebuild started. No data downloads or new paper decisions are created."
                 else:
                     result = self.controller.recover_stale_lock()
                     text = result.get("message", "Startup check finished.")

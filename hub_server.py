@@ -58,16 +58,21 @@ def status_payload():
             'server_pid':os.getpid(),'server_started_at':SERVER_STARTED,'busy':LOCK.locked() or lock['busy'],'build_lock':lock,'build':build}
 
 
-def refresh_all(offline):
+DATA_ONLY_DONE=('Data refreshed and pages published; the paper decisions and stance for the latest close were not '
+                "logged (waiting for Cboe's VIX close; the evening task logs them). Reload this page.")
+
+
+def refresh_all(offline,record=True):
     try:
-        # The request handler already applied (or was told to override) the VIX guard.
-        command=[sys.executable,'-B',str(ROOT/'run_all.py')]+(['--offline'] if offline else ['--skip-vix-guard'])
+        # The request handler already applied (or was told to override) the VIX guard; a data-only run records nothing.
+        mode=['--offline'] if offline else ['--skip-vix-guard'] if record else ['--data-only']
+        command=[sys.executable,'-B',str(ROOT/'run_all.py')]+mode
         WORK.mkdir(parents=True,exist_ok=True)
         with (WORK/'last_refresh.log').open('w',encoding='utf-8') as stream:
             # Do not kill just the parent on an outer timeout while builder children write.
             result=subprocess.run(command,cwd=ROOT,stdout=stream,stderr=subprocess.STDOUT,creationflags=hidden_process_flags())
         update_build_state(running=False,ok=result.returncode==0,exit_code=result.returncode,finished_at=utc_now(),
-                           message='Validated bundle published. Reload this page.' if result.returncode==0 else 'Build failed; previous complete output is preserved. Open the refresh log.')
+                           message=('Validated bundle published. Reload this page.' if offline or record else DATA_ONLY_DONE) if result.returncode==0 else 'Build failed; previous complete output is preserved. Open the refresh log.')
     except Exception as exc:update_build_state(running=False,ok=False,message=str(exc),finished_at=utc_now())
     finally:LOCK.release()
 
@@ -141,18 +146,23 @@ def make_handler(port:int,downloads:Path|None,token:str|None=None):
             if self.path in ('/api/refresh','/api/rebuild'):
                 writer=build_lock_state(ROOT)
                 if writer['exists']:return self._json(409,{'ok':False,'error':writer['reason']})
-                offline=self.path=='/api/rebuild'
-                # An online refresh before Cboe posts the VIX close would log the day's paper decisions as data_blocked.
+                offline=self.path=='/api/rebuild';record=True;note=None
+                # A recording refresh before Cboe posts the VIX close would log the day's paper decisions as data_blocked.
+                # Then the refresh still runs, but data-only: it downloads and rebuilds, and records nothing. Only the
+                # evening task asks for a recording refresh (X-Require-Record), and it gets the refusal instead.
                 if not offline and self.headers.get('X-Allow-Data-Blocked')!='1':
                     reason=refresh_guard.blocking_reason(ROOT)
-                    if reason:return self._json(409,{'ok':False,'error':reason})
+                    if reason:
+                        if self.headers.get('X-Require-Record')=='1':return self._json(409,{'ok':False,'error':reason})
+                        record=False;note=refresh_guard.data_only_message(reason)
                 if not reserve_work():return self._json(409,{'ok':False,'error':'A build is already running or the dashboard is stopping.'})
                 try:
-                    update_build_state(running=True,ok=None,message='Building and validating a complete bundle...',action='offline' if offline else 'online',started_at=utc_now(),finished_at=None,exit_code=None)
-                    threading.Thread(target=refresh_all,args=(offline,),daemon=True).start()
+                    update_build_state(running=True,ok=None,message=note or 'Building and validating a complete bundle...',
+                                       action='offline' if offline else 'online' if record else 'data_only',started_at=utc_now(),finished_at=None,exit_code=None)
+                    threading.Thread(target=refresh_all,args=(offline,record),daemon=True).start()
                 except Exception:LOCK.release();raise
                 with STATE_LOCK:build=dict(BUILD_STATE)
-                return self._json(202,{'ok':True,'build':build})
+                return self._json(202,{'ok':True,'build':build,'note':note})
             if self.path!='/api/gex/update':return self._json(404,{'ok':False,'error':'Unknown action.'})
             if build_lock_state(ROOT)['exists'] or not reserve_work():return self._json(409,{'ok':False,'error':'A build/update is already running or the dashboard is stopping.'})
             try:

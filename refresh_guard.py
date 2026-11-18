@@ -2,14 +2,15 @@
 
 The paper log records each frozen rule's decision for the latest completed session on the first
 online refresh after 4:30 PM ET, and it is append-only. Cboe posts the VIX close later than that
-(about 5:30 PM ET or after), and the app treats the session's data as incomplete until it has. A
-refresh in that gap therefore records the session as data_blocked, for good.
+(the Nov 16, 2026 close appeared in its file at about 9:30 PM ET), and the app treats the session's data as
+incomplete until it has. A recording refresh in that gap would record the session as data_blocked, for good.
 
-blocking_reason() says whether an online refresh right now would do that. The local dashboard
-server refuses such a refresh with that reason (the control panel and the dashboard both show it),
-run_all.py does the same from the command line, and the evening task overrides it only at its
-9:00 AM ET deadline, when logging the gap is the honest outcome. Offline rebuilds never record
-decisions, so they are never blocked.
+blocking_reason() says whether a recording refresh right now would do that. Since 2026-11-17 the dashboard
+server then runs a data-only refresh instead (downloads and rebuilds every page, records no paper decision
+and no stance; build_pipeline's record=False), so the user can refresh at any time; the evening task, which
+asks for a recording refresh only, logs the session once Cboe has posted. run_all.py refuses from the command
+line unless given --data-only. The evening task overrides the guard only at its 9:00 AM ET deadline, when
+logging the gap is the honest outcome. Offline rebuilds never record decisions, so they are never blocked.
 """
 from __future__ import annotations
 
@@ -19,6 +20,8 @@ from pathlib import Path
 
 import pandas as pd
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 # Imported here, not per call, so the dashboard server pays the import cost at startup. A check
 # is then one Cboe download (about 1 s from Python: a redirect means two secure connections; the
@@ -28,7 +31,23 @@ from monitor.paper import read_log  # verifies the hash chain on every read
 from stage1.sources import CBOE_URL, HEADERS
 from validation import NY, equity_sessions, expected_session
 
-SESSION = requests.Session()
+
+
+def make_session() -> requests.Session:
+    """A session that retries a GET on a fresh connection when the server has dropped an idle one.
+
+    The dashboard server keeps one session for hours. Cboe closes idle keep-alive connections, so a check
+    after a pause used to fail with "Connection aborted ... RemoteDisconnected" (every other 15-minute check
+    in the evening task on 2026-11-17, and the control panel's refresh error the same evening)."""
+    session = requests.Session()
+    retry = Retry(total=3, connect=2, read=2, status=0, backoff_factor=0.5, allowed_methods=frozenset({"GET"}),
+                  raise_on_status=False)
+    for prefix in ("https://", "http://"):
+        session.mount(prefix, HTTPAdapter(max_retries=retry))
+    return session
+
+
+SESSION = make_session()
 
 
 def newest_csv_date(text: str) -> date | None:
@@ -46,6 +65,15 @@ def last_vix_date(timeout: int = 10) -> date | None:
     response = SESSION.get(CBOE_URL.format(name="VIX"), headers=HEADERS, timeout=timeout)
     response.raise_for_status()
     return newest_csv_date(response.text)
+
+
+def data_only_message(reason: str) -> str:
+    """What the dashboard says when the guard turns a refresh into a data-only refresh."""
+    why = ("Cboe hasn't posted the VIX close yet" if "hasn't posted" in reason
+           else "Cboe's VIX file couldn't be checked just now")
+    return (f"Refreshing data only: prices, news and every page update now. {why}, so the paper decisions and "
+            "the page's stance for the latest close aren't logged in this refresh. The evening task logs them "
+            "automatically once the close is posted (any time before the next open counts).")
 
 
 def decision_states(root: Path, session) -> dict[str, str] | None:

@@ -5,6 +5,7 @@ GEX / DIX is rebuilt from your saved copy; it never downloads anything (use its 
 Usage:
     python run_all.py            # fresh data for both tabs
     python run_all.py --offline  # reuse the last downloads
+    python run_all.py --data-only  # fresh data, but log no paper decisions or stance (safe at any time)
     python run_all.py --open     # open the hub when done
 """
 
@@ -27,12 +28,17 @@ def main() -> None:
     ap.add_argument("--as-of", help="ISO reference timestamp; combine with --offline for reproducible replay")
     ap.add_argument("--skip-vix-guard", action="store_true",
                     help="refresh even before Cboe posts the session's VIX close (logs that day's paper decisions as data-blocked)")
+    ap.add_argument("--data-only", action="store_true",
+                    help="download and rebuild everything, but append nothing to the paper or stance logs (never blocked)")
     args = ap.parse_args()
-    if not args.offline and not args.as_of and not args.skip_vix_guard:
+    if args.data_only and (args.offline or args.skip_vix_guard):
+        ap.error("--data-only already skips the VIX guard and downloads; don't combine it with --offline or --skip-vix-guard")
+    if not args.offline and not args.as_of and not args.skip_vix_guard and not args.data_only:
         from refresh_guard import blocking_reason
         reason = blocking_reason(ROOT)
         if reason:
-            raise SystemExit("Refresh refused: " + reason + " Add --skip-vix-guard to refresh anyway.")
+            raise SystemExit("Refresh refused: " + reason + " Use --data-only to refresh data without logging, "
+                             "or --skip-vix-guard to log the day as data-blocked.")
     lock = ROOT / ".build.lock"
     try:
         fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
@@ -41,7 +47,7 @@ def main() -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(str(os.getpid()))
-        out = build(ROOT, offline=args.offline, as_of=args.as_of)
+        out = build(ROOT, offline=args.offline, as_of=args.as_of, record=not args.data_only)
     finally:
         lock.unlink(missing_ok=True)
     hub = out / "index.html"

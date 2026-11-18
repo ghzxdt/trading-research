@@ -165,7 +165,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - The FRED API key (registered 2026-11-14 on the user's account, with their OK to accept FRED's terms) is in
   `.secrets\fred_api_key.txt`: git-ignored, outside `data/` so not in the data backup, covered by the user's manual
   copy of `C:\Claude`. Never print it, commit it or put it in a URL that gets logged.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (309 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (315 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).
@@ -221,9 +221,15 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   minutes after boot with no network: 0 of 16 bar downloads, Cboe failed, the GitHub push failed. A timer wake
   had not yet been seen in the System log on 2026-11-15 (only power-button and USB wakes).
 - Offline rebuild: `.venv\Scripts\python -B run_all.py --offline` (about 70 seconds).
-- Online refresh: the control panel's **Run / Refresh data**, or `run_all.py` without `--offline`. Both refuse,
-  with the reason, while the latest session's paper decisions aren't logged and Cboe hasn't posted its VIX close
-  (`refresh_guard.py`); `run_all.py --skip-vix-guard` overrides it, which logs that day as data-blocked.
+- Online refresh: the control panel's **Run / Refresh data**, the pages' **Refresh data + validate**, or
+  `run_all.py` without `--offline`. Until Cboe posts the session's VIX close (its file updated at about 9:30 PM ET
+  on 16 Nov 2026), a refresh that logged the day's paper decisions would log them as data-blocked for good
+  (`refresh_guard.py`). Since 2026-11-17 (user asked to refresh whenever they want) the panel and the pages then
+  run a **data-only refresh** and say so: it downloads and rebuilds every page but appends nothing to the paper
+  log or the stance log (`build_pipeline.build(record=False)`, `APP_NO_RECORD=1`). The evening task asks for a
+  recording refresh only (`X-Require-Record`) and logs the day once the close is posted. `run_all.py` refuses
+  with the reason unless given `--data-only`; `--skip-vix-guard` logs that day as data-blocked. The Cboe check
+  retries on a fresh connection: a dropped idle connection made every other check fail on 2026-11-17.
 - Review checks: `.venv\Scripts\python -B research\holdout_checks.py` and `research\review_checks.py`.
 
 ## History

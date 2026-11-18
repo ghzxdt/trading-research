@@ -76,4 +76,12 @@ class RegressionTests(unittest.TestCase):
             self.assertEqual(state['events'],[])
             self.assertFalse((Path(folder)/'data/monitor/paper_events.jsonl').exists())
 
+    def test_data_only_refresh_never_creates_forward_records(self):
+        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]/'work') as folder:
+            t=pd.DataFrame({'spy_day_type':['big rise'],'vix':[25]},index=pd.DatetimeIndex(['2026-11-05']))
+            with patch.dict(os.environ,{'APP_OFFLINE':'0','APP_REPLAY':'0','APP_NO_RECORD':'1'}):
+                state=paper.update(Path(folder),t,validate_costs({}),True,'test')
+            self.assertTrue(state['replay']);self.assertEqual(state['events'],[])
+            self.assertFalse((Path(folder)/'data/monitor/paper_events.jsonl').exists())
+
 if __name__=='__main__':unittest.main()

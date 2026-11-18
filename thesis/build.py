@@ -291,3 +291,8 @@ def log_stance(root: Path, state: dict, now: pd.Timestamp, say=print) -> dict:
 
 def offline_requested() -> bool:
     return os.environ.get("APP_OFFLINE") == "1" or os.environ.get("APP_REPLAY") == "1"
+
+
+def recording_requested() -> bool:
+    """Online builds append the stance, except a data-only refresh (APP_NO_RECORD=1), which downloads only."""
+    return not offline_requested() and os.environ.get("APP_NO_RECORD") != "1"

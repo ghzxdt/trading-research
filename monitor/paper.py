@@ -33,7 +33,8 @@ def append(path,events,event):
 def update(root,t,costs,quality_ok,run_id):
     from validation import equity_sessions
     folder=root/'data/monitor'
-    readonly=os.environ.get('APP_OFFLINE')=='1' or os.environ.get('APP_REPLAY')=='1'
+    # Offline, replay and data-only refreshes (APP_NO_RECORD) read the log but never append to it.
+    readonly=os.environ.get('APP_OFFLINE')=='1' or os.environ.get('APP_REPLAY')=='1' or os.environ.get('APP_NO_RECORD')=='1'
     if not readonly:folder.mkdir(parents=True,exist_ok=True)
     lock=folder/'experiment_lock.json'
     if lock.exists():

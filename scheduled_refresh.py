@@ -82,7 +82,7 @@ def app_refresh(controller: Controller, say=log, sleep=time.sleep, monotonic=tim
             note = "A refresh was already running; waited for it. "
         else:
             try:
-                controller.refresh(offline=False, allow_data_blocked=force)
+                controller.refresh(offline=False, allow_data_blocked=force, require_record=True)  # never data-only
             except ControlError as exc:
                 if "already active" not in str(exc):
                     return f"Refresh not started: {exc}"

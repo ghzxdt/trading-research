@@ -27,9 +27,9 @@ class FakeController:
     def __init__(self,statuses,refresh_error=None):
         self.statuses=list(statuses);self.refresh_error=refresh_error;self.refreshed=0;self.stopped=0;self.forced=[]
     def status(self):return self.statuses.pop(0) if len(self.statuses)>1 else self.statuses[0]
-    def refresh(self,offline=False,allow_data_blocked=False):
+    def refresh(self,offline=False,allow_data_blocked=False,require_record=False):
         if self.refresh_error:raise ControlError(self.refresh_error)
-        self.refreshed+=1;self.forced.append(allow_data_blocked)
+        self.refreshed+=1;self.forced.append(allow_data_blocked);self.required=require_record
     def stop(self):self.stopped+=1
 
 
@@ -151,6 +151,7 @@ class AppRefreshTests(unittest.TestCase):
         c=FakeController([{'running':False,'busy':False},BUSY,BUSY,IDLE_DONE])
         self.assertEqual(sr.app_refresh(c,say=lambda m:None,sleep=lambda s:None),'Refresh succeeded.')
         self.assertEqual((c.refreshed,c.stopped,c.forced),(1,1,[False]))
+        self.assertTrue(c.required)  # the evening task never accepts a data-only refresh in place of a recording one
 
     def test_force_overrides_the_vix_guard(self):
         c=FakeController([IDLE_DONE,BUSY,IDLE_DONE])

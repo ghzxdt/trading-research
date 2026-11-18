@@ -60,13 +60,52 @@ class BlockingReasonTests(unittest.TestCase):
         self.assertEqual(guard.entry_time(pd.Timestamp('2026-11-06')),pd.Timestamp('2026-11-09 09:30',tz=NY))
 
 
+class CboeConnectionTests(unittest.TestCase):
+    def test_a_dropped_idle_connection_is_retried_on_a_fresh_one(self):
+        """The 2026-11-17 failure: the server closes a kept-alive connection, and the next GET on it gets nothing."""
+        import socket, threading
+        listener=socket.socket();listener.bind(('127.0.0.1',0));listener.listen(5)
+        port=listener.getsockname()[1];body=b'DATE,CLOSE\n11/16/2026,20.1\n'
+        reply=b'HTTP/1.1 200 OK\r\nContent-Length: %d\r\nConnection: keep-alive\r\n\r\n%s'%(len(body),body)
+        def handle(conn):
+            with conn:
+                conn.recv(65536);conn.sendall(reply)  # answer the first request on this connection...
+                conn.recv(65536)                       # ...then drop the second one without a reply
+        def serve():
+            while True:
+                try:conn,_addr=listener.accept()
+                except OSError:return
+                threading.Thread(target=handle,args=(conn,),daemon=True).start()
+        threading.Thread(target=serve,daemon=True).start()
+        try:
+            session=guard.make_session();url=f'http://127.0.0.1:{port}/VIX_History.csv'
+            self.assertEqual(guard.newest_csv_date(session.get(url,timeout=5).text),date(2026,11,16))
+            self.assertEqual(guard.newest_csv_date(session.get(url,timeout=5).text),date(2026,11,16))  # retried
+            plain=__import__('requests').Session()
+            plain.get(url,timeout=5)
+            with self.assertRaises(Exception):plain.get(url,timeout=5)  # what the old shared session did
+        finally:listener.close()
+
+    def test_data_only_message_names_the_reason(self):
+        self.assertIn("hasn't posted",guard.data_only_message("Cboe hasn't posted the VIX close for Tue Nov 17 yet"))
+        self.assertIn("couldn't be checked",guard.data_only_message("Couldn't check whether Cboe has posted"))
+
+
 class CommandLineTests(unittest.TestCase):
     def test_run_all_refuses_an_online_refresh_the_guard_blocks(self):
         import run_all
         with patch.object(sys,'argv',['run_all.py']),patch('refresh_guard.blocking_reason',return_value='Cboe has not posted'),\
              patch.object(run_all,'build') as build:
             with self.assertRaises(SystemExit) as stop:run_all.main()
-        self.assertIn('Cboe has not posted',str(stop.exception));build.assert_not_called()
+        self.assertIn('Cboe has not posted',str(stop.exception));self.assertIn('--data-only',str(stop.exception))
+        build.assert_not_called()
+
+    def test_data_only_skips_the_guard_and_records_nothing(self):
+        import run_all
+        with patch.object(sys,'argv',['run_all.py','--data-only']),patch('refresh_guard.blocking_reason',return_value='blocked') as check,             patch.object(run_all,'ROOT',SCRATCH),patch.object(run_all,'build',return_value=SCRATCH) as build,patch('builtins.print'):
+            run_all.main()
+        check.assert_not_called()
+        self.assertEqual(build.call_args.kwargs,{'offline':False,'as_of':None,'record':False})
 
     def test_offline_and_override_skip_the_guard(self):
         import run_all

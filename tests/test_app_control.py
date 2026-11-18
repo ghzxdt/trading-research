@@ -158,8 +158,29 @@ class ServerTests(unittest.TestCase):
         hub.update_build_state(running=True,ok=None,message='In progress')
         hub.load_build_state();self.assertFalse(hub.BUILD_STATE['running']);self.assertFalse(hub.BUILD_STATE['ok'])
 
-    def test_online_refresh_before_the_vix_close_is_refused_with_the_reason(self):
+    def test_refresh_before_the_vix_close_runs_data_only_and_says_so(self):
         handler=self.handler();handler.path='/api/refresh'
+        with patch.object(hub,'build_lock_state',return_value={'exists':False,'busy':False}),\
+             patch.object(hub.refresh_guard,'blocking_reason',return_value="Cboe hasn't posted the VIX close"),\
+             patch.object(hub.threading,'Thread') as thread:
+            handler.do_POST()
+        try:
+            self.assertEqual(handler._json.call_args.args[0],202)
+            self.assertEqual(thread.call_args.kwargs['args'],(False,False))  # online, record nothing
+            note=handler._json.call_args.args[1]['note']
+            self.assertIn('Refreshing data only',note);self.assertIn("hasn't posted",note)
+            self.assertEqual(hub.BUILD_STATE['action'],'data_only')
+        finally:
+            if hub.LOCK.locked():hub.LOCK.release()
+
+    def test_data_only_build_runs_run_all_with_data_only(self):
+        with patch.object(hub.subprocess,'run',return_value=SimpleNamespace(returncode=0)) as run,patch.object(hub,'update_build_state') as state:
+            hub.LOCK.acquire();hub.refresh_all(False,False)
+        self.assertIn('--data-only',run.call_args.args[0]);self.assertNotIn('--skip-vix-guard',run.call_args.args[0])
+        self.assertIn('were not logged',state.call_args.kwargs['message']);self.assertFalse(hub.LOCK.locked())
+
+    def test_recording_refresh_before_the_vix_close_is_refused_with_the_reason(self):
+        handler=self.handler();handler.path='/api/refresh';handler.headers['X-Require-Record']='1'
         with patch.object(hub,'build_lock_state',return_value={'exists':False,'busy':False}),\
              patch.object(hub.refresh_guard,'blocking_reason',return_value="Cboe hasn't posted the VIX close"),\
              patch.object(hub.threading,'Thread') as thread:

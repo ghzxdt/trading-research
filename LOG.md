@@ -1,5 +1,22 @@
 # Trading research log
 
+## 2026-11-17: refresh at any time (data-only refresh); Cboe check retries
+- User got "Couldn't check whether Cboe has posted the VIX close for Tue Nov 17 (Connection aborted ...
+  RemoteDisconnected)" from Run / Refresh data and asked for a refresh that works whenever they want.
+- Two causes. (1) The dashboard server keeps one requests session for hours; Cboe closes idle keep-alive
+  connections, so a check after a pause failed. The evening task's log shows the same: every other 15-minute check
+  failed. Fixed: `refresh_guard.make_session()` retries a GET on a fresh connection (tested against a local server
+  that drops the second request on a connection). (2) Cboe now updates `VIX_History.csv` late (the Nov 16 close
+  appeared at about 9:30 PM ET; at 9:06 PM ET on Nov 17 the file still ended Nov 16), and until then the guard
+  refused every manual refresh.
+- New: a **data-only refresh**. When the guard would block, the panel and the pages' refresh button run it
+  instead and say so: everything downloads and every page rebuilds, but nothing is appended to the paper log or
+  the stance log. The evening task still asks for a recording refresh and logs the day once Cboe posts.
+  `run_all.py --data-only` from the command line. 6 new tests (315).
+- Live check at 9:11 PM ET: the panel's call returned the data-only note, the build published in about 2.5
+  minutes, the paper log stayed at 18 lines and the stance log at 6. The page stayed at the Nov 16 close because
+  Yahoo's daily history had no close for Nov 17 yet (open and volume only); the app drops such a row.
+
 ## 2026-11-15: two-app review; scheduled runs survive a wake from sleep
 - **Two-app review (user asked; the backtester chat had finished).** The research app (116 Python files, about
   18,300 lines) collects about 15 sources and keeps the forward record; the backtester (20 files, about 2,400

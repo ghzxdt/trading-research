@@ -122,7 +122,9 @@ def publish_bundle(stage: Path, target: Path) -> None:
             shutil.rmtree(checked)
 
 
-def build(root: Path, *, offline=False, as_of: str | None = None) -> Path:
+def build(root: Path, *, offline=False, as_of: str | None = None, record: bool = True) -> Path:
+    """Build, validate and publish every page. `record=False` (a data-only refresh) still downloads, but appends
+    nothing to the forward logs: no paper decisions or outcomes, no thesis stance (APP_NO_RECORD=1)."""
     root = root.resolve()
     target = output_dir(root)
     if target.parent != root:
@@ -136,10 +138,13 @@ def build(root: Path, *, offline=False, as_of: str | None = None) -> Path:
     if stamp.tzinfo is None:
         stamp = stamp.tz_localize("America/New_York")
     sources_before, inputs_before = source_manifest(root), input_manifest(root)
+    records = bool(record and not offline and not as_of)
     run_id = hashlib.sha256(json.dumps({"inputs": inputs_before, "source": sources_before, "offline": offline,
-        "as_of": stamp.isoformat()}, sort_keys=True).encode()).hexdigest()[:20]
+        "as_of": stamp.isoformat(), **({} if records or offline or as_of else {"data_only": True})},
+        sort_keys=True).encode()).hexdigest()[:20]
     env = dict(os.environ, APP_OUTPUT_DIR=str(stage), APP_RUN_ID=run_id, APP_BUILD_TIME=stamp.isoformat(),
-               APP_AS_OF=stamp.isoformat(), APP_REPLAY="1" if as_of else "0", APP_OFFLINE="1" if offline else "0", PYTHONDONTWRITEBYTECODE="1")
+               APP_AS_OF=stamp.isoformat(), APP_REPLAY="1" if as_of else "0", APP_OFFLINE="1" if offline else "0",
+               APP_NO_RECORD="0" if records else "1", PYTHONDONTWRITEBYTECODE="1")
     try:
         for script in BUILDERS:
             if not (root / script).exists():
@@ -157,7 +162,8 @@ def build(root: Path, *, offline=False, as_of: str | None = None) -> Path:
         validate_bundle(stage, run_id)
         outputs = {p.relative_to(stage).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
                    for p in sorted(stage.rglob("*")) if p.is_file() and "baseline" not in p.relative_to(stage).parts}
-        manifest = {"schema_version": 1, "run_id": run_id, "offline": offline, "as_of": stamp.isoformat(),
+        manifest = {"schema_version": 1, "run_id": run_id, "offline": offline, "records_forward_logs": records,
+                    "as_of": stamp.isoformat(),
                     "source": sources_after, "inputs": inputs_after, "outputs": outputs,
                     "historical_snapshot": bool(offline), "validation_passed": True,
                     "reproducibility": "Use --offline --as-of with the recorded timestamp and unchanged inputs/source."}
