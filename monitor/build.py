@@ -77,7 +77,7 @@ def compare(root,out,old,new):
           ['Event studies','Emergency actions excluded from advance calendar signals; matched size controls','Corrected'],
           ['Inference','Stable IDs, nonzero Monte Carlo p, raw/BH/Holm shown together','Exploratory; not independent proof'],
           ['Trading costs','Explicit configurable execution/funding scenarios','Scenario model; historical venue fills still needed']]
-    page(out,'monitor.html','compare','Original vs corrected',
+    page(out,'monitor.html','archive','Original vs corrected',
          'Frozen original reports plus same-input code comparisons. A lower historical result can be the accurate result.',
          [section('diff','Calculation differences','Both versions below use the same current cached market inputs; the old algorithms are loaded from the frozen backup.',[table('Original algorithms vs corrected algorithms',['Measure','Original','Corrected','Interpretation'],rows)]),
           section('repairs','Repair coverage',tables=[table('What changed',['Area','Behavior','Status'],gate)]),
@@ -118,7 +118,7 @@ def backtests(root,out,t,costs):
         if not revised.empty:all_trades.append(revised)
     summary_table=table('Paired experiment scoreboard',['Frozen candidate','Trades','Original gross','Original scenario net','Corrected scenario net','Corrected drawdown','Net mean/trade','95% year-block mean interval'],summary)
     assumptions=table('Editable assumptions in monitor_config.json',['Setting','Value'],[[k,str(v)] for k,v in costs.items()])
-    page(out,'backtests.html','backtests','Four-rule experiment: after-cost backtests','The frozen four-rule experiment of 2026-11-07 (not the Trading Backtester app). Historical ETF-proxy experiments, not a verified live trading record.',
+    page(out,'backtests.html','archive','Four-rule experiment: after-cost backtests','The frozen four-rule experiment of 2026-11-07 (not the Trading Backtester app). Historical ETF-proxy experiments, not a verified live trading record.',
          [section('score','Compare economic outcomes','Rules were selected using this history. Year blocks and confidence intervals are diagnostics, not an untouched out-of-sample claim.',[summary_table,assumptions])]+sections,
          '<p>Costs are explicit assumptions: bid/ask and slippage are applied to fills, fees apply on entry/exit notional, and funding is a prorated calendar-time scenario. The model does not claim historical Kalshi quotes, exact funding events, stop fills or liquidation execution. No leverage recommendation is produced.</p><p><a href="backtest_trades.csv">Download corrected trade ledger</a> · <a href="backtest_summary.json">Download summary</a></p>')
     pd.concat(all_trades,ignore_index=True).to_csv(out/'backtest_trades.csv',index=False,float_format='%.17g') if all_trades else pd.DataFrame(columns=['strategy','signal_date','net']).to_csv(out/'backtest_trades.csv',index=False)
@@ -176,6 +176,17 @@ def quality_page(root,out,t,registry):
     return bool(fresh['ok'] and vf['ok'] and checks.get('passed') and not errors),rows
 
 
+def archive_page(out):
+    """Archive (2026-11-19, user's trim list): the comparison and backtest pages, off the main tabs but still built."""
+    links=('<section class="card"><h2>Archived pages</h2><p>Still built at every refresh, kept off the main tabs. '
+           'The frozen four-rule experiment keeps logging as before (see "4-rule paper log").</p><ul>'
+           '<li><a href="monitor.html">Original vs fixed</a>: the calculations of the original app next to the '
+           'corrected ones, on the same data.</li>'
+           '<li><a href="backtests.html">4-rule backtests</a>: after-cost backtests of the frozen four-rule experiment '
+           '(not the Trading Backtester app).</li></ul></section>')
+    page(out,'archive.html','archive','Archive','Older research pages, kept for reference.',[],links)
+
+
 def build(root,out,refresh_jobs=False):
     out.mkdir(parents=True,exist_ok=True)
     if refresh_jobs:crosscheck.refresh(root)  # the Jobs study (employment.refresh) was removed on 2026-11-19
@@ -193,6 +204,7 @@ def build(root,out,refresh_jobs=False):
     results=backtests(root,out,t,costs)
     quality_ok,quality=quality_page(root,out,t,registry)
     ps=paper_page(root,out,t,costs,quality_ok)
+    archive_page(out)
     dump(out/'monitor_status.json',{'run_id':os.environ.get('APP_RUN_ID','standalone'),'as_of':str(t.index[-1].date()),
          'baseline_verified':True,'structural_and_freshness_ok':quality_ok,'sizing_allowed':False,
          'sizing_block':'Broker liquidation model uncalibrated; strategy expectancy not forward validated',

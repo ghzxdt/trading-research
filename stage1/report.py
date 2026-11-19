@@ -14,9 +14,9 @@ TEMPLATE = Path(__file__).with_name("report_template.html")
 # The hub: one tab per part of the app. Each part is its own page, so they never mix.
 TABS = [("thesis", "thesis.html", "Daily thesis"), ("today", "today.html", "Intraday"), ("macro", "macro.html", "Macro"),
         ("indexes", "report.html", "Indexes"), ("tickers", "tickers.html", "Tickers"),
-        ("compare", "monitor.html", "Original vs fixed"),
-        ("backtests", "backtests.html", "4-rule backtests"), ("paper", "paper.html", "4-rule paper log"),
-        ("quality", "quality.html", "Data quality")]
+        ("paper", "paper.html", "4-rule paper log"), ("quality", "quality.html", "Data quality"),
+        # "Original vs fixed" and "4-rule backtests" sit behind Archive since 2026-11-19 (user's trim list).
+        ("archive", "archive.html", "Archive")]
 
 
 def hub_nav(active: str) -> str:
