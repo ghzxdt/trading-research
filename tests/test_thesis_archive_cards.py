@@ -172,11 +172,57 @@ class LiveExportTests(unittest.TestCase):
             self.assertEqual(len(body["export"]["sha256"]), 64)
 
 
-class CallScoringLabelTests(unittest.TestCase):
-    def test_the_scoreboard_says_it_is_fixed_horizon(self):
+class CallExitLevelTests(unittest.TestCase):
+    """Review B7 (user, 2026-11-18: "yes, add the exit level to calls")."""
+    GOOD = {"instrument": "QQQ", "direction": "long", "horizon_sessions": 5, "invalidation": "x"}
+
+    def frame(self, closes):
+        days = pd.bdate_range("2026-11-02", periods=len(closes))
+        return pd.DataFrame({"open": [c + 0.5 for c in closes], "close": closes}, index=days, dtype=float)
+
+    def call(self, level=None, horizon=5):
+        return {"id": 1, "recorded_et": "2026-11-02T18:00:00-05:00", "instrument": "QQQ", "direction": "long",
+                "horizon_sessions": horizon, "exit_level": level}
+
+    def test_validation_and_schema(self):
+        self.assertIsNone(calls.validate(self.GOOD)["exit_level"])
+        level = calls.validate({**self.GOOD, "exit_price": "95.5"})["exit_level"]
+        self.assertEqual(level, {"instrument": "QQQ", "side": "below", "price": 95.5})  # long: below, same ETF
+        self.assertEqual(calls.validate({**self.GOOD, "direction": "short", "exit_price": 110})["exit_level"]["side"], "above")
+        self.assertEqual(calls.validate({**self.GOOD, "exit_price": 600, "exit_instrument": "spy"})["exit_level"]["instrument"], "SPY")
+        for bad in ({"exit_price": "x"}, {"exit_price": -1}, {"exit_price": 9, "exit_side": "near"},
+                    {"exit_price": 9, "exit_instrument": "TSLA"}, {"direction": "flat", "exit_price": 9}):
+            with self.assertRaises(ValueError):
+                calls.validate({**self.GOOD, **bad})
+        with tempfile.TemporaryDirectory() as tmp:
+            row = calls.append(Path(tmp), {**self.GOOD, "exit_price": 95}, pd.Timestamp("2026-11-02 23:00", tz="UTC"))
+            self.assertEqual((row["schema"], row["exit_level"]["price"]), (2, 95.0))
+
+    def test_the_call_ends_at_the_next_open_after_the_breaking_close(self):
+        f = self.frame([100, 101, 99, 94, 96, 97, 98, 99])  # entry Nov 3 open 101.5; Nov 5 closes 94 < 95
+        out = calls.score(self.call({"instrument": "QQQ", "side": "below", "price": 95}), f)
+        self.assertEqual((out["status"], out["ended_by"], out["level_broken_on"], out["through_date"]),
+                         ("scored", "exit level", "2026-11-05", "2026-11-06"))
+        self.assertAlmostEqual(out["call_return"], 96.5 / 101.5 - 1)  # sold at Nov 6's open
+        self.assertAlmostEqual(out["fixed_horizon_return"], 97 / 101.5 - 1)  # held to Nov 9's close, beside it
+        horizon = calls.score(self.call(None), f)
+        self.assertEqual((horizon["ended_by"], horizon["call_return"]), ("horizon", horizon["fixed_horizon_return"]))
+
+    def test_a_break_on_the_last_close_or_in_another_etf(self):
+        f = self.frame([100, 101, 99, 98, 97, 96, 94, 99])  # horizon ends Nov 9 (close 94): horizon comes first
+        out = calls.score(self.call({"instrument": "QQQ", "side": "below", "price": 95}), f)
+        self.assertEqual(out["ended_by"], "horizon")
+        spy = self.frame([600, 601, 590, 601, 602, 603, 604, 605])  # SPY closes 590 on Nov 4
+        out = calls.score(self.call({"instrument": "SPY", "side": "below", "price": 595}), f, {"SPY": spy})
+        self.assertEqual((out["ended_by"], out["through_date"]), ("exit level", "2026-11-05"))
+        short = self.frame([100, 101, 99, 94])  # broken on the newest close: exits at an open not yet in the data
+        out = calls.score(self.call({"instrument": "QQQ", "side": "below", "price": 95}), short)
+        self.assertEqual((out["status"], out["exit_due"]), ("open", "exits at the next open (exit level broken)"))
+
+    def test_the_scoreboard_keeps_the_fixed_horizon_beside_it(self):
         board = calls.scoreboard([])
-        self.assertEqual(board["scoring"], "fixed_horizon")
-        self.assertIn("not applied", board["note"])  # review B7: invalidations are shown, never applied
+        self.assertEqual(board["scoring"], "exit_level_or_horizon")
+        self.assertIn("next session's open", board["note"])
 
 
 class ConsistencyTests(unittest.TestCase):

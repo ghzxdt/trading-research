@@ -3,7 +3,9 @@
 A call is recorded from the Daily thesis tab (long, short or flat; instrument; horizon in sessions; what would
 invalidate it; why). Scores are computed from saved daily prices whenever the page or API reads the log; nothing
 is written back. Entry is the next regular-session open after the call (a call made before 9:30 AM ET on a
-session day enters that morning), and the exit is the close `horizon` sessions later. Each call is compared with
+session day enters that morning), and the exit is the close `horizon` sessions later, or, for a call recorded
+with an exit level ("invalid if [ETF] closes below / above [price]", schema 2 since 2026-11-18), the next open
+after the first daily close that breaks it, if that comes first. Each call is compared with
 simply holding the same ETF over the same days ("always long"), so the scoreboard shows whether the calls added
 anything beyond owning the market.
 
@@ -89,7 +91,31 @@ def validate(payload: dict) -> dict:
     if len(basis) != len({str(x).lower() for x in raw}):
         raise ValueError("Basis must be chosen from " + ", ".join(BASIS) + ".")
     return {"instrument": instrument, "direction": direction, "horizon_sessions": horizon, **texts, "context": keep,
-            "basis": basis}
+            "basis": basis, "exit_level": exit_level(payload, instrument, direction)}
+
+
+def exit_level(payload: dict, instrument: str, direction: str) -> dict | None:
+    """Optional "invalid if [ETF] closes below / above [price]" (user, 2026-11-18). Recorded with the call, before
+    entry; calls.jsonl is append-only, so it can never be added or changed afterwards."""
+    given = payload.get("exit_level") if isinstance(payload.get("exit_level"), dict) else {}
+    price = payload.get("exit_price", given.get("price"))
+    if price in (None, ""):
+        return None
+    if direction == "flat":
+        raise ValueError("A flat call has no exit level.")
+    try:
+        price = float(price)
+    except (TypeError, ValueError):
+        raise ValueError("The exit level must be a price.") from None
+    if not 0 < price < 1e6:
+        raise ValueError("The exit level must be a positive price.")
+    side = str(payload.get("exit_side") or given.get("side") or ("below" if direction == "long" else "above")).lower()
+    if side not in ("below", "above"):
+        raise ValueError("The exit level is a close below or above a price.")
+    level_instrument = str(payload.get("exit_instrument") or given.get("instrument") or instrument).upper()
+    if level_instrument not in INSTRUMENTS:
+        raise ValueError(f"The exit level's ETF must be one of {', '.join(INSTRUMENTS)}.")
+    return {"instrument": level_instrument, "side": side, "price": price}
 
 
 def append(root: Path, payload: dict, now: pd.Timestamp | None = None) -> dict:
@@ -98,7 +124,8 @@ def append(root: Path, payload: dict, now: pd.Timestamp | None = None) -> dict:
     path = Path(root) / LOG
     with _LOCK:
         rows = read(root)
-        body = {"schema": 1, "id": len(rows) + 1, "recorded_utc": now.isoformat(timespec="seconds"),
+        # schema 2 (2026-11-18): every new call carries "exit_level" (null when none was given); schema 1 calls stay.
+        body = {"schema": 2, "id": len(rows) + 1, "recorded_utc": now.isoformat(timespec="seconds"),
                 "recorded_et": now.tz_convert(NY).isoformat(timespec="seconds"), **call,
                 "previous_hash": rows[-1]["hash"] if rows else ""}
         row = {**body, "hash": _digest(body)}
@@ -117,11 +144,32 @@ def entry_position(index: pd.DatetimeIndex, recorded_et: pd.Timestamp) -> int | 
     return None
 
 
-def score(call: dict, frame: pd.DataFrame | None) -> dict:
+LEVEL_EXIT = ("A call with an exit level ends at the next session's open after the first daily close that breaks "
+              "the level (from the entry day on), or at the horizon's close, whichever comes first.")
+
+
+def _level_break(level: dict, frame: pd.DataFrame, level_frame: pd.DataFrame | None, start: int, end: int) -> int | None:
+    """Position (in the call's ETF) of the first close from entry to the horizon's end that breaks the level."""
+    if level_frame is None or level_frame.empty:
+        return None
+    closes = level_frame["close"]
+    for position in range(start, min(end, len(frame) - 1) + 1):
+        day = frame.index[position]
+        if day not in closes.index:
+            continue
+        close = float(closes.loc[day])
+        if (close < level["price"]) if level["side"] == "below" else (close > level["price"]):
+            return position
+    return None
+
+
+def score(call: dict, frame: pd.DataFrame | None, frames: dict | None = None) -> dict:
+    """The call's result under its own exit (its level or its horizon), plus the fixed-horizon result beside it."""
+    level = call.get("exit_level")
     out = {"id": call["id"], "recorded_et": call["recorded_et"], "instrument": call["instrument"],
            "direction": call["direction"], "horizon_sessions": call["horizon_sessions"],
            "invalidation": call.get("invalidation"), "reason": call.get("reason"),
-           "basis": call.get("basis") or [],
+           "basis": call.get("basis") or [], "exit_level": level,
            "suggestion": (call.get("context") or {}).get("suggestion")}
     if frame is None or frame.empty:
         return {**out, "status": "no_data"}
@@ -135,11 +183,27 @@ def score(call: dict, frame: pd.DataFrame | None) -> dict:
     last = end if done else len(frame) - 1
     move = float(frame["close"].iloc[last]) / entry - 1
     sign = {"long": 1, "short": -1, "flat": 0}[call["direction"]]
-    return {**out, "status": "scored" if done else "open", "entry_date": f"{frame.index[start]:%Y-%m-%d}",
-            "entry_open": entry, "through_date": f"{frame.index[last]:%Y-%m-%d}",
-            "exit_due": None if done else f"{call['horizon_sessions'] - (last - start + 1)} more sessions",
-            "instrument_return": move, "call_return": sign * move, "always_long_return": move,
-            "versus_always_long": sign * move - move}
+    result = {**out, "status": "scored" if done else "open", "entry_date": f"{frame.index[start]:%Y-%m-%d}",
+              "entry_open": entry, "through_date": f"{frame.index[last]:%Y-%m-%d}",
+              "exit_due": None if done else f"{call['horizon_sessions'] - (last - start + 1)} more sessions",
+              "instrument_return": move, "call_return": sign * move, "always_long_return": move,
+              "versus_always_long": sign * move - move, "ended_by": "horizon" if done else None,
+              "fixed_horizon_return": sign * move if done else None}
+    if level:
+        level_frame = frame if level["instrument"] == call["instrument"] else (frames or {}).get(level["instrument"])
+        broke = _level_break(level, frame, level_frame, start, end)
+        if broke is not None and broke < end:  # broken on the horizon's last close: the horizon exit comes first
+            result["level_broken_on"] = f"{frame.index[broke]:%Y-%m-%d}"
+            if broke + 1 < len(frame):
+                exit_price = float(frame["open"].iloc[broke + 1])
+                moved = exit_price / entry - 1
+                result.update(status="scored", ended_by="exit level", exit_due=None,
+                              through_date=f"{frame.index[broke + 1]:%Y-%m-%d}", exit_open=exit_price,
+                              instrument_return=moved, call_return=sign * moved, always_long_return=moved,
+                              versus_always_long=sign * moved - moved)
+            else:
+                result.update(status="open", exit_due="exits at the next open (exit level broken)")
+    return result
 
 
 def scoreboard(scored: list[dict]) -> dict:
@@ -152,11 +216,16 @@ def scoreboard(scored: list[dict]) -> dict:
             "hit_rate": mean([1.0 if s["call_return"] > 0 else 0.0 for s in directional]),
             "mean_call_return": mean([s["call_return"] for s in final]),
             "mean_always_long": mean([s["always_long_return"] for s in final]),
-            # Review B7 (2026-11-18): the invalidation is free text, so it is shown but never applied.
-            "scoring": "fixed_horizon",
-            "note": "Fixed-horizon scores: each call is held from the next open for its chosen number of sessions, "
-                    "whatever happens on the way. The invalidation written with a call is shown beside it but not "
-                    "applied: a call is not closed early when it is invalidated. Returns are per call, unlevered, "
+            # Review B7 (2026-11-18, user: "yes, add the exit level to calls"): a call ends at its exit level or its
+            # horizon; the fixed-horizon result stays beside it so calls compare with the stance log.
+            "mean_fixed_horizon_return": mean([s["fixed_horizon_return"] for s in scored
+                                               if s.get("fixed_horizon_return") is not None]),
+            "fixed_horizon_scored": sum(s.get("fixed_horizon_return") is not None for s in scored),
+            "ended_by_level": sum(s.get("ended_by") == "exit level" for s in final),
+            "scoring": "exit_level_or_horizon",
+            "note": LEVEL_EXIT + " Calls without one are held to the horizon. The free-text invalidation is shown "
+                    "but not applied. The fixed-horizon result (held to the horizon whatever happens) is kept "
+                    "beside it, so calls stay comparable with the stance log. Returns are per call, unlevered, "
                     "before costs. A handful of calls says little; the sample size is shown so it can't look more "
                     "certain than it is."}
 
@@ -165,7 +234,7 @@ def summary(root: Path, etfs: dict) -> dict:
     check = verify(root)
     if not check["ok"]:
         return {"status": "broken", "reason": check["reason"], "calls": [], "scoreboard": scoreboard([])}
-    scored = [score(c, etfs.get(c["instrument"])) for c in read(root)]
+    scored = [score(c, etfs.get(c["instrument"]), etfs) for c in read(root)]
     final = [s for s in scored if s.get("status") == "scored"]
     by_basis = []
     for tag in BASIS:

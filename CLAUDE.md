@@ -126,6 +126,10 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
    labelled fixed-horizon; a daily close counts 15 minutes after the calendar's close everywhere; tabs renamed
    "4-rule backtests" and "4-rule paper log" (the frozen experiment), headings "Daily thesis" and "Intraday";
    OCC's options volume is confirmed two-sided (halving kept, `liquidity_free.parse_occ` refuses an odd total).
+   **Call exit levels (user, 2026-11-18: "yes, add the exit level to calls"):** a call may carry "invalid if [ETF]
+   closes below / above [price]" (calls schema 2; recorded before entry, never changed). It ends at the next open
+   after the first daily close that breaks the level (from the entry day on), or at the horizon's close, whichever
+   comes first; the fixed-horizon result stays beside it (`calls.score`, `fixed_horizon_return`).
    **Also 2026-11-14:** **intraday base rates** from Yahoo's free hourly bars (`intraday_hourly.py`,
    `data/intraday_hourly/`, about 2.9 years, SPY/QQQ/IWM, refreshed each evening and kept, so the history grows):
    gap fill, first-hour share of the range, whether the day kept the first hour's direction after 10:30, and
@@ -205,7 +209,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - The FRED API key (registered 2026-11-14 on the user's account, with their OK to accept FRED's terms) is in
   `.secrets\fred_api_key.txt`: git-ignored, outside `data/` so not in the data backup, covered by the user's manual
   copy of `C:\Claude`. Never print it, commit it or put it in a URL that gets logged.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (338 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (341 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).
