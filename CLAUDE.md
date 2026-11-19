@@ -190,13 +190,22 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
   list is `collection.live_minute_symbols` in `terminal_config.json` (now SPY, QQQ, IWM; read by
   `terminal_config.live_minute_symbols`). To add an ETF or stock: it must first be an active instrument in that
   file's `universe` (add an entry there if it is new to the app), then add it to `live_minute_symbols`; at most
-  20, since one Yahoo request a minute covers them all. The poller itself is still to be built (LOG.md, Open).
+  20, since one Yahoo request a minute covers them all. The next weekday's run picks up a change.
+  Scheduled task **Trading Research Live Minute Bars** (Mon-Fri 8:28 AM Central and two minutes after sign-in) runs
+  `live_minute.py`: from the open to just after the calendar's close it polls 5 seconds after each minute, holds
+  the laptop awake, and stores each completed regular-session bar in `data/intraday/v1/live/<date>.jsonl`
+  (`store.ingest_live`, hash-chained, own lock) with its receipt time; "observed_live" only if first received
+  within 120 seconds of the bar's close, otherwise "retrieved_archive"; changed values are revisions.
+  `store.load_bars` merges these journals (an identical later archive copy doesn't replace the live bar). The
+  intraday paper check looks at this session's regular-hours bars only. Status:
+  `data/terminal/live_minute_status.json`, shown as System status's "Live minute bars" row (tickers, polls,
+  gaps); log `work\live_minute.log`. Yahoo's bars are free and indicative and may be delayed.
 - Dashboard: http://localhost:8766/thesis.html (Daily thesis; Intraday is `today.html`, Macro is `macro.html`).
   Binds to 127.0.0.1 only.
 - The FRED API key (registered 2026-11-14 on the user's account, with their OK to accept FRED's terms) is in
   `.secrets\fred_api_key.txt`: git-ignored, outside `data/` so not in the data backup, covered by the user's manual
   copy of `C:\Claude`. Never print it, commit it or put it in a URL that gets logged.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (333 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (338 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).

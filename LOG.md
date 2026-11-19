@@ -5,20 +5,31 @@
   C10, C11, C12) done 2026-11-18. Step 2, in this order: A1, B6, C9, A4, B8, C13 (user's go-ahead relayed from the
   backtester chat; check with the user on any new data provider and on visible changes to the daily screen). Details in the backtester chat's message; reviews in
   `C:\Claude\trading-backtester\docs\reviews\APP_REVIEW_2026-11-18.md` and Codex's 2026-11-14 outputs.
-- A1 live minute bars (user chose Yahoo polling, 2026-11-18). Done: the configurable list
-  (`collection.live_minute_symbols`). Left, as designed: (1) `live_minute.py`, polling Yahoo 1-minute bars
-  each minute from the open to the calendar's close with keep-awake, storing each completed regular-session
-  bar with `availability_basis` "observed_live" and `available_at` = receipt time, into small per-day
-  hash-chained journals `data/intraday/v1/live/<date>.jsonl` with their own lock (writing into the 92 MB main
-  journal costs about 10 s a call: verify 3.2, deepcopy 2.0, normalize 1.1, canonical 2x); (2) `store.load_bars`
-  merges them, keeping the earliest of identical-OHLCV versions; (3) `features.snapshot` computes
-  `availability_bases` over the current session's regular bars (today it spans the symbol's whole history, so
-  every paper decision would be data_blocked; `data/intraday/v1/paper.jsonl` has no records yet, so nothing
-  recorded changes); (4) a scheduled task Mon-Fri 8:28 AM Central plus sign-in; (5) a System status row
-  listing the polled tickers; then B6, C9 (ask the user first), A4, B8, C13.
+- Second batch step 2 continues: B6, C9 (ask the user before changing the daily screen), A4, B8, C13. B7's
+  structured invalidations are the user's decision (not answered yet).
 - The options import lock (`options_research/core.py` `_writer`) has the same no-recovery pattern the minute-bar
   lock had. Manual imports only, so lower risk; same fix if wanted.
 - Reminder from the hand-off: daytime jobs only run while the laptop is asleep or on, never shut down.
+
+## 2026-11-18 (evening): live minute bars from Yahoo (review A1)
+User: "poll yahoo" (here) and "Yahoo, no account" (relayed by the backtester chat); what is polled must be easy to
+revisit.
+- `collection.live_minute_symbols` in `terminal_config.json` (SPY, QQQ, IWM) is the list; CLAUDE.md says how to add
+  an ETF or stock. New scheduled task "Trading Research Live Minute Bars" (Mon-Fri 8:28 AM Central and at sign-in),
+  registered on its own so tonight's other runs were not moved; first run Thu Nov 19.
+- `live_minute.py` polls 5 seconds after each minute through the regular session and stores completed bars with
+  their receipt time in per-day journals `data/intraday/v1/live/<date>.jsonl`. Writing to the 92 MB main journal
+  costs about 10 s a call (verify 3.2, deepcopy 2.0, normalize 1.1, canonical twice), too slow every minute.
+  "observed_live" only when first received within 120 s of the bar's close; later is "retrieved_archive";
+  changed values are appended as revisions. It holds bars in memory while a build runs.
+- `store.load_bars` merges the live journals; an archive copy identical to an earlier live version is left out
+  of the view (nothing relabelled); a different one is a real revision and wins after its receipt time.
+- `features.snapshot`: `availability_bases` now covers this session's regular-hours bars (it spanned the whole
+  history, so every intraday paper decision would have been data_blocked; `paper.jsonl` has no records, so
+  nothing recorded changes); `history_availability_bases` keeps the old view; limitations name Yahoo's feed.
+- System status row "Live minute bars": tickers, polls, bars received live or late, gaps, a missed day.
+- Checked with Yahoo after the close (nothing stored): 390 bars each for SPY, QQQ and IWM, 9:30-3:59 PM ET,
+  all labelled "retrieved_archive" as they should be. 338 tests.
 
 ## 2026-11-18 (late afternoon): review fixes, step 1 (A2, A3, A5, B7, C10, C11, C12)
 User's go-ahead relayed by the backtester chat ("send instructions for both 1 and 2 to get carried out in research chat").

@@ -154,16 +154,24 @@ def snapshot(records, as_of):
                                      "label": "Observed extended-hours range; feed coverage may be incomplete"
                                               + (f"; {suspect} suspect print(s) excluded" if suspect else "")} if overnight else None,
               "orb_high": orb.get("high"), "orb_low": orb.get("low")}
+    # Forward eligibility looks only at the bars the signal uses: this session's regular-hours bars. Until
+    # 2026-11-18 "availability_bases" spanned the symbol's whole history (all archive downloads), which would have
+    # made every paper decision data_blocked even with live bars (review A1; no paper decision existed yet).
     forward = bool(regular) and all(r["availability_basis"] == "observed_live" for r in regular)
     return {"schema_version": 1, "symbol": symbol, "as_of": cutoff.isoformat(), "session": bounds, "market_session": market_bounds,
             "snapshot_id": digest({"as_of": cutoff.isoformat(), "bars": rows}),
             "quality": {"status": "ready" if not reasons and orb["complete"] else "insufficient_data",
                         "reasons": reasons, "coverage": coverage, "bar_lag_seconds": lag,
                         "forward_eligible": forward and not reasons,
-                        "availability_bases": sorted({r["availability_basis"] for r in rows}),
+                        "availability_bases": sorted({r["availability_basis"] for r in regular}),
+                        "availability_scope": "this session's regular-hours bars",
+                        "history_availability_bases": sorted({r["availability_basis"] for r in rows}),
                         "edge_validated": False},
             "bars": [{**r, "time": int(utc(r["timestamp"]).timestamp())} for r in current[-1200:]],
             "vwap": points, "orb": orb, "levels": levels, "signal": signal,
-            "limitations": ["OHLCV does not contain executable bid/ask or option chains.",
+            "limitations": ["Bars come from Yahoo's free feed: indicative, not exchange-verified, and may be delayed. A bar "
+                            "counts as observed live only if this app first received it within 120 seconds of its "
+                            "close (live_minute.py); anything received later is an archive retrieval.",
+                            "OHLCV does not contain executable bid/ask or option chains.",
                             "VWAP uses bar typical price, not individual trades.",
                             "ORB is a preregistered research baseline, not a demonstrated edge."]}

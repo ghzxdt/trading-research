@@ -40,6 +40,10 @@ Register-AppTask 'Trading Research Market Snapshots' 'market_snapshot.py' '--sch
     'Kalshi perps and macro markets, futures, inflation nowcast. Log: work\market_snapshot.log'
 Register-AppTask 'Trading Research Intraday Collection' 'scheduled_collect.py' '' @('09:00','09:30','11:30','13:30','14:50','19:10') 4 `
     'Same-day option snapshots, liquidity samples, pre-close check, minute bars, option chains, OCC volume, data backup. Log: work\intraday_collect.log'
+# Live minute bars (2026-11-18, user: "poll yahoo"): 9:28 AM ET to just after the close, every minute, holding the
+# laptop awake. The tickers are collection.live_minute_symbols in terminal_config.json.
+Register-AppTask 'Trading Research Live Minute Bars' 'live_minute.py' '' @('08:28') 9 `
+    'Polls Yahoo one-minute bars each minute of the regular session for the tickers in terminal_config.json (collection.live_minute_symbols). Log: work\live_minute.log'
 
 # Dashboard server at sign-in, so the page is there without opening the control panel.
 $dash = New-ScheduledTaskAction -Execute $pythonw -Argument "`"$(Join-Path $root 'start_dashboard.py')`"" -WorkingDirectory $root

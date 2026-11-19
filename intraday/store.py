@@ -16,7 +16,7 @@ import re
 import threading
 import time
 import pandas as pd
-from .calendar import utc
+from .calendar import date_of, utc
 
 VERSION = "v1"
 _CACHE_LOCK = threading.RLock()
@@ -295,11 +295,84 @@ def ingest_bars(root, records):
             "historical_import_is_forward_evidence": False}
 
 
+LIVE = "live"  # per-day journals of receipt-timed live polls (live_minute.py), merged into load_bars
+
+
+def live_folder(root):
+    return folder(root) / LIVE
+
+
+def ingest_live(root, records):
+    """Append one live poll's bars to that session's small journal, data/intraday/v1/live/<date>.jsonl.
+
+    The 92 MB main journal costs about 10 seconds a write, too slow for once a minute, so live polls keep their
+    own per-day journals (same event format, hash-chained, own writer lock). A bar already stored with the same
+    values is a duplicate; different values are appended as a revision with their own receipt time, never an
+    overwrite."""
+    if readonly():
+        raise PermissionError("Replay/offline mode cannot append intraday observations")
+    proposed = [normalize(row) for row in records]
+    if not proposed:
+        return {"accepted": 0, "duplicates": 0, "revisions": 0}
+    days = {date_of(row["timestamp"]) for row in proposed}
+    if len(days) != 1:
+        raise ValueError("A live poll's bars must belong to one session")
+    target = live_folder(root)
+    with writer_lock(target):
+        path = target / f"{days.pop()}.jsonl"
+        events = read_events(path) if path.exists() else []
+        latest = {}
+        for event in events:
+            row = normalize(event["bar"])
+            if key(row) not in latest or utc(row["available_at"]) > utc(latest[key(row)]["available_at"]):
+                latest[key(row)] = row
+        values = lambda r: {k: r[k] for k in ("open", "high", "low", "close", "volume")}  # noqa: E731
+        payloads, duplicates, revisions = [], 0, 0
+        now = pd.Timestamp.now(tz="UTC").isoformat()
+        for row in sorted(proposed, key=lambda r: (r["symbol"], r["timestamp"])):
+            old = latest.get(key(row))
+            if old is not None and (values(old) == values(row) or utc(row["available_at"]) <= utc(old["available_at"])):
+                duplicates += 1
+                continue
+            revisions += old is not None
+            latest[key(row)] = row
+            payloads.append({"schema_version": 1, "type": "bar", "recorded_at": now, "bar": row})
+        append_events(path, events, payloads)
+    return {"accepted": len(payloads), "duplicates": duplicates, "revisions": revisions, "path": str(path)}
+
+
+def _live_rows(root, symbol):
+    """This symbol's live-poll bars from every per-day journal, and the journals' signatures (for caching)."""
+    rows, signatures = [], []
+    directory = live_folder(root)
+    for path in sorted(directory.glob("*.jsonl")) if directory.is_dir() else []:
+        signature, events = _verified_events(path)
+        signatures.append(signature)
+        rows += [e["bar"] for e in events if e.get("type") == "bar" and e["bar"]["symbol"] == symbol]
+    return rows, tuple(signatures)
+
+
+def _merge(archive, live):
+    """Archive and live versions of the same bars. An archive copy whose values equal a live version received
+    earlier adds nothing (the live poll saw it first) and is left out; one with different values is a real later
+    revision and stays. Nothing is relabelled: each version keeps its own source, basis and receipt time."""
+    values = lambda r: (r["open"], r["high"], r["low"], r["close"], r["volume"])  # noqa: E731
+    seen = {}  # bar key -> {values: earliest live receipt with those values}
+    for row in live:
+        at, mine = utc(row["available_at"]), seen.setdefault(key(row), {})
+        if values(row) not in mine or at < mine[values(row)]:
+            mine[values(row)] = at
+    kept = [r for r in archive
+            if not (values(r) in seen.get(key(r), {}) and utc(r["available_at"]) >= seen[key(r)][values(r)])]
+    return kept + live
+
+
 def load_bars(root, symbol, as_of=None):
     symbol = str(symbol).strip().upper()
     cutoff = utc(as_of) if as_of is not None else None
     signature, events = _verified_events(folder(root) / "bars.jsonl")
-    if signature is None:
+    live, live_signatures = _live_rows(root, symbol)
+    if signature is None and not live:
         return []
     with _CACHE_LOCK:
         grouped = _SYMBOL_CACHE.get(signature)
@@ -314,12 +387,16 @@ def load_bars(root, symbol, as_of=None):
         else:
             _SYMBOL_CACHE.move_to_end(signature)
         rows, latest_known = grouped.get(symbol, ([], None))
+        if live:
+            rows = _merge(rows, [normalize(r) for r in live])
+            newest_live = max(utc(r["available_at"]) for r in rows)
+            latest_known = newest_live if latest_known is None else max(latest_known, newest_live)
         if not rows:
             return []
         # Current requests use a shared latest view rather than a new cache key
         # for every wall-clock second. Earlier cutoffs retain original revisions.
         view = None if cutoff is None or cutoff >= latest_known else cutoff.isoformat()
-        cache_key = (signature, symbol, view)
+        cache_key = (signature, live_signatures, symbol, view)
         if cache_key not in _BAR_CACHE:
             _bounded_put(_BAR_CACHE, cache_key, canonical(rows, view), 64)
         else:

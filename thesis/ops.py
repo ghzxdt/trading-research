@@ -103,6 +103,36 @@ def _intraday_row(root: Path, today: pd.Timestamp, sessions: list[str]) -> dict:
     return _row("Intraday collection", state, when, detail + archive)
 
 
+def _live_row(root: Path, today: pd.Timestamp, sessions: list[str]) -> dict:
+    """Live minute polling (live_minute.py): which tickers, whether it ran on the latest session, and its gaps.
+    Polling only runs while the laptop is on or asleep-and-woken, so a missed or partial day must be obvious."""
+    try:
+        from terminal_config import live_minute_symbols
+        listed = ", ".join(live_minute_symbols(root))
+    except (ValueError, OSError):
+        listed = "unreadable setting"
+    try:
+        status = json.loads((root / "data" / "terminal" / "live_minute_status.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        status = None
+    where = f" Tickers: {listed} (collection.live_minute_symbols in terminal_config.json)."
+    feed = " Yahoo's free bars: indicative, may be delayed."
+    if not status:
+        return _row("Live minute bars", "missing", None, "Polling has not run yet (weekdays from 8:28 AM Central while "
+                    "the laptop is on or asleep, not shut down)." + where + feed)
+    day, live = status.get("date"), status.get("live_bars") or {}
+    gaps = status.get("gaps") or []
+    detail = (f"{status.get('polls', 0)} polls, {sum(live.values())} bars received live, "
+              f"{sum((status.get('late_bars') or {}).values())} received late"
+              + (f", {len(gaps)} gap(s), first from {str(gaps[0][0])[11:16]} to {str(gaps[0][1])[11:16]} UTC" if gaps else "")
+              + (", still running" if status.get("running") else "") + ".")
+    complete = not gaps and status.get("failures", 0) == 0
+    state = "ok" if sessions and day >= sessions[-1] and complete else "late"
+    if sessions and day < sessions[-1]:
+        detail = f"Did not run on {sessions[-1]}; last run {day}: " + detail
+    return _row("Live minute bars", state, day, detail + where + feed)
+
+
 def build(root: Path, now: pd.Timestamp, latest_close: str | None, check: dict | None = None) -> dict:
     if os.environ.get("APP_REPLAY") == "1":
         return {"status": "not_shown", "reason": "Not shown in a replay: these files describe today.", "rows": []}
@@ -159,6 +189,7 @@ def build(root: Path, now: pd.Timestamp, latest_close: str | None, check: dict |
                      else "No snapshot has been recorded on this computer yet."))
 
     rows.append(_intraday_row(root, today, sessions))
+    rows.append(_live_row(root, today, sessions))
 
     samples = sorted(p.stem for p in (root / "data" / "liquidity" / "samples").glob("*.jsonl")) if (root / "data" / "liquidity" / "samples").is_dir() else []
     rows.append(_row("Liquidity samples", "missing" if not samples else "ok" if latest and samples[-1] >= latest else "late",
