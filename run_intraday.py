@@ -27,7 +27,10 @@ def records_from(path):
     return value if isinstance(value, list) else value.get('records', [])
 
 
-def research(root, symbol, *, assume_bar_close_availability=False, config=None, liquidity_journal='verified'):
+def research(root, symbol, *, assume_bar_close_availability=False, config=None, liquidity_journal='verified',
+             execution='shares'):
+    # Review C13 (2026-11-18): the registered ORB baseline is a price/volume study traded in shares (experiment A),
+    # so it is gated on share liquidity only; execution='options' keeps the options gate for options studies.
     from intraday.store import load_bars
     from intraday.backtest import run, configuration
     root = Path(root)
@@ -42,7 +45,7 @@ def research(root, symbol, *, assume_bar_close_availability=False, config=None, 
     from liquidity_screen import evaluate
     from intraday.calendar import date_of, session
     dates = sorted({date_of(r['timestamp']) for r in bars if session(date_of(r['timestamp'])).get('is_session')})
-    liquidity = evaluate(root, symbol, dates, load_config(root)['liquidity'], utc().isoformat(), execution='options',
+    liquidity = evaluate(root, symbol, dates, load_config(root)['liquidity'], utc().isoformat(), execution=execution,
                          journal=liquidity_journal)
     if not liquidity['research_eligible']:
         raise ValueError('Liquidity screen blocked signal research: ' + '; '.join(liquidity.get('reasons', [])))
@@ -54,6 +57,8 @@ def research(root, symbol, *, assume_bar_close_availability=False, config=None, 
     registry = folder / 'trial_registry.jsonl'
     old = [json.loads(line) for line in registry.read_text(encoding='utf-8').splitlines() if line.strip()] if registry.exists() else []
     policy = liquidity['thresholds'] if liquidity_journal == 'verified' else {**liquidity['thresholds'], 'journal': liquidity_journal}
+    if execution != 'options':  # a gate other than the original one is a different, separately counted variant
+        policy = {**policy, 'execution': execution}
     variant = hashlib.sha256(json.dumps({'symbol': symbol, 'config': config, 'liquidity_policy': policy}, sort_keys=True).encode()).hexdigest()
     variants = {r['variant_hash'] for r in old}
     if variant not in variants and len(variants) >= 32:
@@ -65,7 +70,7 @@ def research(root, symbol, *, assume_bar_close_availability=False, config=None, 
                                'additional_decay_adjustment': 0, 'break_even_holding_period': None,
                                'break_even_reason': 'Not identifiable from realized volatility alone'}
     report.update(created_at=utc().isoformat(), symbol=symbol, status='historical_scenario', evidence_status='historical_scenario',
-                  forward_validated=False, sizing_allowed=False, liquidity=liquidity)
+                  forward_validated=False, sizing_allowed=False, liquidity=liquidity, liquidity_execution=execution)
     report['dataset_hash'] = hashlib.sha256(json.dumps(bars, sort_keys=True).encode()).hexdigest()
     report['pre_screen_dataset_hash'] = original_dataset_hash
     report['comparisons'] = [
@@ -96,13 +101,14 @@ def paper_observation(root, symbol):
     now = utc()
     observed = snapshot(load_bars(root, symbol, as_of=now.isoformat()), now.isoformat())
     gate = evaluate(root, symbol, [now.tz_convert('America/New_York').strftime('%Y-%m-%d')],
-                    load_config(root)['liquidity'], now.isoformat(), execution='options')
+                    load_config(root)['liquidity'], now.isoformat(), execution='shares')  # the baseline trades shares (C13)
     observed['quality']['liquidity'] = gate
     if not gate['research_eligible']:
         observed['quality']['forward_eligible'] = False
         observed['quality']['reasons'].append('Verified liquidity prerequisite has not passed.')
     return record_decision(root, observed, now=now.isoformat(), qualification_policy={
-        'thresholds': gate['thresholds'], 'window_sessions': gate['window_sessions'], 'required_fraction': gate['required_fraction']})
+        'thresholds': gate['thresholds'], 'window_sessions': gate['window_sessions'], 'required_fraction': gate['required_fraction'],
+        'execution': 'shares'})
 
 
 def parser():
@@ -123,6 +129,8 @@ def parser():
             p.add_argument('--liquidity-journal', choices=['verified', 'snapshot'], default='verified',
                            help='snapshot = the declared free policy (spreads from a few intraday snapshots); '
                                 'results are labeled and counted as separate variants')
+            p.add_argument('--options-gate', action='store_true',
+                           help='Also require options liquidity (for an options study); the shares baseline does not')
     for command in ('import-bars', 'import-options', 'import-liquidity'):
         p = commands.add_parser(command)
         p.add_argument('path', help='JSON/JSONL/CSV with explicit timestamps and provenance')
@@ -147,7 +155,7 @@ def main(argv=None, root=ROOT):
             result = import_verified(root, records_from(args.path))
         elif args.command == 'research':
             result = research(root, args.symbol.upper(), assume_bar_close_availability=args.assume_bar_close_availability,
-                              liquidity_journal=args.liquidity_journal)
+                              liquidity_journal=args.liquidity_journal, execution='options' if args.options_gate else 'shares')
         elif args.command == 'paper-record':
             result = paper_observation(root, args.symbol.upper())
         else:

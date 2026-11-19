@@ -5,10 +5,19 @@
   C10, C11, C12) done 2026-11-18. Step 2, in this order: A1, B6, C9, A4, B8, C13 (user's go-ahead relayed from the
   backtester chat; check with the user on any new data provider and on visible changes to the daily screen). Details in the backtester chat's message; reviews in
   `C:\Claude\trading-backtester\docs\reviews\APP_REVIEW_2026-11-18.md` and Codex's 2026-11-14 outputs.
-- Second batch step 2 continues: C13.
+- Second batch (A1-C13) is done (2026-11-18).
 - The options import lock (`options_research/core.py` `_writer`) has the same no-recovery pattern the minute-bar
   lock had. Manual imports only, so lower risk; same fix if wanted.
 - Reminder from the hand-off: daytime jobs only run while the laptop is asleep or on, never shut down.
+
+## 2026-11-18 (night): shares baseline gated on share liquidity (review C13); second batch done
+- The registered ORB baseline is experiment A (price/volume, traded in shares), but its research run and paper
+  gate required options liquidity history, which free data can't certify, so it could never qualify. Both now
+  use the shares gate (`run_intraday.research(..., execution="shares")`, `--options-gate` for an options study;
+  `paper_observation` records `execution: shares` in its qualification policy). A shares-gated run is a separate
+  variant in the 32-variant budget; the one earlier SPY run stays as written. The Intraday page shows the shares
+  gate first and the options gate beside it.
+- No intraday paper experiment was frozen yet, so no frozen spec changes. 351 tests.
 
 ## 2026-11-18 (night): idea ledger schema 2 (review B8)
 - New idea events (schema 2) can carry structured fields: observation, mechanism, instruments, rule, decision

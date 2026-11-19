@@ -145,6 +145,8 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
    only on the GEX tab (regime-matched check: 1.18x, calendar-year interval 0.90-1.43).
    **Idea ledger schema 2 (review B8):** new events may carry structured fields (`ledger.SPEC`); once an idea is
    registered, its testable fields (`ledger.FROZEN`) can't change; a changed rule is a new idea.
+   **Shares baseline gate (review C13):** the ORB baseline (experiment A, traded in shares) is screened on share
+   liquidity only (`run_intraday.research(execution="shares")`, paper gate the same); `--options-gate` for options.
    **Also 2026-11-14:** **intraday base rates** from Yahoo's free hourly bars (`intraday_hourly.py`,
    `data/intraday_hourly/`, about 2.9 years, SPY/QQQ/IWM, refreshed each evening and kept, so the history grows):
    gap fill, first-hour share of the range, whether the day kept the first hour's direction after 10:30, and
@@ -224,7 +226,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - The FRED API key (registered 2026-11-14 on the user's account, with their OK to accept FRED's terms) is in
   `.secrets\fred_api_key.txt`: git-ignored, outside `data/` so not in the data backup, covered by the user's manual
   copy of `C:\Claude`. Never print it, commit it or put it in a URL that gets logged.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (350 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (351 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).

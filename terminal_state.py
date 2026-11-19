@@ -201,15 +201,17 @@ def build_state(root, symbol='SPY', as_of=None):
     if not liquidity_dates:
         liquidity_dates = [now.tz_convert('America/New_York').strftime('%Y-%m-%d')]
     try:
-        liquidity = evaluate(root, symbol, liquidity_dates, config['liquidity'], now.isoformat(), execution='options')
-        liquidity['share_only'] = evaluate(root, symbol, liquidity_dates, config['liquidity'], now.isoformat(), execution='shares')
+        # Review C13 (2026-11-18): the baseline trades shares, so the shares gate is the one that decides; the
+        # options gate is shown alongside for options studies only.
+        liquidity = evaluate(root, symbol, liquidity_dates, config['liquidity'], now.isoformat(), execution='shares')
+        liquidity['options_gate'] = evaluate(root, symbol, liquidity_dates, config['liquidity'], now.isoformat(), execution='options')
     except (ValueError, OSError, KeyError) as exc:
         liquidity = {'status': 'data_blocked', 'research_eligible': False, 'reasons': [str(exc)]}
-    health.append({'name': 'Research liquidity screen', 'status': liquidity.get('status', 'unavailable'),
+    health.append({'name': 'Research liquidity screen (shares baseline)', 'status': liquidity.get('status', 'unavailable'),
                    'last': None, 'reason': '; '.join(liquidity.get('reasons', []))})
     try:  # the declared free policy, shown separately and never substituted for the verified screen
         liquidity['snapshot_policy'] = evaluate(root, symbol, liquidity_dates, config['liquidity'], now.isoformat(),
-                                                execution='options', journal='snapshot')
+                                                execution='shares', journal='snapshot')
         snap = liquidity['snapshot_policy']
         health.append({'name': 'Liquidity, free snapshot policy', 'status': snap.get('status', 'unavailable'),
                        'last': None, 'reason': 'Spreads are medians of a few intraday quote snapshots (liquidity_free.py), '
@@ -293,7 +295,8 @@ def build_state(root, symbol='SPY', as_of=None):
     if not option_records:
         reasons.append('Executable option quote history is unavailable; free-chain indications cannot certify fills.')
     if not liquidity.get('research_eligible'):
-        reasons.append('The verified 20-session share/options liquidity screen has not qualified this research window.')
+        reasons.append('The verified 20-session share liquidity screen (the shares baseline\'s gate; options studies '
+                       'also need options liquidity) has not qualified this research window.')
     if item.get('single_name'):
         reasons.append('Single-name leverage requires a separate event-driven study; the index baseline is blocked.')
     reasons.extend(errors)
