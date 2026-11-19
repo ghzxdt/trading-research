@@ -5,10 +5,22 @@
   C10, C11, C12) done 2026-11-18. Step 2, in this order: A1, B6, C9, A4, B8, C13 (user's go-ahead relayed from the
   backtester chat; check with the user on any new data provider and on visible changes to the daily screen). Details in the backtester chat's message; reviews in
   `C:\Claude\trading-backtester\docs\reviews\APP_REVIEW_2026-11-18.md` and Codex's 2026-11-14 outputs.
-- Second batch step 2 continues: B6, C9 (ask the user before changing the daily screen), A4, B8, C13.
+- Second batch step 2 continues: C9 (ask the user before changing the daily screen), A4, B8, C13.
 - The options import lock (`options_research/core.py` `_writer`) has the same no-recovery pattern the minute-bar
   lock had. Manual imports only, so lower risk; same fix if wanted.
 - Reminder from the hand-off: daytime jobs only run while the laptop is asleep or on, never shut down.
+
+## 2026-11-18 (evening): opportunity ids (review B6)
+User: "Yes, go ahead" (relayed by the backtester chat).
+- `thesis/opportunity.py`: id `<close>:<ETF>:<rule>:<policy>:<evidence sha12>`, derived from fields the logs keep.
+- New stance records carry `opportunities` with the page's disposition. Calls get `opportunity_ids` and a
+  `relation` from the stance record of their close and the ETF's index (inverse ETFs flip the view). Notes get
+  `opportunity_ids` for the close the page showed. Paper-book trades (and pre-close trades) carry `opportunity_id`.
+- Missed closes: a recording build appends a "missed" stance record (`recorded_after_entry`: true) for any
+  session since the log began with no stance before its next open; summaries list them and don't score them.
+  Dry run on a copy of the real log: tonight's refresh will add 8 (Nov 9, 10, 11 and 16, SPY and QQQ) before
+  the Nov 18 stances (SPY "abstain: no Lead", QQQ "abstain: closing-price Lead only").
+- Older records are untouched. Dashboard restarted so calls and notes link. 345 tests; page checked, no errors.
 
 ## 2026-11-18 (evening): exit levels on calls (review B7)
 User: "yes, add the exit level to calls" (relayed by the backtester chat).

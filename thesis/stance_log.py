@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import calls, eligibility
+from . import calls, eligibility, opportunity
 from .data import NY
 
 LOG = Path("data/thesis/stance_log.jsonl")
@@ -51,8 +51,10 @@ def records_for(state: dict) -> tuple[list[dict], str | None]:
         # Lead v3 (2026-11-18): fired, but demoted from Lead by its forward record, so it doesn't make the record long.
         demoted = [s["signal"] for s in mine if s["fired"] and not eligibility.open_leads(s) and eligibility.forward_below(s)]
         exits = {s["signal"]: sorted({e["exit"] for e in eligibility.open_leads(s)}) for s in mine if s["signal"] in leads}
+        # Review B6 (2026-11-18): each fired rule as an opportunity with the page's disposition.
+        found = opportunity.for_signals(mine, symbol, state.get("latest_close"), (state.get("evidence_source") or {}).get("sha256"))
         out.append({"instrument": symbol, "direction": "long" if leads else "flat", "rules": leads,
-                    "close_only_rules": passed, "forward_below_rules": demoted,
+                    "close_only_rules": passed, "forward_below_rules": demoted, "opportunities": found,
                     "rule_exits": exits})  # exits: what the paper book follows
     return out, None
 
@@ -64,16 +66,20 @@ def append_daily(root: Path, state: dict, now: pd.Timestamp, entry_time=None) ->
     latest = state.get("latest_close")
     if not latest:
         return {"logged": 0, "skipped": "no latest close"}
-    deadline = entry_time(pd.Timestamp(latest))
-    if now >= deadline:
-        return {"logged": 0, "skipped": f"too late: the {latest} stance's entry ({deadline:%Y-%m-%d %H:%M} ET) has passed"}
-    records, reason = records_for(state)
-    if reason:
-        return {"logged": 0, "skipped": reason}
     rows = calls.read(root, LOG)
-    done = {(r["latest_close"], r["instrument"]) for r in rows}
     path = Path(root) / LOG
     previous = rows[-1]["hash"] if rows else ""
+    missed = _append_missed(path, rows, previous, latest, now, entry_time)  # earlier closes nobody logged
+    if missed:
+        rows = calls.read(root, LOG)
+        previous = rows[-1]["hash"]
+    deadline = entry_time(pd.Timestamp(latest))
+    if now >= deadline:
+        return {"logged": 0, "missed": missed, "skipped": f"too late: the {latest} stance's entry ({deadline:%Y-%m-%d %H:%M} ET) has passed"}
+    records, reason = records_for(state)
+    if reason:
+        return {"logged": 0, "missed": missed, "skipped": reason}
+    done = {(r["latest_close"], r["instrument"]) for r in rows}
     logged = 0
     for record in records:
         if (latest, record["instrument"]) in done:
@@ -88,7 +94,39 @@ def append_daily(root: Path, state: dict, now: pd.Timestamp, entry_time=None) ->
         with path.open("a", encoding="utf-8", newline="\n") as stream:
             stream.write(json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n")
         previous, logged = row["hash"], logged + 1
-    return {"logged": logged, "skipped": None if logged else f"the {latest} stance was already logged"}
+    return {"logged": logged, "missed": missed, "skipped": None if logged else f"the {latest} stance was already logged"}
+
+
+def _append_missed(path: Path, rows: list[dict], previous: str, latest: str, now: pd.Timestamp, entry_time) -> int:
+    """Review B6: a close between the log's first record and `latest` with no stance recorded before its next open
+    gets a "missed" record, written now and labelled so (it is a new fact, not a backfilled stance)."""
+    if not rows:
+        return 0
+    from validation import equity_sessions
+    have = {(r["latest_close"], r["instrument"]) for r in rows}
+    first = min(r["latest_close"] for r in rows)
+    added = 0
+    for day in equity_sessions(pd.Timestamp(first), pd.Timestamp(latest) - pd.Timedelta(days=1)):
+        close = f"{day:%Y-%m-%d}"
+        if now < entry_time(day):
+            continue  # its entry is still ahead: not missed yet
+        for symbol in SYMBOLS:
+            if (close, symbol) in have:
+                continue
+            body = {"schema": 1, "id": len(rows) + added + 1, "source": "page",
+                    "recorded_utc": now.tz_convert("UTC").isoformat(timespec="seconds"),
+                    "recorded_et": now.tz_convert(NY).isoformat(timespec="seconds"), "latest_close": close,
+                    "instrument": symbol, "direction": "missed", "rules": [], "close_only_rules": [],
+                    "forward_below_rules": [], "opportunities": [], "rule_exits": {}, "recorded_after_entry": True,
+                    "stance_rules": eligibility.RULES_VERSION, "horizon_sessions": HORIZON,
+                    "headline": "Missed: no stance was recorded before this close's next open (laptop off or refresh failed)",
+                    "evidence_sha256": None, "previous_hash": previous}
+            row = {**body, "hash": calls._digest(body)}
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8", newline="\n") as stream:
+                stream.write(json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n")
+            previous, added = row["hash"], added + 1
+    return added
 
 
 def rule_exit(row: dict, etfs: dict, signals: list[dict] | None) -> dict | None:
@@ -110,13 +148,15 @@ def summary(root: Path, etfs: dict, signals: list[dict] | None = None) -> dict:
     if not check["ok"]:
         return {"status": "broken", "reason": check["reason"], "records": [], "scoreboard": calls.scoreboard([])}
     rows = calls.read(root, LOG)
-    scored = []
+    scored, missed = [], sorted({r["latest_close"] for r in rows if r.get("direction") == "missed"})
     for row in rows:
+        if row.get("direction") == "missed":
+            continue  # recorded as missed (B6): nothing to score
         result = calls.score(row, etfs.get(row["instrument"]))
         scored.append({**result, "latest_close": row["latest_close"], "rules": row.get("rules", []),
                        "close_only_rules": row.get("close_only_rules", []),
                        "forward_below_rules": row.get("forward_below_rules", []), "stance_rules": row.get("stance_rules", 1),
-                       "rule_exit": rule_exit(row, etfs, signals)})
+                       "opportunities": opportunity.of_record(row), "rule_exit": rule_exit(row, etfs, signals)})
     by_symbol = {s: calls.scoreboard([x for x in scored if x["instrument"] == s]) for s in SYMBOLS}
     longs = [x for x in scored if x["direction"] == "long" and x.get("status") == "scored"]
     board = calls.scoreboard(scored)
@@ -124,6 +164,7 @@ def summary(root: Path, etfs: dict, signals: list[dict] | None = None) -> dict:
                      "neighbouring days overlap and are not independent. Flat scores 0. Before costs, unlevered.")
     exits = [x["rule_exit"]["net"] for x in scored if x.get("rule_exit") and x["rule_exit"]["net"] is not None]
     return {"status": "ok", "horizon_sessions": HORIZON, "first_close": rows[0]["latest_close"] if rows else None,
+            "missed_closes": missed,
             "scoreboard": board, "by_symbol": by_symbol, "long_scored": len(longs),
             "long_mean": sum(x["call_return"] for x in longs) / len(longs) if longs else None,
             "rule_exit_scored": len(exits), "rule_exit_mean": sum(exits) / len(exits) if exits else None,

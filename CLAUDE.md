@@ -130,6 +130,13 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
    closes below / above [price]" (calls schema 2; recorded before entry, never changed). It ends at the next open
    after the first daily close that breaks the level (from the entry day on), or at the horizon's close, whichever
    comes first; the fixed-horizon result stays beside it (`calls.score`, `fixed_horizon_return`).
+   **Opportunity ids (review B6; user, 2026-11-18: "Yes, go ahead"):** `thesis/opportunity.py`. One id per rule firing
+   on an ETF at a close, for an entry policy and evidence export (`<close>:<ETF>:<rule>:<policy>:<sha12>`). New stance
+   records list theirs with the page's disposition (long, or abstain: closing-price Lead only / forward below band /
+   no Lead); a close with no stance before its next open gets a "missed" stance record, written afterwards and
+   labelled so (not scored); new calls record `opportunity_ids` and a `relation` (take, veto, override, agree flat,
+   own view, unlinked); new notes record `opportunity_ids`; paper-book trades compute the same id. Older records
+   are unchanged; their ids are derived from their fields.
    **Also 2026-11-14:** **intraday base rates** from Yahoo's free hourly bars (`intraday_hourly.py`,
    `data/intraday_hourly/`, about 2.9 years, SPY/QQQ/IWM, refreshed each evening and kept, so the history grows):
    gap fill, first-hour share of the range, whether the day kept the first hour's direction after 10:30, and
@@ -209,7 +216,7 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
 - The FRED API key (registered 2026-11-14 on the user's account, with their OK to accept FRED's terms) is in
   `.secrets\fred_api_key.txt`: git-ignored, outside `data/` so not in the data backup, covered by the user's manual
   copy of `C:\Claude`. Never print it, commit it or put it in a URL that gets logged.
-- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (341 tests).
+- Tests: `.venv\Scripts\python -B -m unittest discover -s tests` (345 tests).
 - New machine: install Python 3.12 and Git, `python -m venv .venv`, `.venv\Scripts\pip install -r
   requirements-frozen-2026-11-12.txt`, then `powershell -ExecutionPolicy Bypass -File .\setup_windows_tasks.ps1`
   recreates the three scheduled tasks and the desktop shortcut (triggers start the next day).

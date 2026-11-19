@@ -94,7 +94,9 @@ def trades(records: list[dict], etfs: dict, signals: list[dict], entry: str = "n
                 key = (symbol, rule, exit_name)
                 dev = (evidence.get(exit_name) or {}).get("development") or {}
                 row = evidence.get(exit_name) or {}
+                from .opportunity import oid  # review B6: the id this trade shares with its stance record
                 base = {"instrument": symbol, "rule": rule, "exit": exit_name, "exit_text": EXIT_TEXT.get(exit_name, exit_name),
+                        "opportunity_id": oid(record["latest_close"], symbol, rule, entry, record.get("evidence_sha256")),
                         "entry_mode": entry, "backtest_mean_net": dev.get("mean_net"), "backtest_win_rate": dev.get("win_rate"),
                         "backtest_trades": dev.get("trades"), "exit_from_current_evidence": "rule_exits" not in record,
                         "logged_under": "v1" if verdict_key == "verdict_v1" else "current",

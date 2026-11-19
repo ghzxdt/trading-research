@@ -122,11 +122,17 @@ def append(root: Path, payload: dict, now: pd.Timestamp | None = None) -> dict:
     call = validate(payload)
     now = (now or pd.Timestamp.now(tz="UTC")).tz_convert("UTC")
     path = Path(root) / LOG
+    from . import opportunity, stance_log
+    try:  # review B6: which of the page's opportunities this call takes, vetoes or overrides
+        link = opportunity.link_call(read(root, stance_log.LOG), call)
+    except ValueError:  # a broken stance log never blocks a call
+        link = {"opportunity_ids": [], "relation": "unlinked"}
     with _LOCK:
         rows = read(root)
-        # schema 2 (2026-11-18): every new call carries "exit_level" (null when none was given); schema 1 calls stay.
+        # schema 2 (2026-11-18): every new call carries "exit_level" (null when none was given) and its
+        # opportunity link; schema 1 calls stay as written.
         body = {"schema": 2, "id": len(rows) + 1, "recorded_utc": now.isoformat(timespec="seconds"),
-                "recorded_et": now.tz_convert(NY).isoformat(timespec="seconds"), **call,
+                "recorded_et": now.tz_convert(NY).isoformat(timespec="seconds"), **call, **link,
                 "previous_hash": rows[-1]["hash"] if rows else ""}
         row = {**body, "hash": _digest(body)}
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -169,7 +175,8 @@ def score(call: dict, frame: pd.DataFrame | None, frames: dict | None = None) ->
     out = {"id": call["id"], "recorded_et": call["recorded_et"], "instrument": call["instrument"],
            "direction": call["direction"], "horizon_sessions": call["horizon_sessions"],
            "invalidation": call.get("invalidation"), "reason": call.get("reason"),
-           "basis": call.get("basis") or [], "exit_level": level,
+           "basis": call.get("basis") or [], "exit_level": level, "relation": call.get("relation"),
+           "opportunity_ids": call.get("opportunity_ids") or [],
            "suggestion": (call.get("context") or {}).get("suggestion")}
     if frame is None or frame.empty:
         return {**out, "status": "no_data"}

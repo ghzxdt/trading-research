@@ -77,11 +77,17 @@ def append(root: Path, payload: dict, now: pd.Timestamp | None = None, snapshot=
     note = validate(payload)
     now = (now or pd.Timestamp.now(tz="UTC")).tz_convert("UTC")
     path = Path(root) / LOG
+    page = snapshot(root) if snapshot else None
+    from . import opportunity, stance_log
+    try:  # review B6 (2026-11-18): the opportunities at the close the page showed
+        linked = opportunity.link_note(calls.read(root, stance_log.LOG), (page or {}).get("latest_close"), note.get("instrument"))
+    except ValueError:
+        linked = []
     with _LOCK:
         rows = calls.read(root, LOG)
         body = {"schema": 1, "id": len(rows) + 1, "recorded_utc": now.isoformat(timespec="seconds"),
                 "recorded_et": now.tz_convert(NY).isoformat(timespec="seconds"), **note,
-                "snapshot": snapshot(root) if snapshot else None,
+                "snapshot": page, "opportunity_ids": linked,
                 "previous_hash": rows[-1]["hash"] if rows else ""}
         row = {**body, "hash": calls._digest(body)}
         path.parent.mkdir(parents=True, exist_ok=True)

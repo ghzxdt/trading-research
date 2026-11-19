@@ -147,6 +147,7 @@ def summary(root: Path, etfs: dict, payload_signals: list[dict] | None = None) -
                 held, flipped = held + (actual == c["fired"]), flipped + (actual != c["fired"])
                 if c["fired"] and c.get("close_lead_exits") and usable:
                     close_records.append({"latest_close": row["session"], "instrument": c["symbol"], "rules": [c["signal"]],
+                                          "evidence_sha256": row.get("evidence_sha256"),
                                           "rule_exits": {c["signal"]: c["close_lead_exits"]}, "confirmed": actual})
             out.append({**c, "fired_at_close": actual,
                         "close": float(frame["close"].loc[day]) if frame is not None and day in frame.index else None})
