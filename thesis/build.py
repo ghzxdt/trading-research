@@ -257,7 +257,7 @@ def build_state(root: Path, now: pd.Timestamp) -> dict:
             "regime": reg, "signals": sig, "evidence_source": export_info, "evidence_check": check,
             "evidence_cards": evidence_cards.meta(cards), "archive": archive.summary(root),
             "ops": ops.build(root, now, latest, check),
-            "risk": risk.build(root, etfs, vix, reg["volatility"].get("implied_daily_move")),
+            "risk": risk.build(root, etfs, vix, reg["volatility"].get("implied_daily_move"), now),
             "earnings": earn, "calls": calls.summary(root, etfs), "stance_log": stance_log.summary(root, etfs, sig),
             "journal": journal.summary(root, etfs), "ideas": ledger.summary(root),
             "sources": {

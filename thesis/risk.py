@@ -23,17 +23,24 @@ UNDERLYINGS = (
 )
 
 
-def latest_spreads(root: Path, symbols) -> dict:
-    """Most recent sampled share spread per symbol from the free liquidity samples, if any."""
+def latest_spreads(root: Path, symbols, as_of: pd.Timestamp | None = None) -> dict:
+    """Most recent sampled share spread per symbol from the free liquidity samples, if any, as known at `as_of`
+    (review A4, 2026-11-18: a replay must not use samples taken after its moment)."""
     folder = Path(root) / "data" / "liquidity" / "samples"
+    cutoff = as_of.tz_convert("UTC") if as_of is not None else None
     found = {}
-    for path in sorted(folder.glob("*.jsonl"), reverse=True)[:10]:
+    files = sorted(folder.glob("*.jsonl"), reverse=True)
+    if cutoff is not None:
+        files = [p for p in files if p.stem <= f"{cutoff.tz_convert('America/New_York'):%Y-%m-%d}"]
+    for path in files[:10]:
         for line in reversed(path.read_text(encoding="utf-8").splitlines()):
             try:
                 row = json.loads(line)
             except ValueError:
                 continue
             symbol = row.get("symbol")
+            if cutoff is not None and (not row.get("sampled_at") or pd.Timestamp(row["sampled_at"]) > cutoff):
+                continue
             if symbol in symbols and symbol not in found and row.get("share_spread_bps") is not None:
                 found[symbol] = {"spread_bps": row["share_spread_bps"], "sampled_at": row.get("sampled_at")}
         if len(found) == len(symbols):
@@ -82,10 +89,10 @@ def leverage_rows(daily_move: float | None, history: dict) -> list[dict]:
     return rows
 
 
-def build(root: Path, etfs: dict, vix: pd.Series, implied_spy_move: float | None) -> dict:
+def build(root: Path, etfs: dict, vix: pd.Series, implied_spy_move: float | None, now: pd.Timestamp | None = None) -> dict:
     current_vix = float(vix.iloc[-1]) if len(vix) else None
     symbols = [s for _, _, group in UNDERLYINGS for s, _ in group]
-    spreads = latest_spreads(root, set(symbols))
+    spreads = latest_spreads(root, set(symbols), now)
     out = []
     for name, base, group in UNDERLYINGS:
         frame = etfs.get(base)

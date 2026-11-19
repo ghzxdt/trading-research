@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -75,4 +76,16 @@ def fred(path: Path, now: pd.Timestamp | None = None) -> pd.Series:
     series = series[~series.index.duplicated(keep="last")]
     # FRED dates an observation by the day it describes and publishes it a day or more later, so a replay at
     # the close of day D uses values through D-1 at most.
-    return series if now is None else series[series.index < last_known_session(now)]
+    if now is None:
+        return series
+    known = last_known_session(now)
+    series = series[series.index < known]
+    if os.environ.get("APP_REPLAY") == "1" and len(series) > 3:
+        # Weekly and monthly series publish days or weeks after the date they describe (NFCI on the Wednesday after
+        # its Friday, the Sahm rule with the next jobs report). Without their release times, a replay holds each
+        # observation back by 1.3 times the series' spacing, which is later than any of these publish
+        # (review A4, 2026-11-18). A live build only ever sees what FRED has published.
+        spacing = float(series.index.to_series().diff().dt.days.median())
+        if spacing >= 5:
+            series = series[series.index + pd.Timedelta(days=1.3 * spacing) <= known]
+    return series

@@ -5,10 +5,22 @@
   C10, C11, C12) done 2026-11-18. Step 2, in this order: A1, B6, C9, A4, B8, C13 (user's go-ahead relayed from the
   backtester chat; check with the user on any new data provider and on visible changes to the daily screen). Details in the backtester chat's message; reviews in
   `C:\Claude\trading-backtester\docs\reviews\APP_REVIEW_2026-11-18.md` and Codex's 2026-11-14 outputs.
-- Second batch step 2 continues: A4, B8, C13.
+- Second batch step 2 continues: B8, C13.
 - The options import lock (`options_research/core.py` `_writer`) has the same no-recovery pattern the minute-bar
   lock had. Manual imports only, so lower risk; same fix if wanted.
 - Reminder from the hand-off: daytime jobs only run while the laptop is asleep or on, never shut down.
+
+## 2026-11-18 (night): replay timing (review A4)
+User's go-ahead relayed by the backtester chat ("then A4, B8 and C13"). A replay at moment T now shows only what
+was published by T:
+- First-release vintages (`alfred.known_day`): a vintage dated today exists from 8:30 AM ET, when BLS and the
+  claims report publish (a replay at 8:00 AM used to show the 8:30 numbers).
+- FRED series (`data.fred`): in a replay, weekly and monthly series are held back by 1.3 times their observation
+  spacing (NFCI publishes the Wednesday after its Friday; the Sahm rule with the next jobs report), since their
+  release times aren't modelled; daily series keep the one-day rule. Live builds are unchanged.
+- Earnings dates and the earnings calendar: a replay refuses a snapshot downloaded after its moment.
+- `risk.latest_spreads` takes the moment and ignores later liquidity samples.
+349 tests.
 
 ## 2026-11-18 (night): shorter daily screen (review C9); first missed records written
 User: "Yes, as proposed" (relayed by the backtester chat).

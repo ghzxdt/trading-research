@@ -12,6 +12,7 @@ download fails keeps its last good copy, marked as such. Dates are scheduled dat
 from __future__ import annotations
 
 import json
+import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -83,6 +84,12 @@ def build(root: Path, now: pd.Timestamp) -> dict:
         return {"status": "unavailable", "days": [],
                 "reason": "The earnings calendar has not been downloaded yet; the next online refresh fetches it."}
     saved = json.loads(path.read_text(encoding="utf-8"))
+    fetched = pd.Timestamp(saved["fetched_utc"]) if saved.get("fetched_utc") else None
+    if os.environ.get("APP_REPLAY") == "1" and fetched is not None and fetched > now.tz_convert("UTC"):
+        # Review A4 (2026-11-18): a replay can't use dates downloaded after its moment.
+        return {"status": "unavailable", "days": [],
+                "reason": f"These earnings dates were downloaded {fetched:%Y-%m-%d %H:%M} UTC, after this view's moment, "
+                          "so a replay can't use them."}
     today = f"{now.tz_convert(NY):%Y-%m-%d}"
     mega = {symbol for symbol, _ in COMPANIES}
     days = []

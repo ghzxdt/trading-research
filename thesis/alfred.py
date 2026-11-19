@@ -123,6 +123,17 @@ def _as_of(rows: list[dict], day: str) -> dict[str, float]:
     return out
 
 
+RELEASE_TIME = pd.Timedelta(hours=8, minutes=30)  # BLS and the jobless-claims report publish at 8:30 AM ET
+
+
+def known_day(now: pd.Timestamp) -> str:
+    """The newest vintage date known at `now`: a vintage dated today exists only from 8:30 AM ET, when these
+    releases come out (review A4, 2026-11-18; a replay at 8:00 AM used to show the 8:30 numbers)."""
+    local = now.tz_convert(NY)
+    day = local.normalize()
+    return f"{day if local - day >= RELEASE_TIME else day - pd.Timedelta(days=1):%Y-%m-%d}"
+
+
 def history(rows: list[dict], kind: str, today: str) -> list[dict]:
     """One row per month: its release date, the headline as first announced, as it stands now, and the revision."""
     rows = [r for r in rows if r["start"] <= today]
@@ -178,7 +189,7 @@ def build(root: Path, now: pd.Timestamp) -> dict:
                           "downloads first-release values." if not has_key else
                           "First-release values have not been downloaded yet; the next online refresh fetches them."}
     saved = json.loads(path.read_text(encoding="utf-8"))
-    today = f"{now.tz_convert(NY):%Y-%m-%d}"
+    today = known_day(now)
     rows, hist = [], {}
     for name, (_, label, kind) in SERIES.items():
         months = history((saved.get("series") or {}).get(name) or [], kind, today)

@@ -10,6 +10,7 @@ An online refresh downloads to data/raw/earnings/earnings.json; offline builds o
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from datetime import datetime, timezone
@@ -90,6 +91,12 @@ def build(root: Path, now, etfs: dict, days_ahead: int = 45) -> dict:
         return {"status": "unavailable", "rows": [],
                 "reason": "Earnings dates not downloaded yet; the next online refresh fetches them."}
     saved = json.loads(path.read_text(encoding="utf-8"))
+    fetched = pd.Timestamp(saved["fetched_utc"]) if saved.get("fetched_utc") else None
+    if os.environ.get("APP_REPLAY") == "1" and fetched is not None and fetched > now.tz_convert("UTC"):
+        # Review A4 (2026-11-18): a replay can't use dates downloaded after its moment.
+        return {"status": "unavailable", "rows": [],
+                "reason": f"These earnings dates were downloaded {fetched:%Y-%m-%d %H:%M} UTC, after this view's moment, "
+                          "so a replay can't use them."}
     today = now.tz_convert(NY).normalize().tz_localize(None)
     qqq = etfs.get("QQQ")
     moves = qqq["close"].pct_change().abs().dropna() if qqq is not None else pd.Series(dtype=float)
