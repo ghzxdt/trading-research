@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review · Trading Research</title>
+{{STYLE}}
+<style>
+.callouts{list-style:none;margin:0;padding:0}.callouts li{display:flex;gap:10px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line)}
+.callouts li:last-child{border-bottom:0}.lvl{display:inline-block;min-width:52px;text-align:center;font-size:12px;font-weight:600;border-radius:6px;padding:2px 6px}
+.lvl.act{background:var(--red);color:#fff}.lvl.watch{background:var(--amber);color:#111}.lvl.info{background:var(--line);color:var(--text)}
+.src{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top"><div><div class="eyebrow">Trading research / review</div><h1>Review</h1><p class="subtitle" id="sub">What needs your attention today, from this app and the backtester. The detail is on the <a href="thesis.html">Daily thesis</a>.</p></div></header>
+{{HUB_NAV}}
+<main class="grid">
+<div class="stack">
+<section class="card" aria-labelledby="top-title"><h2 id="top-title">First</h2><ul class="callouts" id="headline"></ul></section>
+<section class="card" aria-labelledby="today-title"><h2 id="today-title">Today</h2><p id="stance" class="muted"></p><div id="setups" class="table-wrap"></div><div id="plan"></div></section>
+<section class="card" aria-labelledby="levels-title"><h2 id="levels-title">Levels for your charts</h2><p class="small muted">Closes that would fire each registered rule tonight, the lower Bollinger band, the 5-day average (the exit level for the 5-day-average exit) and the 50- and 200-day averages.</p><div id="levels" class="table-wrap"></div></section>
+</div>
+<aside class="stack">
+<section class="card" aria-labelledby="changed-title"><h2 id="changed-title">What changed</h2><ul class="callouts" id="changed"></ul><div id="forward" class="table-wrap"></div><div id="filters"></div></section>
+<section class="card" aria-labelledby="record-title"><h2 id="record-title">Your record</h2><div id="record"></div></section>
+<section class="card" aria-labelledby="queue-title"><h2 id="queue-title">Research queue</h2><div id="queue"></div></section>
+<section class="card" aria-labelledby="open-title"><h2 id="open-title">Your decisions still open</h2><ul id="undecided" class="small"></ul></section>
+</aside>
+</main>
+<p class="foot" id="foot"></p>
+</div>
+<script type="application/json" id="review-state">{{STATE}}</script>
+<script>
+"use strict";
+(()=>{
+const $=id=>document.getElementById(id),list=v=>Array.isArray(v)?v:[],obj=v=>v&&typeof v==='object'&&!Array.isArray(v)?v:{};
+const ok=v=>v!==null&&v!==undefined&&v!==''&&!(typeof v==='number'&&!Number.isFinite(v));
+const fmt=(v,d=2)=>ok(v)?Number(v).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
+const pct=(v,d=1)=>ok(v)?(Number(v)>0?'+':'')+fmt(Number(v)*100,d)+'%':'—';
+const usd=v=>ok(v)?'$'+fmt(v,2):'—';
+function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(ok(text))n.textContent=String(text);return n;}
+function table(parent,cols,rows){const t=el('table'),h=el('thead'),tr=el('tr');cols.forEach(c=>{const th=el('th','',c);th.scope='col';tr.append(th);});h.append(tr);const b=el('tbody');rows.forEach(r=>{const row=el('tr');r.forEach(v=>{const td=el('td');if(v instanceof Node)td.append(v);else td.textContent=ok(v)?String(v):'—';row.append(td);});b.append(row);});t.append(h,b);parent.append(t);}
+function callouts(ul,items,empty){ul.replaceChildren();if(!list(items).length){ul.append(el('li','muted small',empty));return;}items.forEach(c=>{const li=el('li');const body=el('div');body.append(el('span','',c.text),el('span','src','Source: '+c.source));li.append(el('span','lvl '+c.level,c.level),body);ul.append(li);});}
+const S=JSON.parse($('review-state').textContent||'{}');
+callouts($('headline'),S.headline,'Nothing needs attention right now.');
+const T=obj(S.today);const hl=obj(T.stance).headline||'No stance';$('stance').textContent=hl+(S.latest_close&&!hl.includes(S.latest_close)?' (latest close '+S.latest_close+')':'')+'.';
+if(list(T.setups).length)table($('setups'),['ETF','Rule','State','Fires at or below','Distance','Next-open verdict'],T.setups.map(s=>[s.symbol,s.rule,s.fired?'Fired':'Close to firing',usd(s.trigger_close),pct(s.distance,1),list(s.next_open_verdicts).join(', ')||'—']));
+else $('setups').append(el('p','muted small','No registered rule fired or is within 3% of firing.'));
+if(list(T.plan).length){$('plan').append(el('h3','','The plan'));table($('plan'),['ETF','Rule','Entry','Exit rule','Exit level','Loss at your limit'],T.plan.map(p=>[p.symbol,p.rule,p.entry,p.exit_rule,p.exit_level,p.loss_at_limit]));}
+const L=list(S.levels);if(L.length)table($('levels'),['ETF','Close','Fires at or below (by rule)','Lower Bollinger band','5-day average','50-day','200-day'],L.map(x=>[x.symbol,usd(x.close),list(x.triggers).map(t=>t.rule.replace(' below ',' < ')+': '+usd(t.close_at_or_below)).join(' · '),usd(x.lower_band),usd(x.sma5),usd(x.sma50),usd(x.sma200)]));
+const C=obj(S.changes);callouts($('changed'),C.callouts,'No changes, problems or warnings.');
+if(list(C.forward).length){$('forward').append(el('h3','','Forward record (trades signalled after the backtester’s development window)'));table($('forward'),['ETF','Rule','Exit','Verdict','Forward trades','Status'],C.forward.map(f=>[f.symbol,f.rule,f.exit,f.verdict,f.trades,f.status]));}
+const F=obj(C.filter_tests);if(list(F.notable).length){$('filters').append(el('h3','','Notable filter tests'));table($('filters'),['Test','Strategy','Group','Result'],F.notable.map(t=>[t.test.replace(/_/g,' '),t.strategy.split('|')[0].replace('+',' + '),t.group||'all trades',t.label]));}$('filters').append(el('p','small muted',F.status==='ok'?'Filter tests: '+F.count+' ('+Object.entries(obj(F.by_label)).map(([k,v])=>v+' '+k.toLowerCase()).join(', ')+'), from '+String(F.generated_at||'').slice(0,10)+'.':'Filter tests: the backtester’s file is '+(F.status||'unavailable')+'.'));
+const R=obj(S.record),rec=$('record');const rc=el('ul','callouts');callouts(rc,R.callouts,'No open paper trades and no missed closes.');rec.append(rc);
+const rel=Object.entries(obj(R.calls_by_relation));rec.append(el('h3','','Your calls against the rule'));if(rel.length)table(rec,['Relation','Calls','Scored','Mean result'],rel.map(([k,v])=>[k,v.calls,v.scored,pct(v.mean_return,2)]));else rec.append(el('p','muted small','No calls recorded yet.'));
+const Q=obj(S.queue),q=$('queue');const qc=el('ul','callouts');callouts(qc,Q.callouts,'No forward checks pending.');q.append(qc);
+const st=obj(Q.by_stage);const stages=Object.keys(st);if(stages.length){q.append(el('h3','','Ideas by stage'));table(q,['Stage','Ideas'],stages.map(k=>[k,st[k].map(i=>'#'+i.idea+' '+i.title+(list(i.missing).length&&k!=='dropped'?' (not yet testable)':'')).join('; ')]));}
+list(S.undecided).forEach(t=>$('undecided').append(el('li','',t)));
+$('foot').textContent='Built '+String(S.as_of||'').replace('T',' ').slice(0,16)+' ET from the Daily thesis build and, when present, the backtester’s exports. A summary: the logs and evidence are on the Daily thesis.';
+})();
+</script>
+</body>
+</html>

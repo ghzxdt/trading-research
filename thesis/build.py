@@ -32,6 +32,7 @@ from . import (alfred, archive, calls, data, earnings, earnings_calendar, eligib
 
 TEMPLATE = Path(__file__).with_name("template.html")
 MACRO_TEMPLATE = Path(__file__).with_name("macro_template.html")
+REVIEW_TEMPLATE = Path(__file__).with_name("review_template.html")
 SCHEMA = 2  # 2 (2026-11-13): stance direction "none", evidence_check, ops, journal, ideas
 
 
@@ -278,11 +279,32 @@ def render(root: Path, out: Path, state: dict | None = None) -> Path:
     out.mkdir(parents=True, exist_ok=True)
     (out / "thesis.html").write_text(page, encoding="utf-8")
     render_macro(out, state, page)
+    render_review(root, out, state, page)
     (out / "thesis_state.json").write_text(json.dumps(state, indent=1, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8")
     write_component_manifest("thesis", out, {"state_schema_version": SCHEMA, "latest_close": state.get("latest_close"),
                                              "evidence_sha256": (state.get("evidence_source") or {}).get("sha256"),
                                              "readonly_render": True})
     return out / "thesis.html"
+
+
+def render_review(root: Path, out: Path, state: dict, thesis_page: str) -> Path:
+    """The Review tab (review.html), the app's front page since 2026-11-19: callouts from this build and the
+    backtester's optional files (thesis/review.py)."""
+    from stage1.report import hub_nav
+    from today.build import embedded_json, json_safe
+    from . import review
+    style = re.search(r"<style>.*?</style>", thesis_page, re.S)
+    try:
+        data = json_safe(review.build(state, root))
+    except Exception as exc:  # the front page must never break the build
+        data = {"as_of": state.get("as_of"), "headline": [{"level": "watch", "text": f"The review could not be built: {exc}",
+                                                           "source": "thesis/review.py"}]}
+    page = REVIEW_TEMPLATE.read_text(encoding="utf-8")
+    page = re.sub(r"\{\{(STYLE|HUB_NAV|STATE)\}\}", lambda m: {"STYLE": style.group(0) if style else "",
+                                                             "HUB_NAV": hub_nav("review"),
+                                                             "STATE": embedded_json(data)}[m.group(1)], page)
+    (out / "review.html").write_text(page, encoding="utf-8")
+    return out / "review.html"
 
 
 def render_macro(out: Path, state: dict, thesis_page: str) -> Path:

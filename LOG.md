@@ -1,9 +1,13 @@
 # Trading research log
 
 ## Open
-- Kalshi data archived in `archive/kalshi-2026-11-19/` (not deleted): ask the user before deleting it for good.
-- CLAUDE.md still describes the Kalshi universe, roadmap items and snapshot collection: update it once the user
-  confirms here (the removal was relayed by the backtester chat).
+- CLAUDE.md still describes the Kalshi universe and snapshots, the GEX/DIX and Jobs tabs, the 16-ticker universe,
+  options collection and the old front page: update it once the user confirms here (these changes were relayed
+  by the backtester chat).
+- Archives awaiting the user's word before any deletion: archive/kalshi-2026-11-19, archive/gex-2026-11-19,
+  archive/jobs-study-2026-11-19, archive/options-2026-11-19.
+- Undecided by the user (the Review page assumes neither): a maximum loss per trade; whether QQQ trades add to a
+  held position or stand alone.
 - Backtester hand-off, second batch (13 review findings A1-C13, received 2026-11-18). Step 1 (A2, A3, A5, B7,
   C10, C11, C12) done 2026-11-18. Step 2, in this order: A1, B6, C9, A4, B8, C13 (user's go-ahead relayed from the
   backtester chat; check with the user on any new data provider and on visible changes to the daily screen). Details in the backtester chat's message; reviews in
@@ -12,6 +16,28 @@
 - The options import lock (`options_research/core.py` `_writer`) has the same no-recovery pattern the minute-bar
   lock had. Manual imports only, so lower risk; same fix if wanted.
 - Reminder from the hand-off: daytime jobs only run while the laptop is asleep or on, never shut down.
+
+## 2026-11-19 (afternoon): trim list and the Review front page
+User (relayed by the backtester chat): "Yes, send both" (the trim list, then a Review page). Each step committed.
+- GEX / DIX tab removed (gex/, run_gex.py, its Update route and badge, DIX rows on the SPY page); DIX.csv archived.
+  With it gone, the frozen experiment's comparison has 30 tests in its family instead of 33 (both sides). 3977f6c
+- Jobs study tab removed (monitor/employment.py and its page); its refresh status archived; the Data quality
+  cross-check refresh stays. 593eb94
+- Universe trimmed to SPY, QQQ, IWM, TQQQ, SQQQ, UPRO, SPXU (SPXU now active); the single-name track is gone and
+  the config refuses single names; stored minute bars of dropped tickers stay; TNA left the risk card. d178b3a
+- "Original vs fixed" and "4-rule backtests" moved behind a new Archive tab (still built). a795e5f
+- Options collection stopped: no 0DTE snapshots, option chains, option spreads or OCC volume; share-liquidity
+  samples and daily snapshot records continue (shares gate). The 10:00 AM ET run is now a no-op and the 3:50 PM ET
+  run is "preclose". Collected options files archived (6.8 MB chains, 0DTE, OCC). ad0bbe5
+- Review page (`thesis/review.py`, `thesis/review_template.html`), now the first tab and the front page
+  (index.html and the control panel open it): act/watch/info callouts with sources; Today (setups fired or within
+  3%, the plan with entry, registered exit, exit level and "set a loss limit"; events, earnings, VIX, weekend);
+  levels for charts; what changed (verdict changes, forward record, filter tests as one dated line plus the
+  notable ones, System status problems, evidence age); your record (paper ticket, calls by relation, missed
+  closes); research queue (ideas by stage, months until each Lead's 5-trade forward check). Backtester files are
+  optional. Published by a data-only refresh at 1:55 PM ET (nothing logged) and checked in the browser.
+- Today's poller (old code) kept offline builds from publishing until it stops at 4 PM ET; the data-only refresh
+  published instead. 325 tests.
 
 ## 2026-11-19: Kalshi and perpetual tracking removed
 User (relayed by the backtester chat): "as for anything kalshi or perpetual information weve been tracking i want

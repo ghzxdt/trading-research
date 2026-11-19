@@ -46,7 +46,7 @@ def source_manifest(root: Path) -> dict:
 def validate_bundle(out: Path, run_id: str) -> None:
     required = ["index.html", "report.html", "tickers.html", "monitor.html",
                 "backtests.html", "paper.html", "quality.html", "archive.html", "monitor_status.json",
-                "daily_table.csv", "long_history.csv", "validation_report.json", "today.html", "today_state.json", "thesis.html", "thesis_state.json", "macro.html"]
+                "daily_table.csv", "long_history.csv", "validation_report.json", "today.html", "today_state.json", "thesis.html", "review.html", "thesis_state.json", "macro.html"]
     required += [f"ticker_{tk}.html" for tk in ("SPY", "QQQ", "IWM", "DIA", "RSP", "TQQQ", "SQQQ", "UPRO", "SPXU")]
     missing = [name for name in required if not (out / name).is_file()]
     if missing:

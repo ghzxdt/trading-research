@@ -12,7 +12,7 @@ import pandas as pd
 TEMPLATE = Path(__file__).with_name("report_template.html")
 
 # The hub: one tab per part of the app. Each part is its own page, so they never mix.
-TABS = [("thesis", "thesis.html", "Daily thesis"), ("today", "today.html", "Intraday"), ("macro", "macro.html", "Macro"),
+TABS = [("review", "review.html", "Review"), ("thesis", "thesis.html", "Daily thesis"), ("today", "today.html", "Intraday"), ("macro", "macro.html", "Macro"),
         ("indexes", "report.html", "Indexes"), ("tickers", "tickers.html", "Tickers"),
         ("paper", "paper.html", "4-rule paper log"), ("quality", "quality.html", "Data quality"),
         # "Original vs fixed" and "4-rule backtests" sit behind Archive since 2026-11-19 (user's trim list).
@@ -35,8 +35,8 @@ def write_hub_index(out_dir: Path) -> None:
     links = " &middot; ".join(f'<a href="{href}">{escape(label)}</a>' for _, href, label in TABS)
     (out_dir / "index.html").write_text(
         '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Index research</title>'
-        '<meta http-equiv="refresh" content="0; url=thesis.html"></head>'
-        f'<body><p>Opening Today&hellip; {links}</p></body></html>', encoding="utf-8")
+        '<meta http-equiv="refresh" content="0; url=review.html"></head>'
+        f'<body><p>Opening Review&hellip; {links}</p></body></html>', encoding="utf-8")
 
 ICONS = {"edge": "✓", "hint": "~", "none": "–", "fact": "i", "ok": "✓", "note": "i", "warn": "!"}
 HEALTH_LABELS = {"ok": "OK", "note": "Note", "warn": "Warning"}
