@@ -36,15 +36,17 @@ class TerminalTests(unittest.TestCase):
              'spy_close': 103, 'spy_volume': 1100, 'vix': 19},
         ]).to_csv(self.root / 'output' / 'daily_table.csv', index=False)
 
-    def test_shared_universe_contains_all_confirmed_instruments(self):
-        symbols = terminal_config.active_symbols(self.root)
-        self.assertEqual(len(symbols), 16)
-        self.assertTrue({'SOXL', 'TNA', 'LABD', 'KORU', 'BITX', 'ERY', 'FNGU', 'UPRO', 'SPXL', 'NVDL', 'TSLL'} <= set(symbols))
-        self.assertEqual(terminal_config.instrument(self.root, 'FNGU')['product_type'], 'ETN')
-        self.assertTrue(terminal_config.instrument(self.root, 'TSLL')['single_name'])
+    def test_shared_universe_is_the_trimmed_seven(self):
+        # Trimmed on 2026-11-19 (user's trim list): the index ETFs and their 3x long and inverse versions.
+        self.assertEqual(terminal_config.active_symbols(self.root), ['SPY', 'QQQ', 'IWM', 'TQQQ', 'SQQQ', 'UPRO', 'SPXU'])
+        self.assertEqual(terminal_config.instrument(self.root, 'SPXU')['configured_leverage'], -3)
+        (self.root / 'terminal_config.json').write_text(json.dumps({'schema_version': 1, 'universe': [
+            {'symbol': 'TSLL', 'active': True, 'single_name': True}]}), encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'single-name instruments are not supported'):
+            terminal_config.active_symbols(self.root)
 
     def test_missing_inputs_are_readonly_and_never_recommend_a_position(self):
-        state = build_state(self.root, 'SOXL', '2026-11-07T18:00:00Z')
+        state = build_state(self.root, 'UPRO', '2026-11-07T18:00:00Z')
         self.assertFalse(state['thesis']['actionable'])
         self.assertIsNone(state['expressions']['shares']['position_size'])
         self.assertEqual(state['expressions']['options']['status'], 'no_trade')
@@ -173,24 +175,14 @@ class TerminalTests(unittest.TestCase):
         self.assertEqual(json.loads((folder / 'SPY.json').read_text()), saved)
         self.assertIn('predates', state['research']['qualification_note'])
 
-    def test_research_liquidity_and_single_name_gates_run_before_signal_testing(self):
+    def test_research_liquidity_gate_runs_before_signal_testing(self):
         from run_intraday import research
         with patch.dict(os.environ, {'APP_OFFLINE': '0', 'APP_REPLAY': '0'}), patch('intraday.backtest.run') as engine:
-            with self.assertRaisesRegex(ValueError, 'Single-name'):
-                research(self.root, 'NVDL')
             with patch('intraday.store.load_bars', return_value=[{'timestamp': '2026-11-06T14:30:00Z', 'close': 100}]):
                 with self.assertRaisesRegex(ValueError, 'Liquidity screen blocked'):
                     research(self.root, 'SPY', assume_bar_close_availability=True)
             engine.assert_not_called()
         self.assertFalse((self.root / 'data' / 'intraday' / 'v1' / 'research').exists())
-
-    def test_single_name_view_suppresses_index_candidate(self):
-        features = {'bars': [], 'session': {'close': '2026-11-06T21:00:00Z'}, 'signal': {'side': 1}}
-        with patch('intraday.store.load_bars', return_value=[{'timestamp': '2026-11-06T14:45:00Z', 'close': 100}]), patch('intraday.features.snapshot', return_value=features):
-            state = build_state(self.root, 'TSLL', '2026-11-06T14:46:00Z')
-        self.assertEqual(state['thesis']['direction'], 'flat')
-        self.assertEqual(state['instrument']['research_track'], 'single_name_event')
-        self.assertEqual(state['expressions']['options']['status'], 'no_trade')
 
     def test_observation_cannot_be_forward_eligible_without_liquidity_history(self):
         from run_intraday import paper_observation

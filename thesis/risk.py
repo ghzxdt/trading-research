@@ -19,7 +19,7 @@ LEVELS = (1, 2, 3, 5, 10)
 UNDERLYINGS = (
     ("S&P 500", "SPY", (("SPY", 1), ("UPRO", 3), ("SPXU", -3))),
     ("Nasdaq-100", "QQQ", (("QQQ", 1), ("TQQQ", 3), ("SQQQ", -3))),
-    ("Russell 2000", "IWM", (("IWM", 1), ("TNA", 3))),
+    ("Russell 2000", "IWM", (("IWM", 1),)),  # TNA left with the universe trim of 2026-11-19
 )
 
 

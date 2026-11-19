@@ -9,25 +9,17 @@ import math
 from pathlib import Path
 
 SCHEMA_VERSION = 1
-ACTIVE = ['SPY', 'QQQ', 'IWM', 'TQQQ', 'SQQQ', 'SOXL', 'TNA', 'LABD',
-          'KORU', 'BITX', 'ERY', 'FNGU', 'UPRO', 'SPXL', 'NVDL', 'TSLL']
+# Trimmed on 2026-11-19 (user's trim list): the three index ETFs and their 3x long and inverse versions. KORU, BITX,
+# ERY, FNGU, LABD, NVDL, TSLL, TNA, SOXL and SPXL were dropped; their stored minute bars stay as recorded.
+ACTIVE = ['SPY', 'QQQ', 'IWM', 'TQQQ', 'SQQQ', 'UPRO', 'SPXU']
+TIER_ONE = {'SPY', 'QQQ', 'IWM', 'TQQQ', 'SQQQ'}
 INSTRUMENTS = [
     ('SPY', 'S&P 500', 1, 'ETF', 'SPY', False),
     ('QQQ', 'Nasdaq-100', 1, 'ETF', 'QQQ', False),
     ('IWM', 'Russell 2000', 1, 'ETF', 'IWM', False),
     ('TQQQ', 'Nasdaq-100', 3, 'ETF', 'QQQ', False),
     ('SQQQ', 'Nasdaq-100', -3, 'ETF', 'QQQ', False),
-    ('SOXL', 'Semiconductors', 3, 'ETF', 'SOXL', False),
-    ('TNA', 'Russell 2000', 3, 'ETF', 'IWM', False),
-    ('LABD', 'Biotechnology', -3, 'ETF', 'LABD', False),
-    ('KORU', 'South Korean equities', 3, 'ETF', 'KORU', False),
-    ('BITX', 'Bitcoin-linked futures', 2, 'ETF', 'BITX', False),
-    ('ERY', 'Energy equities', -2, 'ETF', 'ERY', False),
-    ('FNGU', 'FANG+ equities', 3, 'ETN', 'FNGU', False),
     ('UPRO', 'S&P 500', 3, 'ETF', 'SPY', False),
-    ('SPXL', 'S&P 500', 3, 'ETF', 'SPY', False),
-    ('NVDL', 'NVDA', 2, 'ETF', 'NVDL', True),
-    ('TSLL', 'TSLA', 2, 'ETF', 'TSLL', True),
     ('DIA', 'Dow industrials', 1, 'ETF', 'DIA', False),
     ('RSP', 'Equal-weight S&P 500', 1, 'ETF', 'RSP', False),
     ('SPXU', 'S&P 500', -3, 'ETF', 'SPY', False),
@@ -79,8 +71,10 @@ def load_config(root):
         if symbol in symbols:
             raise ValueError('Duplicate instrument in terminal universe')
         symbols.append(symbol)
-        item['research_track'] = 'single_name_event' if item.get('single_name') else 'index_or_sector'
-        item['liquidity_tier'] = 3 if item.get('single_name') else 1 if symbol in ACTIVE[:6] else 2
+        if item.get('single_name'):  # the single-name track and its event study were removed on 2026-11-19
+            raise ValueError(f'{symbol}: single-name instruments are not supported; the index baseline cannot be shared')
+        item['research_track'] = 'index_or_sector'
+        item['liquidity_tier'] = 1 if symbol in TIER_ONE else 2
     for name, value in base['liquidity'].items():
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
             raise ValueError(f'Liquidity threshold {name} must be positive and finite')

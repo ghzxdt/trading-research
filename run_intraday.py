@@ -36,9 +36,7 @@ def research(root, symbol, *, assume_bar_close_availability=False, config=None, 
     root = Path(root)
     if os.environ.get('APP_REPLAY') == '1' or os.environ.get('APP_OFFLINE') == '1':
         raise ValueError('Replay/offline rebuilds cannot publish new research artifacts')
-    item = instrument(root, symbol)
-    if item.get('single_name'):
-        raise ValueError('Single-name leverage requires a separately registered event-driven study; index baseline parameters cannot be shared.')
+    instrument(root, symbol)  # rejects a symbol outside the configured universe
     bars = load_bars(root, symbol, as_of=utc().isoformat())
     if not bars:
         raise ValueError('No intraday bars exist. Collect or import observations first.')
@@ -96,8 +94,7 @@ def paper_observation(root, symbol):
     from intraday.features import snapshot
     from intraday.paper import record_decision
     from liquidity_screen import evaluate
-    if instrument(root, symbol).get('single_name'):
-        raise ValueError('Single-name observations require a separate event-driven study; index journal parameters cannot be shared.')
+    instrument(root, symbol)
     now = utc()
     observed = snapshot(load_bars(root, symbol, as_of=now.isoformat()), now.isoformat())
     gate = evaluate(root, symbol, [now.tz_convert('America/New_York').strftime('%Y-%m-%d')],

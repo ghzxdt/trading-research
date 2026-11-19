@@ -57,122 +57,12 @@
       "metadata_status": "configured; dated issuer verification required before qualification"
     },
     {
-      "symbol": "SOXL",
-      "exposure_group": "Semiconductors",
-      "configured_leverage": 3,
-      "product_type": "ETF",
-      "signal_market": "SOXL",
-      "single_name": false,
-      "active": true,
-      "research_only": false,
-      "metadata_status": "configured; dated issuer verification required before qualification"
-    },
-    {
-      "symbol": "TNA",
-      "exposure_group": "Russell 2000",
-      "configured_leverage": 3,
-      "product_type": "ETF",
-      "signal_market": "IWM",
-      "single_name": false,
-      "active": true,
-      "research_only": false,
-      "metadata_status": "configured; dated issuer verification required before qualification"
-    },
-    {
-      "symbol": "LABD",
-      "exposure_group": "Biotechnology",
-      "configured_leverage": -3,
-      "product_type": "ETF",
-      "signal_market": "LABD",
-      "single_name": false,
-      "active": true,
-      "research_only": false,
-      "metadata_status": "configured; dated issuer verification required before qualification"
-    },
-    {
-      "symbol": "KORU",
-      "exposure_group": "South Korean equities",
-      "configured_leverage": 3,
-      "product_type": "ETF",
-      "signal_market": "KORU",
-      "single_name": false,
-      "active": true,
-      "research_only": false,
-      "metadata_status": "configured; dated issuer verification required before qualification"
-    },
-    {
-      "symbol": "BITX",
-      "exposure_group": "Bitcoin-linked futures",
-      "configured_leverage": 2,
-      "product_type": "ETF",
-      "signal_market": "BITX",
-      "single_name": false,
-      "active": true,
-      "research_only": false,
-      "metadata_status": "configured; dated issuer verification required before qualification"
-    },
-    {
-      "symbol": "ERY",
-      "exposure_group": "Energy equities",
-      "configured_leverage": -2,
-      "product_type": "ETF",
-      "signal_market": "ERY",
-      "single_name": false,
-      "active": true,
-      "research_only": false,
-      "metadata_status": "configured; dated issuer verification required before qualification"
-    },
-    {
-      "symbol": "FNGU",
-      "exposure_group": "FANG+ equities",
-      "configured_leverage": 3,
-      "product_type": "ETN",
-      "signal_market": "FNGU",
-      "single_name": false,
-      "active": true,
-      "research_only": false,
-      "metadata_status": "configured; dated issuer verification required before qualification"
-    },
-    {
       "symbol": "UPRO",
       "exposure_group": "S&P 500",
       "configured_leverage": 3,
       "product_type": "ETF",
       "signal_market": "SPY",
       "single_name": false,
-      "active": true,
-      "research_only": false,
-      "metadata_status": "configured; dated issuer verification required before qualification"
-    },
-    {
-      "symbol": "SPXL",
-      "exposure_group": "S&P 500",
-      "configured_leverage": 3,
-      "product_type": "ETF",
-      "signal_market": "SPY",
-      "single_name": false,
-      "active": true,
-      "research_only": false,
-      "metadata_status": "configured; dated issuer verification required before qualification"
-    },
-    {
-      "symbol": "NVDL",
-      "exposure_group": "NVDA",
-      "configured_leverage": 2,
-      "product_type": "ETF",
-      "signal_market": "NVDL",
-      "single_name": true,
-      "active": true,
-      "research_only": false,
-      "metadata_status": "configured; dated issuer verification required before qualification"
-    },
-    {
-      "symbol": "TSLL",
-      "exposure_group": "TSLA",
-      "configured_leverage": 2,
-      "product_type": "ETF",
-      "signal_market": "TSLL",
-      "single_name": true,
       "active": true,
       "research_only": false,
       "metadata_status": "configured; dated issuer verification required before qualification"
@@ -206,8 +96,8 @@
       "product_type": "ETF",
       "signal_market": "SPY",
       "single_name": false,
-      "active": false,
-      "research_only": true,
+      "active": true,
+      "research_only": false,
       "metadata_status": "configured; dated issuer verification required before qualification"
     }
   ],

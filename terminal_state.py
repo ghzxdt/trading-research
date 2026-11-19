@@ -274,8 +274,6 @@ def build_state(root, symbol='SPY', as_of=None):
                 'limitations': ['Research scenarios are not a demonstrated forward edge.',
                                 'No strategy is approved for personalized sizing.']}
     raw_signal = features.get('signal', {}) if features else {}
-    if item.get('single_name'):
-        raw_signal = {'reason': 'Separate single-name event study unavailable; index baseline signals are suppressed.'}
     side = raw_signal.get('side', 0)
     direction = 'long' if side in (1, 'long') else 'short' if side in (-1, 'short') else 'flat'
     flatten_by = None
@@ -297,8 +295,6 @@ def build_state(root, symbol='SPY', as_of=None):
     if not liquidity.get('research_eligible'):
         reasons.append('The verified 20-session share liquidity screen (the shares baseline\'s gate; options studies '
                        'also need options liquidity) has not qualified this research window.')
-    if item.get('single_name'):
-        reasons.append('Single-name leverage requires a separate event-driven study; the index baseline is blocked.')
     reasons.extend(errors)
     thesis = {'direction': direction, 'direction_basis': 'instrument_price', 'status': 'research_candidate' if direction != 'flat' else 'insufficient_evidence',
               'reason': raw_signal.get('reason') or 'Context available; no qualified intraday setup.',
