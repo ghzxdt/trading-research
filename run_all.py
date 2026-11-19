@@ -1,6 +1,4 @@
-"""Refresh the whole hub: Indexes (run_stage1.py), Tickers (run_tickers.py), then GEX / DIX (run_gex.py).
-
-GEX / DIX is rebuilt from your saved copy; it never downloads anything (use its Update button for that).
+"""Refresh the whole hub: Indexes (run_stage1.py), Tickers (run_tickers.py), then the other tabs.
 
 Usage:
     python run_all.py            # fresh data for both tabs

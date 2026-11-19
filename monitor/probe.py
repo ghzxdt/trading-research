@@ -27,7 +27,10 @@ def main():
         from leverage import build as leverage
     except ImportError:
         leverage=None
-    from gex import data as gd,build as gb
+    try:  # the current app dropped the GEX / DIX tab on 2026-11-19; the frozen original keeps its own copy
+        from gex import data as gd,build as gb
+    except ImportError:
+        gd=gb=None
     sources.RAW=data/'data/raw';sources.EVENTS_FILE=data/'data/events/events.csv'
     # The baseline's calendar semantics are frozen, even when a new calendar has extra metadata.
     raw=sources.fetch_all(offline=True);t,_=dataset.build(raw);long=dataset.build_long(raw)
@@ -38,7 +41,7 @@ def main():
             r=super().test(*args,**kwargs);captured.append(r.copy());return r
     studies.Judge=Capture
     reports,count=studies.run_all(t,long)
-    dix=gd.load_dix(data/'data/manual/DIX.csv')
+    dix=gd.load_dix(data/'data/manual/DIX.csv') if gd else None
     if dix is not None:
         gx=gb.study_history(gd.joined(t,dix),Capture())
         reports.append(gx)

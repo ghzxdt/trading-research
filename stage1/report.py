@@ -14,17 +14,15 @@ TEMPLATE = Path(__file__).with_name("report_template.html")
 # The hub: one tab per part of the app. Each part is its own page, so they never mix.
 TABS = [("thesis", "thesis.html", "Daily thesis"), ("today", "today.html", "Intraday"), ("macro", "macro.html", "Macro"),
         ("indexes", "report.html", "Indexes"), ("tickers", "tickers.html", "Tickers"),
-        ("gex", "gex.html", "GEX / DIX"), ("compare", "monitor.html", "Original vs fixed"),
+        ("compare", "monitor.html", "Original vs fixed"),
         ("backtests", "backtests.html", "4-rule backtests"), ("paper", "paper.html", "4-rule paper log"),
         ("quality", "quality.html", "Data quality"), ("jobs", "jobs.html", "Jobs study")]
 
 
 def hub_nav(active: str) -> str:
     current = ' aria-current="page"'
-    # The GEX / DIX tab carries a Cold/Warm/Hot badge, filled in on page load from output/gex_status.json.
-    badge = '<span class="tab-badge" data-gex-badge hidden></span>'
     links = "".join(
-        f'<a href="{href}"{current if key == active else ""}>{escape(label)}{badge if key == "gex" else ""}</a>' for key, href, label in TABS
+        f'<a href="{href}"{current if key == active else ""}>{escape(label)}</a>' for key, href, label in TABS
     )
     controls = """<div class="card" style="padding:10px 16px;margin-top:8px"><button data-refresh="/api/refresh">Refresh data + validate</button> <button data-refresh="/api/rebuild">Rebuild saved data</button> <button onclick="location.reload()">Reload view</button> <span data-build-status>Local research dashboard</span></div>
 <script>(function(){const label=document.querySelector('[data-build-status]');const buttons=document.querySelectorAll('[data-refresh]');async function status(){try{const r=await fetch('/api/status');if(!r.ok)return;const s=await r.json();label.textContent=s.build?s.build.message:'Ready';buttons.forEach(b=>b.disabled=s.busy);if(s.busy)setTimeout(status,2000);}catch(e){label.textContent='Open through START_APP.cmd to refresh.';}}buttons.forEach(b=>b.addEventListener('click',async()=>{buttons.forEach(x=>x.disabled=true);label.textContent='Starting validated build...';try{const r=await fetch(b.dataset.refresh,{method:'POST',headers:{'X-Hub':'1'}});const s=await r.json();if(!r.ok)throw Error(s.error);status();}catch(e){label.textContent=e.message;buttons.forEach(x=>x.disabled=false);}}));status();})();</script>"""

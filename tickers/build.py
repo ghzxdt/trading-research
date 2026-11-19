@@ -194,7 +194,7 @@ def order_flow(t: pd.DataFrame, tk: str) -> dict:
             "dollar_today": float(v.iloc[-1] * c.iloc[-1])}
 
 
-def ticker_page_studies(tk: str, t: pd.DataFrame, dix: pd.DataFrame | None) -> tuple[list[dict], dict]:
+def ticker_page_studies(tk: str, t: pd.DataFrame) -> tuple[list[dict], dict]:
     k = tk.lower()
     snap = snapshot(t, tk)
     ov = overnight_split(t, tk)
@@ -258,9 +258,6 @@ def ticker_page_studies(tk: str, t: pd.DataFrame, dix: pd.DataFrame | None) -> t
                 "True trade-by-trade flow (who bought vs sold, and the order book) isn't free for these ETFs; it comes with minute data in stage 2."),
     ]
     extra = []
-    if tk == "SPY" and dix is not None and len(dix):
-        extra.append(["Dark-pool DIX (S&P 500, from your GEX/DIX file)", f"{dix['dix'].iloc[-1] * 100:.1f}% on {_day(dix.index[-1])}"])
-        extra.append(["GEX (S&P 500 dealer positioning)", f"${dix['gex'].iloc[-1] / 1e9:,.2f}B ({'below' if dix['gex'].iloc[-1] < 0 else 'above'} zero)"])
     studies.append({
         "id": "flow", "number": 2, "show_tables": True, "title": "Order flow (daily stand-ins)",
         "question": "Free daily signs of buying and selling pressure: volume vs. usual, up-day volume, where it closes in its range, and the accumulation/distribution line.",

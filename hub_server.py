@@ -163,22 +163,14 @@ def make_handler(port:int,downloads:Path|None,token:str|None=None):
                 except Exception:LOCK.release();raise
                 with STATE_LOCK:build=dict(BUILD_STATE)
                 return self._json(202,{'ok':True,'build':build,'note':note})
-            if self.path!='/api/gex/update':return self._json(404,{'ok':False,'error':'Unknown action.'})
-            if build_lock_state(ROOT)['exists'] or not reserve_work():return self._json(409,{'ok':False,'error':'A build/update is already running or the dashboard is stopping.'})
-            try:
-                from gex import importer
-                result=importer.import_latest(downloads)
-                if not result['ok']:return self._json(200,result)
-                run=subprocess.run([sys.executable,'-B',str(ROOT/'run_gex.py')],cwd=ROOT,capture_output=True,text=True,timeout=600,creationflags=hidden_process_flags())
-                if run.returncode!=0:return self._json(200,{'ok':False,'error':'Imported file, but tab rebuild failed: '+(run.stderr or run.stdout)[-400:]})
-                return self._json(200,result)
-            finally:LOCK.release()
+            # The GEX / DIX tab and its Update action were removed on 2026-11-19 (user's trim list).
+            return self._json(404,{'ok':False,'error':'Unknown action.'})
     return Handler
 
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--port',type=int,default=8766)
-    parser.add_argument('--downloads',help='Folder containing the manually downloaded DIX CSV');args=parser.parse_args()
+    parser.add_argument('--downloads',help='Unused since the GEX / DIX tab was removed (2026-11-19)');args=parser.parse_args()
     load_build_state()
     server=ThreadingHTTPServer(('127.0.0.1',args.port),make_handler(args.port,Path(args.downloads) if args.downloads else None))
     print(f'Hub running at http://localhost:{args.port}',flush=True)

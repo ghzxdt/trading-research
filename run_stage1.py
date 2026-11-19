@@ -71,13 +71,6 @@ def main() -> None:
     path = report.build(results, tests_run, table, OUT / "report.html", checks)
     write_component_manifest("indexes", OUT, {"offline": args.offline, "market_through": str(table.index[-1].date()), "tests_run": tests_run, "gates_passed": True})
 
-    try:  # the GEX / DIX tab's Cold/Warm/Hot indicator uses this fresh VIX
-        from gex import data as gex_data
-        g = gex_data.write_status(table, OUT)
-        print(f"  GEX / DIX tab: {g['label']}")
-    except Exception as e:  # never let the optional tab break this one
-        print(f"  (GEX / DIX indicator not updated: {e})")
-
     sm = checks["summary"]
     print()
     print(f"Done. {len(table):,} trading days, {table.index[0]:%Y-%m-%d} to {table.index[-1]:%Y-%m-%d}.")

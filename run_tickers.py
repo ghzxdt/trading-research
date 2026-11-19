@@ -5,8 +5,7 @@ Usage:
     python run_tickers.py --offline  # reuse the last saved headlines
     python run_tickers.py --open     # open the overview when done
 
-Reads the Indexes tab's daily table (run run_stage1.py first) and, if present, your GEX/DIX file. It never
-changes them.
+Reads the Indexes tab's daily table (run run_stage1.py first). It never changes it.
 """
 
 from __future__ import annotations
@@ -31,7 +30,7 @@ def _when(dt) -> str:
     return f"{dt:%b} {dt.day}, {dt:%I:%M %p}".replace(" 0", " ") if dt else "never"
 
 
-def health(t: pd.DataFrame, nw: dict, dix) -> dict:
+def health(t: pd.DataFrame, nw: dict) -> dict:
     items = []
 
     def add(level, name, result, action=""):
@@ -49,7 +48,6 @@ def health(t: pd.DataFrame, nw: dict, dix) -> dict:
     fed = st.get("Federal Reserve press releases", {})
     add("ok" if fed.get("how") in ("downloaded", "offline") else "note", "Fed press releases", f"{len(nw['fed'])} releases, saved {_when(fed.get('saved'))}.",
         "The Federal Reserve's official RSS feed.")
-    add("ok" if dix is not None else "note", "GEX/DIX file", f"Found, through {build._day(dix.index.max())} (shown on the SPY page)." if dix is not None else "Not found (optional).")
     add("note", "Order flow", "Daily stand-ins only (volume, close in range, A/D line).", "Trade-by-trade flow isn't free for these ETFs; minute data comes in stage 2.")
     summary = {lvl: sum(1 for i in items if i["level"] == lvl) for lvl in ("ok", "note", "warn")}
     return {"items": items, "banner": [i["result"] for i in items if i["level"] == "warn"], "summary": summary}
@@ -68,24 +66,19 @@ def main() -> None:
         sys.exit(1)
     t = pd.read_csv(tp, parse_dates=["date"], index_col="date")
     validate_daily_table(t)
-    try:
-        from gex import data as gex_data
-        dix = gex_data.load_dix()
-    except Exception:
-        dix = None
     events = pd.read_csv(ROOT / "data" / "events" / "events.csv", parse_dates=["date"])
 
     tks = [tk for _, group in build.CATEGORIES for tk in group]
     print("Fetching headlines (Yahoo, Federal Reserve)..." if not args.offline else "Loading saved headlines...")
     nw = news.fetch(tks, offline=args.offline)
     cal = news.calendar(events, t.index[-1])
-    checks = health(t, nw, dix)
+    checks = health(t, nw)
 
     snaps = {}
     for tk in tks:
         if f"{tk.lower()}_close" not in t:
             continue
-        studies, snap = build.ticker_page_studies(tk, t, dix)
+        studies, snap = build.ticker_page_studies(tk, t)
         snaps[tk] = snap
         report.build_ticker(tk, studies, nw, cal, checks, snap["date"], OUT)
     path = report.build_overview(snaps, nw, cal, checks, OUT)

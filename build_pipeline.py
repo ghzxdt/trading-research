@@ -20,8 +20,8 @@ import pandas as pd
 
 from validation import ValidationError, input_manifest, now_et, output_dir, validate_daily_table
 
-BUILDERS = ("run_stage1.py", "run_tickers.py", "run_gex.py", "run_monitor.py", "run_today.py", "run_thesis.py")
-COMPONENTS = ("indexes", "tickers", "gex", "today", "thesis")
+BUILDERS = ("run_stage1.py", "run_tickers.py", "run_monitor.py", "run_today.py", "run_thesis.py")
+COMPONENTS = ("indexes", "tickers", "today", "thesis")
 
 
 def _inside(path: Path, parent: Path) -> Path:
@@ -44,7 +44,7 @@ def source_manifest(root: Path) -> dict:
 
 
 def validate_bundle(out: Path, run_id: str) -> None:
-    required = ["index.html", "report.html", "tickers.html", "gex.html", "monitor.html",
+    required = ["index.html", "report.html", "tickers.html", "monitor.html",
                 "backtests.html", "paper.html", "quality.html", "jobs.html", "monitor_status.json",
                 "daily_table.csv", "long_history.csv", "validation_report.json", "today.html", "today_state.json", "thesis.html", "thesis_state.json", "macro.html"]
     required += [f"ticker_{tk}.html" for tk in ("SPY", "QQQ", "IWM", "DIA", "RSP", "TQQQ", "SQQQ", "UPRO", "SPXU")]

@@ -54,7 +54,6 @@ FOOTER = """
 <ul>
 <li>Prices and volume: the Indexes tab's daily table (Yahoo Finance, adjusted for splits and dividends), since 2010.</li>
 <li>Headlines: Yahoo Finance, through the yfinance package (headlines and links only), and the Federal Reserve's official press-release feed. Saved in data/raw/news/.</li>
-<li>Related readings: your GEX/DIX file. Read-only: this tab never changes it.</li>
 </ul>
 <h3>Limits</h3>
 <ul>
