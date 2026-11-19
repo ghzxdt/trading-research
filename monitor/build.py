@@ -9,7 +9,7 @@ from stage1 import report
 from stage1.studies import adjust_pvalues
 from validation import freshness,now_et
 import crosscheck
-from . import backtest,employment,paper
+from . import backtest,paper
 
 
 def fmt(x,d=2):
@@ -176,30 +176,9 @@ def quality_page(root,out,t,registry):
     return bool(fresh['ok'] and vf['ok'] and checks.get('passed') and not errors),rows
 
 
-def jobs_page(root,out,t):
-    data=employment.load(root);ob=data['employment'];cal=data['calendar'];status=data['refresh_status']
-    parsed=ob['parsed'] if ob else {}
-    latest=[['Reference period',parsed.get('reference_period') or 'Not collected'],['Payroll change',parsed.get('payroll_change')],
-            ['Unemployment rate (%)',parsed.get('unemployment_rate')],['Wage month/month (%)',parsed.get('wage_change_mom_pct')],
-            ['Observed at',ob.get('observed_at') if ob else 'Not collected'],['Extraction status',parsed.get('status','Unavailable')],
-            ['First-release vintage',parsed.get('vintage_warning','No vintage has been archived yet')]]
-    events=pd.read_csv(root/'data/events/events.csv')
-    future=events[(events['date']>=str(now_et().date())) & events['event'].isin(['jobs_report','cpi','fed_decision'])].head(15)
-    official={(e['event'],e['date']) for e in cal['parsed']} if cal else set()
-    rows=[[r['date'],r['event'],r.get('time_et',''),('Matches fetched BLS calendar' if (r['event'],r['date']) in official else 'Not independently revalidated' if r['event']!='fed_decision' else 'Fed calendar; not covered by BLS ICS')] for _,r in future.iterrows()]
-    surprises=employment.validated_surprises(data['releases'],data['expectations'])
-    attempts=[[name,'OK' if result.get('ok') else 'Unavailable',result.get('observed_at',result.get('attempted_at','')),result.get('error','Source archived; extraction awaits review')] for name,result in (status or {}).items()]
-    page(out,'jobs.html','jobs','Jobs & macro monitor','Calendar risk plus official-release observations. Missing expectations and revisions are never inferred.',
-         [section('release','Latest observed BLS release','Automatic extraction is displayed for review and is not promoted to a directional signal.',[table('Official page snapshot',['Field','Value'],[[k,'Unavailable' if v is None else str(v)] for k,v in latest]),table('Source retrieval status',['Source','State','Timestamp','Detail'],attempts or [['No online attempt yet','Unavailable','—','Use online refresh or provide timestamped release inputs.']])]),
-          section('calendar','Upcoming releases','All displayed release times are Eastern. Online refresh checks BLS jobs/CPI schedules against the static calendar.',[table('Calendar reconciliation',['Date','Release','ET time','Verification'],rows)]),
-          section('surprises','Timestamped surprises','Consensus must have been available strictly before release availability. No consensus provider or numeric expectation is invented.',[table('Validated imported vintages',['Period','Metric','Actual','Consensus','Surprise'],[[r.get('reference_period'),r.get('metric'),r.get('actual'),r.get('consensus'),r.get('surprise')] for r in surprises] or [['No valid point-in-time inputs yet','—','—','—','—']])])],
-         '<p><a href="https://www.bls.gov/news.release/empsit.htm">Official Employment Situation</a> · <a href="https://www.bls.gov/schedule/news_release/empsit.htm">Official jobs schedule</a></p><p>Online refresh archives the official release and calendar source. Consensus and historical initial/revised releases require timestamped source data; see DATA_INPUTS.md. Weekly claims/JOLTS/ADP are not silently treated as covered.</p>')
-    dump(out/'employment_status.json',{'release_observed':ob.get('observed_at') if ob else None,'calendar_observed':cal.get('observed_at') if cal else None,'refresh':status,'valid_surprises':len(surprises)})
-
-
 def build(root,out,refresh_jobs=False):
     out.mkdir(parents=True,exist_ok=True)
-    if refresh_jobs:employment.refresh(root);crosscheck.refresh(root)
+    if refresh_jobs:crosscheck.refresh(root)  # the Jobs study (employment.refresh) was removed on 2026-11-19
     config=root/'monitor_config.json'
     costs=backtest.validate_costs(json.loads(config.read_text(encoding='utf-8')) if config.exists() else {})
     baseline=json.loads((root/'baseline_manifest.json').read_text(encoding='utf-8'))
@@ -214,7 +193,6 @@ def build(root,out,refresh_jobs=False):
     results=backtests(root,out,t,costs)
     quality_ok,quality=quality_page(root,out,t,registry)
     ps=paper_page(root,out,t,costs,quality_ok)
-    jobs_page(root,out,t)
     dump(out/'monitor_status.json',{'run_id':os.environ.get('APP_RUN_ID','standalone'),'as_of':str(t.index[-1].date()),
          'baseline_verified':True,'structural_and_freshness_ok':quality_ok,'sizing_allowed':False,
          'sizing_block':'Broker liquidation model uncalibrated; strategy expectancy not forward validated',

@@ -220,14 +220,14 @@ class GitBackupTests(unittest.TestCase):
         with (self.root/'data/futures/futures_quotes.csv').open('a',encoding='utf-8') as f:f.write('3,4\n')
         (self.root/'data/kalshi').mkdir(exist_ok=True)  # Kalshi tracking ended 2026-11-19: never committed
         (self.root/'data/kalshi/perp_quotes.csv').write_text('x\n',encoding='utf-8')
-        (self.root/'data/employment').mkdir(exist_ok=True)
-        (self.root/'data/employment/refresh_status.json').write_text('{}',encoding='utf-8')
+        (self.root/'data/macro').mkdir(exist_ok=True)
+        (self.root/'data/macro/inflation_nowcast.csv').write_text('a\n1\n',encoding='utf-8')
 
     def test_commits_only_data_and_leaves_code_changes_alone(self):
         self.refresh_data();(self.root/'app.py').write_text('x = 2\n',encoding='utf-8')
         self.assertEqual(git_backup.sync(self.root,self.said.append,'Evening refresh data, test'),'committed')
         self.assertEqual(sorted(self.git('show','--name-only','--format=','HEAD').split()),
-                         ['data/employment/refresh_status.json','data/futures/futures_quotes.csv','data/monitor/paper_events.jsonl'])
+                         ['data/futures/futures_quotes.csv','data/macro/inflation_nowcast.csv','data/monitor/paper_events.jsonl'])
         self.assertIn('M app.py',self.git('status','--porcelain'))
         self.assertTrue(any('No GitHub remote' in s for s in self.said))
 

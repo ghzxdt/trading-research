@@ -16,7 +16,7 @@ TABS = [("thesis", "thesis.html", "Daily thesis"), ("today", "today.html", "Intr
         ("indexes", "report.html", "Indexes"), ("tickers", "tickers.html", "Tickers"),
         ("compare", "monitor.html", "Original vs fixed"),
         ("backtests", "backtests.html", "4-rule backtests"), ("paper", "paper.html", "4-rule paper log"),
-        ("quality", "quality.html", "Data quality"), ("jobs", "jobs.html", "Jobs study")]
+        ("quality", "quality.html", "Data quality")]
 
 
 def hub_nav(active: str) -> str:

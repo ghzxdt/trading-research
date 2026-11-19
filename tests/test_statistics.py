@@ -6,7 +6,6 @@ import pandas as pd
 from stage1.studies import forward_return,normalized_wealth,adjust_pvalues,Judge,daily_reset_return
 from tickers.build import overnight_split,_ret
 from monitor.backtest import trade_result,validate_costs,simulate,STRATEGIES
-from monitor.employment import validated_surprises,parse_release,parse_calendar
 from monitor import paper
 
 class RegressionTests(unittest.TestCase):
@@ -48,18 +47,6 @@ class RegressionTests(unittest.TestCase):
         t=pd.DataFrame({'spy_open':[100]*3,'spy_close':[100,101,102],'spy_day_type':['normal drop']*3,'vix':[20]*3},index=pd.bdate_range('2026-01-02',periods=3))
         tr,_,stats=simulate(t,STRATEGIES[2],validate_costs({}))
         self.assertEqual(stats['trades'],0)
-
-    def test_consensus_after_release_is_rejected(self):
-        release=[{'metric':'payroll','reference_period':'2026-10','actual':100,'available_at':'2026-11-06T13:30:00Z'}]
-        future=[{'metric':'payroll','reference_period':'2026-10','consensus':90,'available_at':'2026-11-06T13:31:00Z'}]
-        self.assertEqual(validated_surprises(release,future),[])
-        future[0]['available_at']='2026-11-06T13:29:00Z'
-        self.assertEqual(validated_surprises(release,future)[0]['surprise'],10)
-
-    def test_bls_parse_missing_values_stay_missing(self):
-        r=parse_release('<h1>The Employment Situation -- October 2026</h1><p>Total nonfarm payroll employment increased by 100,000. The unemployment rate was 4.2 percent.</p>')
-        self.assertEqual(r['payroll_change'],100000)
-        self.assertIsNone(r['wage_change_mom_pct'])
 
     def test_paper_log_detects_tampering(self):
         with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]/'work') as folder:

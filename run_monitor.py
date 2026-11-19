@@ -1,4 +1,4 @@
-"""Build original-vs-fixed, cost backtests, paper, quality and employment tabs."""
+"""Build original-vs-fixed, cost backtests, paper and quality tabs (the Jobs study was removed 2026-11-19)."""
 import argparse
 from pathlib import Path
 from validation import output_dir
