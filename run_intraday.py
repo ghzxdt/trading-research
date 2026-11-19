@@ -140,7 +140,7 @@ def main(argv=None, root=ROOT):
     root = Path(root)
     try:
         if args.command == 'collect':
-            result = collect(root, active_symbols(root) if args.all else args.symbols, include_options=not args.without_options)
+            result = collect(root, active_symbols(root) if args.all else args.symbols, include_options=False)
         elif args.command == 'import-bars':
             from intraday.store import ingest_bars
             result = ingest_bars(root, records_from(args.path))

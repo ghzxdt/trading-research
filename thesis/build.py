@@ -241,15 +241,10 @@ def build_state(root: Path, now: pd.Timestamp) -> dict:
         hourly = intraday_hourly.build(root, now, fresh)
     except Exception as exc:  # research context only: never blocks the page
         hourly = {"status": "unavailable", "reason": str(exc)[:200], "symbols": []}
-    try:
-        import zero_dte
-        same_day = zero_dte.summary(root, etfs)
-    except Exception as exc:  # research data only: never blocks the page
-        same_day = {"status": "unavailable", "reason": str(exc)[:200], "rows": [], "latest": []}
     return {"schema_version": SCHEMA, "as_of": now.isoformat(), "latest_close": latest,
             "view": view, "stance": call,
             "paper_book": paper_book.build(root, now, etfs, sig, stance_rows),
-            "preclose": preclose.summary(root, etfs, sig), "same_day_options": same_day,
+            "preclose": preclose.summary(root, etfs, sig),
             "news": news.build(root, now, latest), "movers": moved,
             "earnings_calendar": earnings_calendar.build(root, now), "releases": releases.build(root, now),
             "first_release": alfred.build(root, now), "hourly_base_rates": hourly, "macro": macro.build(root, now),

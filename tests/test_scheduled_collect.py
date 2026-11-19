@@ -31,16 +31,16 @@ class ScheduledCollectTests(unittest.TestCase):
                     sleep=slept.append,say=self.said.append,lock_state=lambda r:{'busy':states.pop(0) if states else False},**kw)
         return code,slept
 
-    def test_option_chains_only_while_the_market_is_open_on_trading_days(self):
-        cases={'2026-11-09 15:50':True,'2026-11-09 16:00':False,'2026-11-09 20:10':False,
-               '2026-11-26 15:50':False,'2026-11-07 15:50':False}  # Thanksgiving and a Saturday
-        for when,expected in cases.items():
-            self.assertEqual(sc.wants_options(pd.Timestamp(when,tz=NY)),expected,when)
+    def test_preclose_slot_only_on_trading_days(self):
+        cases={'2026-11-09 15:50':'preclose','2026-11-09 16:00':'bars','2026-11-26 15:50':'bars','2026-11-07 15:50':'bars'}
+        for when,expected in cases.items():  # Thanksgiving and a Saturday
+            self.assertEqual(sc.slot_for(pd.Timestamp(when,tz=NY)),expected,when)
 
-    def test_afternoon_run_collects_bars_and_chains(self):
+    def test_afternoon_run_collects_bars_only(self):
+        # Option chains stopped on 2026-11-19 (user's trim list).
         code,_=self.go('2026-11-09 15:50')
-        self.assertEqual((code,self.calls),(0,[(['SPY','QQQ'],True)]))
-        self.assertIn('option chains for 2 of 2 (20 contracts)',self.said[-1])
+        self.assertEqual((code,self.calls),(0,[(['SPY','QQQ'],False)]))
+        self.assertNotIn('option chains',self.said[-1])
 
     def test_evening_run_collects_bars_only(self):
         code,_=self.go('2026-11-09 20:10')

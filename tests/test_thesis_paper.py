@@ -10,7 +10,6 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import scheduled_collect as sc  # noqa: E402
-import zero_dte  # noqa: E402
 from thesis import calls, news, paper_book, preclose, signals  # noqa: E402
 
 NY = "America/New_York"
@@ -167,56 +166,6 @@ class PreCloseTests(unittest.TestCase):
         self.assertGreater(after["flipped"], 0)
 
 
-def cboe(symbol, session, spot, strikes):
-    code = pd.Timestamp(session).strftime("%y%m%d")
-    options = []
-    for k, (cb, ca, pb, pa) in strikes.items():
-        for right, bid, ask in (("C", cb, ca), ("P", pb, pa)):
-            options.append({"option": f"{symbol}{code}{right}{int(k * 1000):08d}", "bid": bid, "ask": ask, "iv": 0.2,
-                            "volume": 10, "open_interest": 5, "delta": 0.5})
-    options.append({"option": f"B1{symbol}{code}C{int(spot * 1000):08d}", "bid": 9, "ask": 9, "iv": 0})
-    options.append({"option": f"{symbol}261231C{int(spot * 1000):08d}", "bid": 9, "ask": 10, "iv": 0})
-    return {"timestamp": "2026-11-13 09:45:00", "data": {"current_price": spot, "options": options}}
-
-
-class ZeroDteTests(unittest.TestCase):
-    def test_parse_keeps_todays_contracts_near_the_money_and_prices_the_straddle(self):
-        payload = cboe("SPY", "2026-11-13", 757.2, {757.0: (2.0, 2.1, 1.8, 1.9), 758.0: (1.5, 1.6, 2.3, 2.4), 900.0: (0.0, 0.01, 140, 145)})
-        got = zero_dte.parse(payload, "SPY", "2026-11-13")
-        self.assertEqual(len(got["rows"]), 4)  # two strikes, both sides; far strike, other expiry and B1 series dropped
-        s = got["straddle"]
-        self.assertEqual(s["strike"], 757.0)
-        self.assertAlmostEqual(s["mid"], 3.9)
-        self.assertAlmostEqual(s["implied_move"], 3.9 / 757.2)
-        self.assertAlmostEqual(s["spread_share"], 0.2 / 3.9)
-        self.assertIsNone(zero_dte.parse(payload, "SPY", "2026-11-16"))
-
-    def test_snapshot_saves_only_in_the_session_and_summary_settles_at_the_close(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            get = lambda url: cboe("SPY", "2026-11-13", 757.0, {757.0: (2.0, 2.2, 1.8, 2.0)})  # noqa: E731
-            self.assertEqual(zero_dte.snapshot(root, pd.Timestamp("2026-11-13 08:00", tz=NY), ("SPY",), get)["saved"], 0)
-            self.assertEqual(zero_dte.snapshot(root, pd.Timestamp("2026-11-14 10:00", tz=NY), ("SPY",), get)["saved"], 0)
-            self.assertEqual(zero_dte.snapshot(root, pd.Timestamp("2026-11-13 10:00", tz=NY), ("SPY",), get)["saved"], 1)
-            self.assertEqual(zero_dte.snapshot(root, pd.Timestamp("2026-11-13 12:30", tz=NY), ("SPY",), get)["saved"], 1)
-            self.assertEqual(len((root / zero_dte.FOLDER / "chains" / "2026-11-13.jsonl").read_text().splitlines()), 2)
-            waiting = zero_dte.summary(root, {})
-            self.assertEqual((waiting["status"], waiting["days"], waiting["rows"][0]["days_settled"]), ("ok", 1, 0))
-            adjusted = pd.DataFrame({"close": [761.0]}, index=[pd.Timestamp("2026-11-13")])  # dividend-adjusted: ignored
-            self.assertEqual(zero_dte.summary(root, {"SPY": adjusted})["rows"][0]["days_waiting_for_raw_close"], 1)
-            fetch = lambda symbols: pd.DataFrame([{"session": "2026-11-13", "symbol": "SPY", "close": 763.0},  # noqa: E731
-                                                  {"session": "2026-11-16", "symbol": "SPY", "close": 770.0}])
-            got = zero_dte.update_raw_closes(root, pd.Timestamp("2026-11-16 15:00", tz=NY), fetch, ("SPY",))
-            self.assertIn("1 new raw closes (through 2026-11-13)", got)  # the 16th isn't final at 3 PM
-            self.assertIn("0 new", zero_dte.update_raw_closes(root, pd.Timestamp("2026-11-16 15:00", tz=NY), fetch, ("SPY",)))
-            row = zero_dte.summary(root, {"SPY": adjusted})["rows"][0]
-            self.assertEqual((row["days_collected"], row["days_settled"]), (1, 1))
-            self.assertAlmostEqual(row["mean_realised"], 6 / 757)
-            self.assertAlmostEqual(row["straddle_mean_at_mid"], 6 / 4.0 - 1)   # worth $6 at the close, cost $4.00 at mid
-            self.assertAlmostEqual(row["straddle_mean_at_ask"], 6 / 4.2 - 1)   # and $4.20 at the ask
-            self.assertEqual(zero_dte.summary(Path(tmp) / "none", {})["status"], "empty")
-
-
 class NewsAndSlotTests(unittest.TestCase):
     def test_headlines_since_the_close_newest_first_with_late_arrivals_marked(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -249,29 +198,27 @@ class NewsAndSlotTests(unittest.TestCase):
 
     def test_collection_slots(self):
         cases = {"2026-11-13 09:40": "bars", "2026-11-13 10:00": "open", "2026-11-13 10:30": "sample", "2026-11-13 14:30": "sample",
-                 "2026-11-13 15:50": "options", "2026-11-13 20:10": "bars", "2026-11-14 10:00": "bars",
+                 "2026-11-13 15:50": "preclose", "2026-11-13 20:10": "bars", "2026-11-14 10:00": "bars",
                  # 2026-11-27 closes at 1 PM: the 12:30 PM ET run is the pre-close run, the 2:30 PM ET run collects bars
-                 "2026-11-27 12:10": "sample", "2026-11-27 12:31": "options", "2026-11-27 13:00": "bars",
+                 "2026-11-27 12:10": "sample", "2026-11-27 12:31": "preclose", "2026-11-27 13:00": "bars",
                  "2026-11-27 14:30": "bars"}
         for when, slot in cases.items():
             self.assertEqual(sc.slot_for(pd.Timestamp(when, tz=NY)), slot, when)
 
-    def test_open_slot_takes_the_option_snapshot_only_and_the_close_slot_checks_first(self):
+    def test_open_slot_does_nothing_and_the_close_slot_checks_first(self):
         order = []
-        kw = dict(collect=lambda root, symbols, include_options: order.append("collect") or {"results": [{"symbol": "SPY", "bar_status": "collected", "options_status": "indicative_only"}]},
+        kw = dict(collect=lambda root, symbols, include_options: order.append("collect") or {"results": [{"symbol": "SPY", "bar_status": "collected"}]},
                   symbols=["SPY"], sleep=lambda s: None, say=lambda m: None, lock_state=lambda r: {"busy": False},
-                  zero=lambda root, when: order.append("zero") or "saved", preclose=lambda root, when: order.append("preclose") or "recorded",
+                  preclose=lambda root, when: order.append("preclose") or "recorded",
                   sample=lambda root, symbols, when: order.append("sample") or {"sampled": 1})
         with tempfile.TemporaryDirectory() as tmp:
             sc.run(Path(tmp), now=lambda: pd.Timestamp("2026-11-13 10:00", tz=NY), **kw)
-            self.assertEqual(order, ["zero"])
-            order.clear()
+            self.assertEqual(order, [])  # it took the same-day option snapshot until 2026-11-19
             sc.run(Path(tmp), now=lambda: pd.Timestamp("2026-11-13 12:30", tz=NY), **kw)
-            self.assertEqual(order, ["sample", "zero"])
+            self.assertEqual(order, ["sample"])
             order.clear()
             sc.run(Path(tmp), now=lambda: pd.Timestamp("2026-11-13 15:50", tz=NY), **kw)
-            self.assertEqual(order[:3], ["preclose", "zero", "collect"])
-
+            self.assertEqual(order, ["preclose", "collect", "sample"])
 
 if __name__ == "__main__":
     unittest.main()

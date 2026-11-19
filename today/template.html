@@ -17,7 +17,7 @@
 <body>
 <a class="skip" href="#workspace">Skip to workspace</a>
 <div class="wrap">
-<header class="top"><div><div class="eyebrow">Trading research / decision support</div><h1>Intraday</h1><p class="subtitle">One market view. The evidence behind it. A clear reason to wait.</p></div><div class="top-actions"><span class="tag neutral" id="source-mode">Saved snapshot</span><button id="reload-state" type="button">Reload view</button><button id="collect-data" class="primary" type="button">Collect intraday</button><label class="collection-options"><input id="collect-options" type="checkbox"> Include options snapshot</label></div></header>
+<header class="top"><div><div class="eyebrow">Trading research / decision support</div><h1>Intraday</h1><p class="subtitle">One market view. The evidence behind it. A clear reason to wait.</p></div><div class="top-actions"><span class="tag neutral" id="source-mode">Saved snapshot</span><button id="reload-state" type="button">Reload view</button><button id="collect-data" class="primary" type="button">Collect intraday</button></div></header>
 {{HUB_NAV}}
 <nav id="watchlist" class="watchlist" aria-label="Ticker watchlist"></nav>
 <div id="connection" class="connection" role="status" aria-live="polite">Opening saved {{SYMBOL}} snapshot. As of {{AS_OF}}.</div>
@@ -220,7 +220,7 @@ async function submitAction(route,payload,statusNode){
 }
 async function collect(){
   const target=symbol,status=$('connection');mutationBusy(true);status.className='connection';status.textContent='Collecting '+target+' observations. The view will update after collection finishes.';
-  try{const result=await submitAction('/api/v1/intraday/collect',{symbol:target,options:$('collect-options').checked},status);status.className=result.ok===false?'connection error':'connection';status.textContent=operationMessage(result,'Collection finished. The latest received observations are displayed.');}
+  try{const result=await submitAction('/api/v1/intraday/collect',{symbol:target},status);status.className=result.ok===false?'connection error':'connection';status.textContent=operationMessage(result,'Collection finished. The latest received observations are displayed.');}
   catch(e){status.className='connection error';status.textContent=e.message||'Collection unavailable. Saved observations remain available.';}
   finally{mutationBusy(false);}
 }

@@ -1,17 +1,20 @@
 """Weekday intraday collection, run by the Windows scheduled task "Trading Research Intraday Collection".
 
 Yahoo serves only the last few days of one-minute bars, so any day nobody collects is lost for good.
-This runs the app's own collector (intraday_collect.collect) for every active Today instrument:
+This runs the app's own collector (intraday_collect.collect) for every active instrument:
 
-- 10:30 AM, 12:30 and 2:30 PM ET ("sample" runs): a liquidity snapshot only, i.e. share and near-the-money
-  option bid/ask spreads (liquidity_free.sample).
-- 3:50 PM ET ("options" run): minute bars plus each instrument's current option chains, while the
-  market is open and Yahoo's option bid/ask are live (chains are indicative, not executable), plus the
-  day's fourth liquidity snapshot.
-- 8:10 PM ET ("bars" run): minute bars only, after the extended session ends, so each day's archive
-  is complete. A late start (computer was off) also runs bars only; the five-day archive forgives it.
-  This run then fetches OCC options volume and writes finished days to the snapshot liquidity journal
-  (liquidity_free.update), and backs up the collected data to backups/data (data_backup.py).
+- 10:30 AM, 12:30 and 2:30 PM ET ("sample" runs): a share-liquidity snapshot only (bid/ask spread of the
+  shares, liquidity_free.sample); the intraday shares gate (review C13) is built from these.
+- In the 30 minutes before the close ("preclose" run, 3:50 PM ET or 12:30 PM on an early close): the pre-close
+  check, then minute bars and the day's fourth share-liquidity snapshot.
+- 8:10 PM ET ("bars" run): minute bars only, after the extended session ends, so each day's archive is complete.
+  A late start (computer was off) also runs bars only; the five-day archive forgives it. This run then refreshes
+  Yahoo's hourly bars, writes finished days to the snapshot liquidity journal (liquidity_free.update), and backs
+  up the collected data to backups/data (data_backup.py).
+- The 10:00 AM ET run does nothing any more: it took the same-day option snapshot.
+
+Options data is no longer collected (user's trim list, 2026-11-19): no same-day option snapshots, option chains,
+OCC options volume or option spreads; what had been collected is in archive/options-2026-11-19/.
 
 It waits for a running build (an offline rebuild refuses to publish if data/ changes underneath it)
 and for a collection started from the Today page. It never records paper decisions or trades.
@@ -46,8 +49,8 @@ def log(message: str) -> None:
 
 
 def slot_for(now: pd.Timestamp) -> str:
-    """'open' 9:50-10:10 AM ET (same-day option snapshot only), 'sample' from 10:10 AM to 30 minutes before the
-    close, 'options' in the last 30 minutes before the close (trading days only), otherwise 'bars'. The close is
+    """'open' 9:50-10:10 AM ET (nothing since 2026-11-19), 'sample' from 10:10 AM to 30 minutes before the
+    close, 'preclose' in the last 30 minutes before the close (trading days only), otherwise 'bars'. The close is
     the exchange calendar's (since 2026-11-18): on a 1 PM early close the 12:30 PM ET run is the pre-close run
     and the later daytime runs collect bars only."""
     from intraday.calendar import close_minutes
@@ -61,13 +64,8 @@ def slot_for(now: pd.Timestamp) -> str:
         if 10 * 60 + 10 <= minutes < close - 30:
             return "sample"
         if close - 30 <= minutes < close:
-            return "options"
+            return "preclose"
     return "bars"
-
-
-def wants_options(now: pd.Timestamp) -> bool:
-    """Option chains only on a trading day between 3:30 and 4:00 PM ET, when quotes are live."""
-    return slot_for(now) == "options"
 
 
 def collection_running(root: Path, now: pd.Timestamp) -> bool:
@@ -125,8 +123,7 @@ def _extra(label: str, step, say) -> int:
 
 def run(root: Path = ROOT, *, now=lambda: pd.Timestamp.now(tz=NY), collect=None, symbols=None,
         sleep=time.sleep, say=log, lock_state=build_lock_state, wait_limit: int = 900,
-        backup=None, sample=None, liquidity=None, zero=None, preclose=None, indexes=None, hourly=None,
-        raw=None) -> int:
+        backup=None, sample=None, liquidity=None, preclose=None, hourly=None) -> int:
     if collect is None:
         from intraday_collect import collect
     if symbols is None:
@@ -140,26 +137,21 @@ def run(root: Path = ROOT, *, now=lambda: pd.Timestamp.now(tz=NY), collect=None,
         sleep(15)
         waited += 15
     slot = slot_for(now())
-    if slot in ("open", "sample"):
-        code = _sample(sample, root, symbols, now(), say) if sample and slot == "sample" else 0
-        return max(code, _extra("Same-day options", lambda: zero(root, now()), say)) if zero else code
-    options = slot == "options"
-    if options and preclose:  # first: a market-on-close decision has to be made by about 3:50 PM ET
+    if slot == "open":
+        say("10:00 AM ET run: nothing to collect since options snapshots stopped (2026-11-19).")
+        return 0
+    if slot == "sample":
+        return _sample(sample, root, symbols, now(), say) if sample else 0
+    preclose_run = slot == "preclose"
+    if preclose_run and preclose:  # first: a market-on-close decision has to be made by about 3:50 PM ET
         _extra("Pre-close check", lambda: preclose(root, now()), say)
-    if options and zero:
-        _extra("Same-day options", lambda: zero(root, now()), say)
-    say(f"Collecting {'minute bars and option chains' if options else 'minute bars'} for {len(symbols)} instruments"
-        + (f" (waited {waited}s)." if waited else "."))
-    status = collect(root, symbols, include_options=options)
+    say(f"Collecting minute bars for {len(symbols)} instruments" + (f" (waited {waited}s)." if waited else "."))
+    status = collect(root, symbols, include_options=False)
     code, text = summarize(status)
     say(text)
-    if options and sample:
+    if preclose_run and sample:
         code = max(code, _sample(sample, root, symbols, now(), say))
     if slot == "bars":  # after the close: liquidity records, then back everything up off this computer
-        if indexes:
-            _extra("One-day and nine-day VIX", lambda: indexes(root), say)
-        if raw:  # what the day's same-day options settle on (zero_dte.update_raw_closes)
-            _extra("Raw closes for same-day options", lambda: raw(root), say)
         if hourly:
             _extra("Hourly bars", lambda: hourly(root), say)
         for label, step in (("Liquidity update", liquidity), ("Data backup", backup)):
@@ -179,14 +171,12 @@ def main(argv=None) -> int:
         import data_backup
         import liquidity_free
         import intraday_hourly
-        import zero_dte
         import unattended
         from thesis import preclose
         with unattended.keep_awake():  # a timer-woken laptop would otherwise go back to sleep mid-run
             unattended.wait_for_network(log)
             return run(ROOT, backup=lambda root, say: data_backup.run(root, say),
-                       zero=zero_dte.snapshot, indexes=zero_dte.update_indexes, hourly=intraday_hourly.refresh,
-                       raw=zero_dte.update_raw_closes,
+                       hourly=intraday_hourly.refresh,
                        preclose=lambda root, when: preclose.record(root, when, liquidity_free.yahoo_quote),
                        sample=lambda root, symbols, when: liquidity_free.sample(root, symbols, when),
                        liquidity=lambda root, symbols, say: liquidity_free.update(root, symbols, pd.Timestamp.now(tz=NY), say=say))

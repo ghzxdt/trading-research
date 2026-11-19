@@ -39,7 +39,7 @@ Register-AppTask 'Trading Research Evening Refresh' 'scheduled_refresh.py' '' @(
 Register-AppTask 'Trading Research Market Snapshots' 'market_snapshot.py' '--scheduled' @('08:00','15:05') 2 `
     'S&P/Nasdaq futures, the inflation nowcast and headlines (Kalshi collection ended 2026-11-19). Log: work\market_snapshot.log'
 Register-AppTask 'Trading Research Intraday Collection' 'scheduled_collect.py' '' @('09:00','09:30','11:30','13:30','14:50','19:10') 4 `
-    'Same-day option snapshots, liquidity samples, pre-close check, minute bars, option chains, OCC volume, data backup. Log: work\intraday_collect.log'
+    'Share-liquidity samples, pre-close check, minute bars, hourly bars, data backup (no options data since 2026-11-19). Log: work\intraday_collect.log'
 # Live minute bars (2026-11-18, user: "poll yahoo"): 9:28 AM ET to just after the close, every minute, holding the
 # laptop awake. The tickers are collection.live_minute_symbols in terminal_config.json.
 Register-AppTask 'Trading Research Live Minute Bars' 'live_minute.py' '' @('08:28') 9 `

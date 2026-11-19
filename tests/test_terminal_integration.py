@@ -130,17 +130,15 @@ class TerminalTests(unittest.TestCase):
         result = collector.indicative_chain(self.root, 'SPY', '2026-11-07T15:00:00Z')
         self.assertEqual(result['contracts'][0]['id'], 'old')
 
-    def test_collector_empty_chain_retains_prior_snapshot(self):
-        folder = self.root / 'data' / 'terminal' / 'free_options' / 'SPY'
-        folder.mkdir(parents=True)
-        original = json.dumps({'collected_at': '2026-11-06T15:00:00Z', 'contracts': [{'id': 'retained'}]})
-        (folder / 'latest.json').write_text(original)
+    def test_collector_no_longer_collects_option_chains(self):
+        # Options collection stopped on 2026-11-19 (user's trim list): a chain source is never called.
         frame = pd.DataFrame({'Open': [100], 'High': [102], 'Low': [99], 'Close': [101], 'Volume': [10]},
                              index=pd.DatetimeIndex(['2026-11-06T14:30:00Z']))
-        result = collector.collect(self.root, ['SPY'], bars_for=lambda s: frame, chain_for=lambda s: [],
+        result = collector.collect(self.root, ['SPY'], include_options=True, bars_for=lambda s: frame,
+                                   chain_for=lambda s: self.fail('option chain requested'),
                                    news_for=lambda root, symbols: [], now='2026-11-07T12:00:00Z')
-        self.assertEqual(result['results'][0]['options_status'], 'failed')
-        self.assertEqual((folder / 'latest.json').read_text(), original)
+        self.assertNotIn('options_status', result['results'][0])
+        self.assertFalse((self.root / 'data' / 'terminal' / 'free_options').exists())
 
     def test_candidate_is_suppressed_at_flatten_deadline_including_early_close(self):
         for close in ('2026-11-06T21:00:00Z', '2026-11-27T18:00:00Z'):

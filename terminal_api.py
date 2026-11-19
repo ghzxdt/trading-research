@@ -29,9 +29,8 @@ def handle_get(root, route, query):
             from thesis import calls, data
             return 200, calls.summary(root, data.etfs(root, pd.Timestamp.now(tz='America/New_York')))
         if route == '/api/v1/thesis/live':
-            # Parts of the Daily thesis that change between builds: the 3:50 PM check, the paper book, 0DTE data.
+            # Parts of the Daily thesis that change between builds: the 3:50 PM check and the paper book.
             import pandas as pd
-            import zero_dte
             from thesis import calls, data, paper_book, preclose, signals, stance_log
             now = pd.Timestamp.now(tz='America/New_York')
             etfs = data.etfs(root, now)
@@ -39,7 +38,7 @@ def handle_get(root, route, query):
             sig = signals.build(etfs, payload)['signals']
             # The export on disk now, so the page can say when it embeds an older one (review A5, 2026-11-18).
             export = {k: info.get(k) for k in ('status', 'reason', 'sha256', 'generated_at', 'report', 'verdict_version')}
-            return 200, {'preclose': preclose.summary(root, etfs, sig), 'same_day_options': zero_dte.summary(root, etfs),
+            return 200, {'preclose': preclose.summary(root, etfs, sig),
                          'paper_book': paper_book.build(root, now, etfs, sig, calls.read(root, stance_log.LOG)),
                          'export': export}
         if route == '/api/v1/thesis/journal':
@@ -83,7 +82,7 @@ def start_action(root, route, payload, update_state, on_finished):
     def work():
         try:
             if action == 'collect':
-                result = collect(root, [s.upper() for s in symbols], include_options=payload.get('options', True))
+                result = collect(root, [s.upper() for s in symbols], include_options=False)  # options collection stopped 2026-11-19
                 message = 'Collection finished. Today shows received data and provider limitations.'
                 ok = bool(result.get('ok'))
             elif action == 'research':

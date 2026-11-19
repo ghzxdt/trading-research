@@ -52,7 +52,6 @@ form.callform{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px
 <details class="card fold" aria-labelledby="overnight-title"><summary><h2 id="overnight-title">Overnight and inflation</h2></summary><div id="futures"></div><h3>Cleveland Fed CPI nowcast</h3><div id="nowcast"></div></details>
 <details class="card fold" aria-labelledby="ecal-title"><summary><h2 id="ecal-title">Earnings calendar: next two weeks</h2></summary><div id="ecal"></div></details>
 <details class="card fold" aria-labelledby="hourly-title"><summary><h2 id="hourly-title">Intraday base rates (hourly bars)</h2></summary><p class="small muted">How sessions have played out by the size of the opening gap. History, not a signal.</p><div id="hourly"></div></details>
-<details class="card fold" aria-labelledby="zero-title"><summary><h2 id="zero-title">Same-day options (0DTE) research</h2></summary><p class="small muted">Data collection only: what today's options priced in, against what the ETF then did. Not a signal.</p><div id="zero"></div></details>
 </aside>
 </main>
 <section class="card" style="margin-top:16px" aria-labelledby="calls-title"><h2 id="calls-title">Your calls</h2><p class="small muted">Record the call you're making. It's added to an append-only, hash-chained log (separate from the 4-rule paper log and the page's own stance log) and scored automatically against simply holding the same ETF.</p>
@@ -176,9 +175,6 @@ function preclose(){const p=obj(state.preclose),box=$('preclose');box.replaceChi
  box.append(el('p','small muted',(p.compared?'So far '+p.held+' of '+p.compared+' rule checks matched the real close ('+p.flipped+' flipped). ':'')+'Sessions checked: '+p.count+'.'));
  if(list(p.trades).length){box.append(el('h3','','Pre-close paper trades, bought at that day’s close'));table(box,['Signal close','ETF','Rule · exit','Status','Entry','Exit','Result (net)','Backtest: mean per trade'],bookRows(p.trades));}
  if(p.note)box.append(el('p','small muted',p.note));}
-function sameDay(){const z=obj(state.same_day_options),box=$('zero');box.replaceChildren();if(z.status!=='ok'){box.append(el('p','muted small',z.reason||'Unavailable.'));return;}
- box.append(el('h3','','Latest snapshot ('+z.latest_session+')'));table(box,['ETF','Taken (ET)','Price','Straddle','Implied move','Spread / premium'],list(z.latest).map(r=>[r.symbol,String(r.snapshot_et).slice(11,16),usd(r.spot),usd(r.straddle_mid)+' at '+fmt(r.strike,0),pm(r.implied_move,2),share(r.spread_share,1)]),true);
- box.append(el('h3','','Implied against realised, '+z.days+' day(s) collected'));table(box,['ETF','Days settled','Implied','Realised','Realised above implied','Straddle at mid · at ask'],list(z.rows).map(r=>[r.symbol,r.days_settled+' of '+r.days_collected,pm(r.mean_implied,2),pm(r.mean_realised,2),share(r.realised_above_implied),pct(r.straddle_mean_at_mid,0)+' · '+pct(r.straddle_mean_at_ask,0)]),true);if(z.note)box.append(el('p','small muted',z.note));}
 function newsCard(){const n=obj(state.news),box=$('news');box.replaceChildren();if(n.status!=='ok'){box.append(el('p','muted small',n.reason||'Unavailable.'));return;}
  if(!list(n.rows).length)box.append(el('p','muted small','No new headline since '+n.since+' ET.'));else{const ul=el('ul');ul.style.cssText='margin:6px 0 0;padding-left:18px';n.rows.forEach(r=>{const li=el('li');li.style.marginBottom='7px';li.append(el('div','',r.title),el('div','small muted',[r.publisher,r.symbol&&r.symbol!=='*'?r.symbol:null,'first seen '+r.first_seen_et+' ET',ok(r.late_hours)?'published '+r.published_et+' ('+fmt(r.late_hours,0)+' h earlier)':null].filter(ok).join(' · ')));ul.append(li);});box.append(ul);}
  box.append(el('p','small muted','Showing '+list(n.rows).length+' of '+(n.count||0)+'. Last collected '+(n.last_collected_et||'never')+' ET. '+(n.note||'')));}
@@ -196,7 +192,7 @@ function hourlyCard(){const h=obj(state.hourly_base_rates),box=$('hourly');box.r
   const t=table(box,['Opening gap','Sessions','Gap filled','First hour: share of day\'s range','After 10:30, kept going the first hour\'s way','Broke the first-hour high: closed above it','Broke the first-hour low: closed below it','Mean day move'],list(s.rows).map(r=>[r.bucket,r.sessions,r.filled===null?'n/a':iv(r.filled),ok(r.first_hour_share)?share(r.first_hour_share):'—',iv(r.first_hour_holds),iv(r.broke_high_closed_above),iv(r.broke_low_closed_below),pct(r.mean_day_move,2)]));
   if(s.futures_bucket)[...t.querySelectorAll('tbody tr')].forEach(tr=>{if(tr.firstChild.textContent===s.futures_bucket)tr.style.background='#1c2a3a';});});
  box.append(el('p','small muted',h.note||''));}
-async function reloadLive(){const r=await fetch('/api/v1/thesis/live',{cache:'no-store'});if(!r.ok)throw new Error('The local service returned '+r.status);const out=await r.json();state.preclose=out.preclose;state.same_day_options=out.same_day_options;state.paper_book=out.paper_book;paper();preclose();sameDay();exportFreshness(out.export);}
+async function reloadLive(){const r=await fetch('/api/v1/thesis/live',{cache:'no-store'});if(!r.ok)throw new Error('The local service returned '+r.status);const out=await r.json();state.preclose=out.preclose;state.paper_book=out.paper_book;paper();preclose();exportFreshness(out.export);}
 function journal(){const j=obj(state.journal),l=$('note-list');l.replaceChildren();const sel=$('note-instrument');if(sel.options.length<2)list(j.instruments).forEach(i=>sel.append(new Option(i,i)));
  if(j.status==='broken'){l.append(el('p','notice warn',j.reason));$('note-save').disabled=true;return;}
  if(!list(j.notes).length){l.append(el('p','muted small','No notes yet.'));return;}
@@ -222,7 +218,7 @@ post('noteform','/api/v1/thesis/note','note-status','note-save',o=>'Saved note #
 post('ideaform','/api/v1/thesis/idea','idea-status','idea-save',o=>'Added idea #'+o.idea.idea+'.');
 post('ideaupdate','/api/v1/thesis/idea/update','idea-status','idea-update',o=>'Updated idea #'+o.idea.idea+'.');
 function foot(){const s=obj(state.sources);$('foot').textContent='Built '+(state.as_of||'')+' ET. Sources: '+Object.values(s).join(' · ')+'. Read-only: this page never places orders. Missing inputs stay unavailable.';}
-view();call();paper();preclose();sameDay();newsCard();moversCard();hourlyCard();ecal();signals();ops();regime();overnight();nextOpen();events();risk();calls();stanceLog();journal();ideas();foot();
+view();call();paper();preclose();newsCard();moversCard();hourlyCard();ecal();signals();ops();regime();overnight();nextOpen();events();risk();calls();stanceLog();journal();ideas();foot();
 if(location.protocol==='file:'){['record','note-save','idea-save','idea-update'].forEach(id=>$(id).disabled=true);$('call-status').textContent='Open through the dashboard (Trading Research Control Panel) to record calls, notes and ideas.';}else{reloadCalls().catch(()=>{});reloadJournal().catch(()=>{});reloadLive().catch(()=>{});}
 })();
 </script>

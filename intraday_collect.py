@@ -1,7 +1,6 @@
 """Explicit free-feed collection. Archive retrieval is never forward execution evidence."""
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import threading
@@ -73,29 +72,6 @@ def _number(value):
         return None
 
 
-def yahoo_chain(symbol, limit_expiries=3):
-    """Indicative current chain only: Yahoo does not supply verified quote/OI publication times."""
-    import yfinance as yf
-    ticker = yf.Ticker(symbol)
-    observed = []
-    for expiry in list(ticker.options)[:limit_expiries]:
-        chain = ticker.option_chain(expiry)
-        for right, frame in (('call', chain.calls), ('put', chain.puts)):
-            if frame is None:
-                continue
-            for _, row in frame.iterrows():
-                trade_at = row.get('lastTradeDate')
-                observed.append({'contract_id': str(row.get('contractSymbol') or ''), 'symbol': symbol,
-                                 'expiry': expiry, 'right': right, 'strike': _number(row.get('strike')),
-                                 'indicated_bid': _number(row.get('bid')), 'indicated_ask': _number(row.get('ask')),
-                                 'volume': _number(row.get('volume')), 'open_interest': _number(row.get('openInterest')),
-                                 'iv': _number(row.get('impliedVolatility')),
-                                 'last_trade_at': str(trade_at) if pd.notna(trade_at) else None,
-                                 'quote_time': None, 'open_interest_as_of': None,
-                                 'execution_eligible': False})
-    return observed
-
-
 def refresh_headlines(root, symbols):
     """Reuse the existing headline adapters, but keep last-good caches on failure."""
     from tickers.news import _yahoo, _fed
@@ -115,8 +91,11 @@ def refresh_headlines(root, symbols):
     return results
 
 
-def collect(root, symbols=None, *, include_options=True, bars_for=None, chain_for=None, news_for=None, now=None):
-    """Manual/background collector with failure retention; never places orders or writes paper outcomes."""
+def collect(root, symbols=None, *, include_options=False, bars_for=None, chain_for=None, news_for=None, now=None):
+    """Manual/background collector with failure retention; never places orders or writes paper outcomes.
+
+    Minute bars and headlines only: option chains are no longer collected (user's trim list, 2026-11-19), so
+    include_options and chain_for are accepted for older callers and ignored."""
     from intraday.store import ingest_bars
     from news_history import archive_current
     if os.environ.get('APP_REPLAY') == '1' or os.environ.get('APP_OFFLINE') == '1':
@@ -151,27 +130,6 @@ def collect(root, symbols=None, *, include_options=True, bars_for=None, chain_fo
                     item['bars_skipped_off_minute'] = skipped[:5] + ([f'and {len(skipped) - 5} more'] if len(skipped) > 5 else [])
             except Exception as exc:
                 item.update(bar_status='failed', bar_error=str(exc)[:500])
-            if include_options:
-                try:
-                    chain = (chain_for or yahoo_chain)(symbol)
-                    if not chain:
-                        raise ValueError('No current option contracts returned; prior observations retained with their original age')
-                    receipt = utc(now) if now is not None else utc()
-                    payload = {'schema_version': 1, 'symbol': symbol, 'collected_at': receipt.isoformat(),
-                               'source': 'Yahoo current chain / indicative', 'contracts': chain,
-                               'quote_timestamp_verified': False, 'oi_date_verified': False,
-                               'execution_eligible': False,
-                               'limitations': ['Current chain only; no historical chain is reconstructed.',
-                                               'Quote times and open-interest dates are not verified.',
-                                               'Indicated prices cannot qualify executable options P&L.']}
-                    # Keep every observation, then atomically update a convenience snapshot.
-                    archive = root / 'data' / 'terminal' / 'free_options' / symbol
-                    digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:16]
-                    write_json(archive / (receipt.strftime('%Y%m%dT%H%M%S') + '-' + digest + '.json'), payload)
-                    write_json(archive / 'latest.json', payload)
-                    item.update(options_status='indicative_only', option_contracts=len(chain))
-                except Exception as exc:
-                    item.update(options_status='failed', options_error=str(exc)[:500])
             status['results'].append(item)
             write_json(status_path, status)
         status['headline_refresh'] = (news_for or refresh_headlines)(root, symbols)
