@@ -37,7 +37,7 @@ $morning = New-ScheduledTaskTrigger -Weekly -DaysOfWeek 'Tuesday','Wednesday','T
 Register-AppTask 'Trading Research Evening Refresh' 'scheduled_refresh.py' '' @('20:15') 20 `
     'Waits for the VIX close, refreshes the app, records paper decisions, commits and pushes data. Log: work\scheduled_refresh.log' @($morning)
 Register-AppTask 'Trading Research Market Snapshots' 'market_snapshot.py' '--scheduled' @('08:00','15:05') 2 `
-    'Kalshi perps and macro markets, futures, inflation nowcast. Log: work\market_snapshot.log'
+    'S&P/Nasdaq futures, the inflation nowcast and headlines (Kalshi collection ended 2026-11-19). Log: work\market_snapshot.log'
 Register-AppTask 'Trading Research Intraday Collection' 'scheduled_collect.py' '' @('09:00','09:30','11:30','13:30','14:50','19:10') 4 `
     'Same-day option snapshots, liquidity samples, pre-close check, minute bars, option chains, OCC volume, data backup. Log: work\intraday_collect.log'
 # Live minute bars (2026-11-18, user: "poll yahoo"): 9:28 AM ET to just after the close, every minute, holding the

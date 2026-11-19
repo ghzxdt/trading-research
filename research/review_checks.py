@@ -89,65 +89,9 @@ ex = (yr - base_yr).dropna()
 print("normal-drop 5d excess by year (pp):", " ".join(f"{y}:{v*100:+.2f}" for y, v in ex.items()))
 print(f"years with positive excess: {(ex > 0).sum()} of {len(ex)}")
 
-# ---------------- Kalshi perps: hours, spreads, funding -----------------
-print("\n=== Kalshi index perps ===")
-raw = DATA / "raw" / "kalshi"
-markets = json.loads((raw / "markets.json").read_text())["markets"]
-for tk in ["KXUS500PERP", "KXUSTECH100PERP", "KXSPYPERP", "KXQQQPERP", "KXUS2000PERP"]:
-    mk = next((m for m in markets if m["ticker"] == tk), None)
-    if not mk:
-        print(tk, "not listed"); continue
-    nxt = mk.get("schedule", {}).get("next_open_ts")
-    nxt_et = pd.Timestamp(nxt, unit="s", tz="UTC").tz_convert("America/New_York") if nxt else None
-    print(f"{tk}: status={mk['status']} open_now={mk.get('schedule',{}).get('is_open')} next_open={nxt_et} "
-          f"bid={mk.get('bid')} ask={mk.get('ask')} OI=${float(mk.get('open_interest_notional_value_dollars') or 0):,.0f} "
-          f"24h vol=${float(mk.get('volume_24h_notional_value_dollars') or 0):,.0f}")
+# (The Kalshi perps section was removed on 2026-11-19, when the user dropped perp tracking.)
 
-for tk in ["KXUS500PERP", "KXUSTECH100PERP", "KXSPYPERP", "KXQQQPERP"]:
-    p = raw / f"hourly_{tk}.json"
-    if not p.exists():
-        continue
-    cs = json.loads(p.read_text())["candlesticks"]
-    if not cs:
-        continue
-    if tk == "KXUS500PERP":
-        print("candle keys:", list(cs[0].keys()), "price keys:", list((cs[0].get("price") or {}).keys()))
-    df = pd.DataFrame({"end": pd.to_datetime([x["end_period_ts"] for x in cs], unit="s", utc=True).tz_convert("America/New_York"),
-                       "vol": [float(x.get("volume") or x.get("volume_fp") or 0) for x in cs],
-                       "close": [float((x.get("price") or {}).get("close") or np.nan) for x in cs]})
-    df["dow"] = df["end"].dt.day_name().str[:3]; df["hour"] = df["end"].dt.hour
-    traded = df[df["vol"] > 0]
-    print(f"\n{tk}: {len(df)} hourly candles {df['end'].min()} .. {df['end'].max()}, with volume: {len(traded)}")
-    if len(traded):
-        tab = traded.groupby(["dow"])["hour"].agg(lambda s: f"{s.min():02d}-{s.max():02d}h ({len(s)} candles)")
-        print(" traded hours by weekday (ET, candle end):", dict(tab))
-        # share of traded candles that fall in the overnight window 16:00-09:30
-        night = traded[(traded["hour"] >= 17) | (traded["hour"] <= 9)]
-        print(f" candles with volume outside 10:00-16:00 ET: {len(night)} of {len(traded)}")
-
-snaps = pd.read_csv(DATA / "kalshi" / "snapshots.csv")
-snaps = snaps[snaps["ticker"].isin(["KXUS500PERP", "KXUSTECH100PERP", "KXSPYPERP", "KXQQQPERP"])].copy()
-for col in ["bid", "ask", "price"]:
-    snaps[col] = pd.to_numeric(snaps[col], errors="coerce")
-snaps["half_spread_bps"] = (snaps["ask"] - snaps["bid"]) / ((snaps["ask"] + snaps["bid"]) / 2) / 2 * 1e4
-print("\nindex-perp snapshots (half-spread in bps):")
-print(snaps[["snapshot_utc", "ticker", "is_open", "bid", "ask", "half_spread_bps"]].to_string(index=False))
-
-fund = pd.DataFrame(json.loads((raw / "funding_history.json").read_text())["funding_rates"])
-fund["funding_time"] = pd.to_datetime(fund["funding_time"], utc=True)
-fund["funding_rate"] = pd.to_numeric(fund["funding_rate"], errors="coerce")
-print("\nfunding records:")
-for tk in ["KXUS500PERP", "KXUSTECH100PERP", "KXSPYPERP", "KXQQQPERP"]:
-    f = fund[fund["market_ticker"] == tk].sort_values("funding_time")
-    if f.empty:
-        print(tk, "none"); continue
-    gaps = f["funding_time"].diff().dropna().dt.total_seconds() / 3600
-    print(f"{tk}: n={len(f)} {f['funding_time'].min().date()}..{f['funding_time'].max().date()} "
-          f"median gap {gaps.median() if len(gaps) else float('nan'):.1f}h mean rate {f['funding_rate'].mean()*1e4:.3f} bp/record "
-          f"pos/zero/neg={int((f['funding_rate']>0).sum())}/{int((f['funding_rate']==0).sum())}/{int((f['funding_rate']<0).sum())} "
-          f"funding hour ET: {sorted(set(f['funding_time'].dt.tz_convert('America/New_York').dt.strftime('%H:%M')))[:4]}")
-
-# How much does dividend adjustment matter for a perp proxy? SPY adjusted vs. price-only can't be split here,
+# How much does dividend adjustment matter? SPY adjusted vs. price-only can't be split here,
 # but report the annualized SPY drift as context.
 yrs = (t.index[-1] - t.index[0]).days / 365.25
 cagr = (c.iloc[-1] / c.iloc[0]) ** (1 / yrs) - 1

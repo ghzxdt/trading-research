@@ -81,7 +81,7 @@ def build(studies: list[dict], health: dict, status: dict, copy_through: str | N
         head.append('<section class="card"><h2>What this is</h2>'
                     "<p><b>GEX</b> estimates how options dealers are positioned. Below zero, they tend to trade with the market and add to moves; "
                     "above zero, they tend to dampen them. <b>DIX</b> measures dark-pool activity. Both come from SqueezeMetrics, published after each close. "
-                    "This tab reads the Indexes tab (VIX, prices) and the Leverage tab (cushions); neither of those depends on it.</p>"
+                    "This tab reads the Indexes tab (VIX, prices), which doesn't depend on it.</p>"
                     f'<p class="muted small">Data check: <b>{sm["warn"]}</b> warnings, <b>{sm["note"]}</b> notes, {sm["ok"]} OK. <a href="#health">See it</a>.</p>'
                     '<nav class="toc" aria-label="Sections">' + "".join(f'<a href="#{s["id"]}">{s["number"]}. {escape(s["title"])}</a>' for s in studies)
                     + "</nav></section>")
@@ -92,7 +92,7 @@ def build(studies: list[dict], health: dict, status: dict, copy_through: str | N
 <h3>Where the data comes from</h3>
 <ul>
 <li>GEX and DIX: SqueezeMetrics' free CSV, downloaded by you in your browser and copied in from your Downloads folder. Their terms bar systematically retrieving data to build a database, so the app never downloads it.</li>
-<li>VIX, prices and day types: the Indexes tab's daily table. Liquidation cushions: the Leverage tab.</li>
+<li>VIX, prices and day types: the Indexes tab's daily table.</li>
 </ul>
 <h3>Limits</h3>
 <ul>

@@ -32,3 +32,6 @@ data/zero_dte/
 
 # Hourly bars from Yahoo (grow over time; in the nightly data backup)
 data/intraday_hourly/
+
+# Archived Kalshi raw downloads (2026-11-19): kept on this computer, not in git
+archive/kalshi-2026-11-19/raw_kalshi/

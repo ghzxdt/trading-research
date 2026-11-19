@@ -185,7 +185,7 @@ def build(root: Path, now: pd.Timestamp, latest_close: str | None, check: dict |
     age = (today - snapshot).total_seconds() / 3600 if snapshot is not None else None
     rows.append(_row("Market snapshots", "missing" if snapshot is None else "ok" if age < 30 else "late",
                      f"{snapshot:%Y-%m-%d %H:%M} ET" if snapshot is not None else None,
-                     "Futures, Kalshi and the inflation nowcast, 9:00 AM and 4:05 PM ET." if snapshot is not None
+                     "Futures and the inflation nowcast, 9:00 AM and 4:05 PM ET." if snapshot is not None
                      else "No snapshot has been recorded on this computer yet."))
 
     rows.append(_intraday_row(root, today, sessions))

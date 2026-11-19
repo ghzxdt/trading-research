@@ -137,5 +137,38 @@ class StatusRowTests(unittest.TestCase):
             self.assertIn("Did not run on 2026-11-18", row["detail"])
 
 
+class BuildPauseTests(unittest.TestCase):
+    def test_nothing_is_written_under_data_while_a_build_runs(self):
+        """2026-11-19: the status file written during a build made every offline build refuse to publish."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            clock = Clock(OPEN + pd.Timedelta(minutes=5))
+            building = {"on": True}
+            def fetch(symbols):
+                if clock.t > OPEN + pd.Timedelta(minutes=9):
+                    raise KeyboardInterrupt
+                return {"SPY": frame(int((clock.t - OPEN).total_seconds() // 60) + 1)}
+            seen = []
+            def busy():
+                seen.append(building["on"])
+                return building["on"]
+            def sleep(seconds):
+                clock.sleep(seconds)
+                if clock.t > OPEN + pd.Timedelta(minutes=7, seconds=30):
+                    status = root / live_minute.STATUS
+                    if building["on"] and status.exists():
+                        written = json.loads(status.read_text(encoding="utf-8"))
+                        self.assertEqual(written["polls"], 0)  # only the start-up status, before any poll
+                    building["on"] = False
+            try:
+                live_minute.run(root, now=clock.now, fetch=fetch, sleep=sleep, say=lambda m: None, symbols=["SPY"], busy=busy)
+            except KeyboardInterrupt:
+                pass
+            self.assertTrue(seen and seen[0])  # the build was running at the first polls
+            status = json.loads((root / live_minute.STATUS).read_text(encoding="utf-8"))
+            self.assertGreater(status["polls"], 0)  # written once the build was over
+            self.assertTrue((store.live_folder(root) / f"{DAY}.jsonl").exists())
+
+
 if __name__ == "__main__":
     unittest.main()

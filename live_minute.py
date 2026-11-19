@@ -14,8 +14,10 @@ data/intraday/v1/live/<date>.jsonl (intraday.store.ingest_live) with:
   own receipt time and the same label as the bar's first receipt. Existing archive bars are never relabelled.
 Yahoo's bars are free and indicative and may be delayed: they are not exchange-verified or executable quotes.
 It stops just after the exchange calendar's close (1 PM ET on early closes) and holds the laptop awake while it
-runs. While a build is running it keeps its bars in memory (an offline build refuses to publish if data/
-changes under it) and stores them afterwards, receipt times unchanged.
+runs. While a build is running it writes nothing under data/ (an offline build refuses to publish if data/
+changes under it): bars wait in memory and are stored afterwards with their receipt times unchanged, and the
+status file is updated at the next poll after the build (fixed 2026-11-19; the status file used to be written
+every minute regardless).
 Status: data/terminal/live_minute_status.json (polls, gaps, bars per ticker), shown in System status.
 Log: work/live_minute.log. Exit codes: 0 done (or not a trading day); 2 no bar stored; 3 unexpected error.
 """
@@ -173,7 +175,8 @@ def run(root: Path = ROOT, *, now=lambda: pd.Timestamp.now(tz="UTC"), fetch=yaho
                 status["failures"] += 1
                 say(f"Storing bars failed (kept for the next minute): {str(exc)[:160]}")
         status["last_poll_utc"] = receipt.isoformat(timespec="seconds")
-        _write_status(root, status)
+        if not busy():  # an offline build refuses to publish if anything under data/ changes while it runs
+            _write_status(root, status)
     if pending:
         try:
             store.ingest_live(root, pending)

@@ -13,7 +13,7 @@ TEMPLATE = Path(__file__).with_name("report_template.html")
 
 # The hub: one tab per part of the app. Each part is its own page, so they never mix.
 TABS = [("thesis", "thesis.html", "Daily thesis"), ("today", "today.html", "Intraday"), ("macro", "macro.html", "Macro"),
-        ("indexes", "report.html", "Indexes"), ("tickers", "tickers.html", "Tickers"), ("leverage", "leverage.html", "Leverage (perps)"),
+        ("indexes", "report.html", "Indexes"), ("tickers", "tickers.html", "Tickers"),
         ("gex", "gex.html", "GEX / DIX"), ("compare", "monitor.html", "Original vs fixed"),
         ("backtests", "backtests.html", "4-rule backtests"), ("paper", "paper.html", "4-rule paper log"),
         ("quality", "quality.html", "Data quality"), ("jobs", "jobs.html", "Jobs study")]

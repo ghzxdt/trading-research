@@ -1,6 +1,9 @@
 # Trading research log
 
 ## Open
+- Kalshi data archived in `archive/kalshi-2026-11-19/` (not deleted): ask the user before deleting it for good.
+- CLAUDE.md still describes the Kalshi universe, roadmap items and snapshot collection: update it once the user
+  confirms here (the removal was relayed by the backtester chat).
 - Backtester hand-off, second batch (13 review findings A1-C13, received 2026-11-18). Step 1 (A2, A3, A5, B7,
   C10, C11, C12) done 2026-11-18. Step 2, in this order: A1, B6, C9, A4, B8, C13 (user's go-ahead relayed from the
   backtester chat; check with the user on any new data provider and on visible changes to the daily screen). Details in the backtester chat's message; reviews in
@@ -9,6 +12,22 @@
 - The options import lock (`options_research/core.py` `_writer`) has the same no-recovery pattern the minute-bar
   lock had. Manual imports only, so lower risk; same fix if wanted.
 - Reminder from the hand-off: daytime jobs only run while the laptop is asleep or on, never shut down.
+
+## 2026-11-19: Kalshi and perpetual tracking removed
+User (relayed by the backtester chat): "as for anything kalshi or perpetual information weve been tracking i want
+that gone ... no more tracking that."
+- Collection stopped: `market_snapshot.py` keeps the ES/NQ futures, the Cleveland Fed nowcast and headlines; the
+  Kalshi perps and macro markets are gone. `git_backup.py` no longer commits `data/kalshi`.
+- Removed: the Leverage (perps) tab, the `leverage/` package, `run_leverage.py` and their tests; the perp barrier
+  table on the GEX page; Kalshi perp rows on the Tickers pages; perp wording on the Indexes tab and in the thesis.
+- Frozen experiment untouched: its probe now records the perp margin check as unavailable for the current code
+  (the frozen original still computes it from its backup copy) and the comparison row says why; its recorded
+  cost wording ("not actual Kalshi fills", funding scenario) stays as recorded.
+- Data archived, not deleted: `data/kalshi/` -> `archive/kalshi-2026-11-19/data_kalshi/` (git), `data/raw/kalshi/`
+  -> `archive/kalshi-2026-11-19/raw_kalshi/` (ignored by git), with a README.
+- Found while verifying: the live poller wrote its status file every minute even during a build, so offline builds
+  refused to publish during market hours. Fixed: nothing is written under data/ while a build runs. Today's running
+  poller still has the old code until it stops at 4 PM ET. 332 tests; the staged build has no Leverage tab.
 
 ## 2026-11-18 (night): shares baseline gated on share liquidity (review C13); second batch done
 - The registered ORB baseline is experiment A (price/volume, traded in shares), but its research run and paper

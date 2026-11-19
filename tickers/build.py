@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 
 from stage1.studies import DAY_TYPES, clean, finding, mult, pct, rms, share, forward_return, daily_reset_return, normalized_wealth
-from leverage.build import spread_text
 
 CATEGORIES = [
     ("Index ETFs", ["SPY", "QQQ", "IWM", "DIA", "RSP"]),
@@ -30,9 +29,6 @@ NAMES = {
     "SPXU": "ProShares UltraPro Short S&P 500 (-3x SPY, daily)",
 }
 LEVERAGED = {"TQQQ": ("QQQ", 3), "SQQQ": ("QQQ", -3), "UPRO": ("SPY", 3), "SPXU": ("SPY", -3)}
-PERPS = {"SPY": ["KXSPYPERP", "KXUS500PERP"], "QQQ": ["KXQQQPERP", "KXUSTECH100PERP"], "IWM": ["KXUS2000PERP"],
-         "UPRO": ["KXUS500PERP", "KXSPYPERP"], "SPXU": ["KXUS500PERP", "KXSPYPERP"], "TQQQ": ["KXUSTECH100PERP", "KXQQQPERP"],
-         "SQQQ": ["KXUSTECH100PERP", "KXQQQPERP"]}
 VIX_EDGES = [0, 13, 16, 20, 25, 30, 1000]
 VIX_LABELS = ["Under 13", "13-16", "16-20", "20-25", "25-30", "30+"]
 
@@ -198,7 +194,7 @@ def order_flow(t: pd.DataFrame, tk: str) -> dict:
             "dollar_today": float(v.iloc[-1] * c.iloc[-1])}
 
 
-def ticker_page_studies(tk: str, t: pd.DataFrame, lev: pd.DataFrame | None, dix: pd.DataFrame | None) -> tuple[list[dict], dict]:
+def ticker_page_studies(tk: str, t: pd.DataFrame, dix: pd.DataFrame | None) -> tuple[list[dict], dict]:
     k = tk.lower()
     snap = snapshot(t, tk)
     ov = overnight_split(t, tk)
@@ -265,12 +261,6 @@ def ticker_page_studies(tk: str, t: pd.DataFrame, lev: pd.DataFrame | None, dix:
     if tk == "SPY" and dix is not None and len(dix):
         extra.append(["Dark-pool DIX (S&P 500, from your GEX/DIX file)", f"{dix['dix'].iloc[-1] * 100:.1f}% on {_day(dix.index[-1])}"])
         extra.append(["GEX (S&P 500 dealer positioning)", f"${dix['gex'].iloc[-1] / 1e9:,.2f}B ({'below' if dix['gex'].iloc[-1] < 0 else 'above'} zero)"])
-    if lev is not None and tk in PERPS:
-        for tick in PERPS[tk]:
-            r = lev[lev["ticker"] == tick]
-            if len(r) and r.iloc[0]["status"] == "active":
-                r = r.iloc[0]
-                extra.append([f"Kalshi {r['name']} perp", f"spread {spread_text(r)}, 24h volume ${r['volume_24h'] / 1e6:,.1f}M, open interest ${r['open_interest'] / 1e6:,.2f}M, max leverage {r['max_leverage']:.1f}x"])
     studies.append({
         "id": "flow", "number": 2, "show_tables": True, "title": "Order flow (daily stand-ins)",
         "question": "Free daily signs of buying and selling pressure: volume vs. usual, up-day volume, where it closes in its range, and the accumulation/distribution line.",

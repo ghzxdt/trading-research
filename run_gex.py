@@ -15,7 +15,6 @@ import argparse
 import sys
 import warnings
 import webbrowser
-from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -42,24 +41,22 @@ def main() -> None:
         print(("  " + res["message"]) if res["ok"] else ("  Not imported: " + res["error"]))
 
     dix = data.load_dix()
-    tp, lp = OUT / "daily_table.csv", OUT / "leverage_markets.csv"
+    tp = OUT / "daily_table.csv"
     t = pd.read_csv(tp, parse_dates=["date"], index_col="date") if tp.exists() else None
     if t is not None:
         validate_daily_table(t)
-    lev = pd.read_csv(lp) if lp.exists() else None
-    lev_saved = datetime.fromtimestamp(lp.stat().st_mtime) if lp.exists() else None
     status = data.write_status(t, OUT)
 
     studies = []
     if dix is not None and t is not None:
         j = data.joined(t, dix)
         judge = Judge()
-        studies = [build.study_reading(j, dix, lev), build.study_recent(dix), build.study_history(j, judge)]
+        studies = [build.study_reading(j, dix), build.study_recent(dix), build.study_history(j, judge)]
         j.to_csv(OUT / "gex_daily.csv", float_format=FLOAT_FORMAT)
         tests = judge.tests_run
     else:
         tests = 0
-    checks = build.health(dix, data.saved_at(), t, lev_saved, status)
+    checks = build.health(dix, data.saved_at(), t, status)
     copy_through = f"{dix.index.max():%Y-%m-%d}" if dix is not None else None
     path = report.build(studies, checks, status, copy_through, t.index[-1] if t is not None else None, OUT / "gex.html")
     write_component_manifest("gex", OUT, {"copy_through": copy_through, "tests_run": tests, "status": status.get("state")})

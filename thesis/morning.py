@@ -3,7 +3,7 @@
 Reads the market snapshots the scheduled task records (8:00 AM and 3:05 PM Central):
 - data/futures/futures_quotes.csv: S&P 500 and Nasdaq-100 E-mini futures (Yahoo, CME quotes), change since 4 PM.
 - data/macro/inflation_nowcast.csv: the Cleveland Fed's daily CPI nowcasts (and actuals once released).
-No Kalshi data is shown in the thesis (user, 2026-11-08); the snapshots still record it for later use.
+No Kalshi data is shown (user, 2026-11-08), and since 2026-11-19 none is collected (the user dropped perp tracking).
 """
 from __future__ import annotations
 

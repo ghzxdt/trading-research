@@ -21,41 +21,7 @@ def _rank_words(r: float) -> str:
     return f"higher than {r:.0%} of prior observations in the trailing window"
 
 
-PROXY = {"KXUS500PERP": "spy", "KXSPYPERP": "spy", "KXUSTECH100PERP": "qqq", "KXQQQPERP": "qqq"}
-
-
-def _conditional_risk_rows(j: pd.DataFrame, lev: pd.DataFrame, negative: bool, exp: float) -> list:
-    """Per-proxy, per-side adverse session excursions; never infer hits from endpoint returns."""
-    rows = []
-    if not np.isfinite(exp) or exp <= 0 or "gex_known" not in j or "expected_move" not in j:
-        return rows
-    state = (j["gex_known"] < 0) if negative else (j["gex_known"] >= 0)
-    for _, r in lev.loc[lev["ticker"].isin(PROXY) & lev["status"].eq("active")].iterrows():
-        px = PROXY[r["ticker"]]
-        needed = [f"{px}_{c}" for c in ("open", "high", "low", "daytime")]
-        if not all(c in j for c in needed) or r.get("liquidation_model_status") != "uncalibrated_proxy":
-            continue
-        op, high, low, day = (pd.to_numeric(j[c], errors="coerce") for c in needed)
-        expected = pd.to_numeric(j["expected_move"], errors="coerce")
-        valid = (state & j["gex_known"].notna() & np.isfinite(op) & (op > 0) & np.isfinite(high) &
-                 np.isfinite(low) & (low > 0) & (high >= low) & np.isfinite(day) & np.isfinite(expected) & (expected > 0))
-        if not valid.any():
-            continue
-        typical = rms((day / expected)[valid]) * exp
-        for side, adverse in (("Long", (1 - low / op).clip(lower=0)), ("Short", (high / op - 1).clip(lower=0))):
-            c = r.get(f"cushion_{side.lower()}", np.nan)
-            leverage = r.get(f"max_leverage_{side.lower()}", np.nan)
-            if not np.isfinite(c) or c <= 0 or not np.isfinite(leverage):
-                continue
-            standardized = (adverse / expected)[valid]
-            hit = float((standardized >= c / exp).mean())
-            rows.append([r["name"], side, px.upper(), mult(leverage), pct(c, 2, False),
-                         f"{c / typical:.1f}" if np.isfinite(typical) and typical > 0 else "Unavailable",
-                         str(int(valid.sum())), share(hit, 1)])
-    return rows
-
-
-def study_reading(j: pd.DataFrame, dix: pd.DataFrame, lev: pd.DataFrame | None) -> dict:
+def study_reading(j: pd.DataFrame, dix: pd.DataFrame) -> dict:
     """Suppress current conditional estimates unless both snapshots are current and aligned."""
     last_copy, last_mkt = dix.index.max(), j.index[-1]
     g, d = float(dix["gex"].iloc[-1]), float(dix["dix"].iloc[-1])
@@ -68,7 +34,6 @@ def study_reading(j: pd.DataFrame, dix: pd.DataFrame, lev: pd.DataFrame | None) 
                         "GEX/DIX is published after the close. DIX ranks compare with prior observations in a 252-session window, with at least 200 sessions required.")]
     tiles = [{"label": f"Saved GEX ({_day(last_copy)})", "value": f"${g / 1e9:,.2f}B", "note": "Historical saved observation"},
              {"label": "DIX trailing-window rank", "value": f"{rank_now:.0%}" if np.isfinite(rank_now) else "Unavailable", "note": "252-session window; minimum 200"}]
-    rows = []
     if not usable:
         findings.append(finding("fact", "Current conditional risk estimates are unavailable: the GEX and market snapshots must be fresh and cover the same session.",
                                 f"Market through {_day(last_mkt)}; GEX through {_day(last_copy)}. Saved observations and historical studies remain visible; no current sizing guidance is inferred."))
@@ -81,15 +46,11 @@ def study_reading(j: pd.DataFrame, dix: pd.DataFrame, lev: pd.DataFrame | None) 
         findings.append(finding("fact", f"At VIX {vix:.1f}, the historical SPY session RMS for this GEX sign scales to {pct(typ, 2, False)}, versus {pct(typical_all, 2, False)} across all saved regimes.",
                                 "This simple historical rescaling is not a calibrated forecast or evidence that GEX independently adds information beyond VIX. The current VIX scale is applied to each proxy's own historical distribution."))
         tiles.append({"label": "SPY historical session RMS at current VIX", "value": pct(typ, 2, False), "note": "Conditional descriptive rescaling, not a forecast"})
-        if lev is not None and len(lev):
-            rows = _conditional_risk_rows(j, lev, negative, exp)
-    return {"id": "reading", "number": 1, "title": "Saved positioning and conditional proxy risk", "current_usable": bool(usable),
-            "question": "What do fresh, aligned positioning inputs imply about historical proxy excursions under explicitly uncalibrated barriers?",
-            "tiles": tiles, "charts": [], "findings": findings,
-            "tables": [{"title": "Adverse regular-session excursions by proxy and side, rescaled to current VIX",
-                        "columns": ["Perp", "Side", "ETF proxy", "Published side leverage", "Approximate barrier", "Barrier / proxy RMS", "Historical cases", "Adverse excursion exceeded barrier"],
-                        "rows": rows}] if rows else [],
-            "notes": "Not liquidation probabilities or position-size recommendations. Uses open-to-low for longs and open-to-high for shorts, each proxy's own distribution and valid sample. Overnight paths, mark/basis differences, fees, funding and changing margin are omitted."}
+    # The Kalshi-perp barrier table that stood here was removed on 2026-11-19 (the user dropped perp tracking).
+    return {"id": "reading", "number": 1, "title": "Saved positioning", "current_usable": bool(usable),
+            "question": "What do fresh, aligned positioning inputs say about the size of the next session?",
+            "tiles": tiles, "charts": [], "findings": findings, "tables": [],
+            "notes": "Not a forecast or a position-size recommendation."}
 
 
 def study_recent(dix: pd.DataFrame, days: int = 126) -> dict:
@@ -178,7 +139,7 @@ def study_history(j: pd.DataFrame, judge: Judge) -> dict:
             ]}
 
 
-def health(dix: pd.DataFrame | None, saved, t: pd.DataFrame | None, lev_saved, status: dict) -> dict:
+def health(dix: pd.DataFrame | None, saved, t: pd.DataFrame | None, status: dict) -> dict:
     items = []
 
     def add(level, name, result, action=""):
@@ -196,8 +157,6 @@ def health(dix: pd.DataFrame | None, saved, t: pd.DataFrame | None, lev_saved, s
         add("note", "Indexes tab data", "Not found.", "Run run_stage1.py (or run_all.py) so the reading has today's VIX.")
     else:
         add("ok", "Indexes tab data", f"Through {_day(t.index[-1])} (VIX, expected move, day types).", "Read-only: this tab never changes the Indexes tab.")
-    add("ok" if lev_saved else "note", "Leverage tab data", f"Saved {lev_saved:%b} {lev_saved.day}, {lev_saved:%I:%M %p}".replace(" 0", " ") + "." if lev_saved else "Not found.",
-        "Used for the liquidation-cushion comparison." if lev_saved else "Run run_leverage.py for the perps comparison.")
     add({"up_to_date": "ok", "not_needed": "ok", "optional": "note", "recommended": "note", "stale": "warn", "invalid": "warn"}.get(status.get("state"), "note"),
         "Refresh indicator", status.get("label", ""), " ".join(status.get("reasons", [])[:1]))
     summary = {lvl: sum(1 for i in items if i["level"] == lvl) for lvl in ("ok", "note", "warn")}

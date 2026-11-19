@@ -721,7 +721,7 @@ def study_day_after(t: pd.DataFrame, judge: Judge) -> dict:
         f"Where the post-rally dip happens: after a big rise, the next overnight averaged {pct(nxt_on[big_rise].mean(), 2)} and the next daytime "
         f"{pct(nxt_day[big_rise].mean(), 2)}; with VIX 20 or higher, {pct(nxt_on[hi].mean(), 2)} overnight and {pct(nxt_day[hi].mean(), 2)} during the day.",
         f"On all days: {pct(nxt_on[valid].mean(), 2)} overnight, {pct(nxt_day[valid].mean(), 2)} during the day. "
-        "This splits the tested results above; it isn't a separate test. Useful for perps, which can be held through the night.",
+        "This splits the tested results above; it isn't a separate test. Useful for positions held through the night.",
     ))
 
     # D: the next 5 trading days. Expected move over 5 days = today's VIX / 16 x sqrt(5).
@@ -1230,7 +1230,7 @@ def study_risk(L: pd.DataFrame | None, judge: Judge) -> dict:
                 res["verdict"],
                 f"{label} gaps ({int(m.sum()):,}): typically {pct(rms(g), 2, False)}, {mult(rms(zg[m]) / base_z)} the size of a weeknight gap after adjusting for VIX. "
                 f"1 in 20 moved more than {pct(_q(g.abs(), 0.95), 2, False)}; the biggest was {pct(g[big], 1)} on {_day(big)}.",
-                "Kalshi's index perps close Friday at 5:00 pm ET. No stop can fill while a market is closed, so the reopening gap is the risk to size for.", res))
+                "No stop can fill while the market is closed, so the reopening gap after a weekend or holiday is the risk to size for.", res))
 
     findings = [
         finding("fact",
@@ -1260,7 +1260,7 @@ def study_risk(L: pd.DataFrame | None, judge: Judge) -> dict:
          "series": [{"name": "1 day in 20 moved more than", "values": clean(p95)}, {"name": "1 day in 100 moved more than", "values": clean(p99)}]},
         {"id": "risk_adverse", "type": "bar", "format": "pct", "unsigned": True,
          "title": "Side-specific intraday adverse excursions from the prior close",
-         "subtitle": "Historical 99th percentiles. ETF highs/lows are proxies, not executable perp stop prices.",
+         "subtitle": "Historical 99th percentiles. ETF highs and lows, not executable stop prices.",
          "categories": [f"VIX {b}" for b in VIX_LABELS],
          "series": [{"name": "Long: prior close to low", "values": clean(adverse_long99)},
                     {"name": "Short: prior close to high", "values": clean(adverse_short99)}]},

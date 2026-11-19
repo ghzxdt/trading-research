@@ -1,7 +1,7 @@
 """Back up the app's tracked data to GitHub after the evening refresh.
 
-Commits only the data files a refresh or snapshot writes (paper log, Kalshi snapshots and quotes,
-jobs-data archive),
+Commits only the data files a refresh or snapshot writes (paper log, thesis logs, futures and nowcast
+snapshots, jobs-data archive; Kalshi files are no longer collected or committed since 2026-11-19),
 then pushes main to the 'origin' remote. Code is never committed here; pushing main also sends
 any code commits made since the last push. Skips when the folder isn't on main, when another git
 command is running, or when the paper log fails its hash check. Never prompts for credentials:
@@ -16,7 +16,7 @@ from pathlib import Path
 
 from app_control import hidden_process_flags
 
-DATA_PATHS = ("data/monitor/paper_events.jsonl", "data/thesis", "data/kalshi", "data/futures", "data/macro",
+DATA_PATHS = ("data/monitor/paper_events.jsonl", "data/thesis", "data/futures", "data/macro",
               "data/employment")
 FROZEN = "data/monitor/experiment_lock.json"
 

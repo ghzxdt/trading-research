@@ -23,7 +23,10 @@ def main():
     sys.path.insert(0,str(code));warnings.filterwarnings('ignore')
     from stage1 import sources,dataset,studies
     from tickers import build as tickers
-    from leverage import build as leverage,kalshi
+    try:  # the current app dropped perp tracking on 2026-11-19; the frozen original keeps its own copy
+        from leverage import build as leverage
+    except ImportError:
+        leverage=None
     from gex import data as gd,build as gb
     sources.RAW=data/'data/raw';sources.EVENTS_FILE=data/'data/events/events.csv'
     # The baseline's calendar semantics are frozen, even when a new calendar has extra metadata.
@@ -52,7 +55,7 @@ def main():
             value=s[field]
             metrics[tk+'_'+field]=float(value.dropna().iloc[-1]) if isinstance(value,pd.Series) else float(value)
     # Pure invalid-input probe; no API request and no account access.
-    missing=leverage._hit_rates(long,'SPY',np.nan)
+    missing=leverage._hit_rates(long,'SPY',np.nan) if leverage else {}
     metrics['missing_margin_long_hit_rate']=missing.get('long_1')
     result={'metrics':metrics,'tests':captured,'studies':reports}
     Path(a.out).write_text(json.dumps(clean(result),allow_nan=False),encoding='utf-8')

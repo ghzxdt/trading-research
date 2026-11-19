@@ -54,7 +54,7 @@ FOOTER = """
 <ul>
 <li>Prices and volume: the Indexes tab's daily table (Yahoo Finance, adjusted for splits and dividends), since 2010.</li>
 <li>Headlines: Yahoo Finance, through the yfinance package (headlines and links only), and the Federal Reserve's official press-release feed. Saved in data/raw/news/.</li>
-<li>Related readings: the Leverage tab (Kalshi perps) and your GEX/DIX file. Read-only: this tab never changes them.</li>
+<li>Related readings: your GEX/DIX file. Read-only: this tab never changes it.</li>
 </ul>
 <h3>Limits</h3>
 <ul>
@@ -117,7 +117,7 @@ def build_overview(snaps: dict, news: dict, cal: list[dict], health: dict, out_d
         "<h1>Every index ETF: its own page with stats, charts, order flow and news</h1>",
         f'<p class="sub">Built {datetime.now():%b %d, %Y %I:%M %p}</p>', "</header>",
         '<section class="card"><h2>Pick a ticker</h2><p class="question">Each page has the Indexes tab\'s studies for that ticker, plus its charts, '
-        "daily order-flow stand-ins, related Kalshi perps, and its news. The Indexes tab stays the summary.</p>"
+        "daily order-flow stand-ins, and its news. The Indexes tab stays the summary.</p>"
         f'<div class="tk-cards">{cards}</div>'
         f'<p class="muted small">Data check: <b>{sm["warn"]}</b> warnings, <b>{sm["note"]}</b> notes, {sm["ok"]} OK. <a href="#health">See it</a>.</p></section>',
         f'<section class="card">{table}</section>',

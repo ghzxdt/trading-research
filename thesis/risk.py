@@ -2,7 +2,7 @@
 
 No size is recommended (sizing stays blocked until a strategy has forward evidence). The user set no maximum
 drawdown or leverage, so outcomes are shown at 1x, 2x, 3x, 5x and 10x of the index instead of one allowed size.
-The thesis shows ETFs only (user, 2026-11-08); Kalshi data keeps collecting for later use.
+The thesis shows ETFs only (user, 2026-11-08); Kalshi and perp tracking ended on 2026-11-19.
 """
 from __future__ import annotations
 

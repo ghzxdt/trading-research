@@ -65,7 +65,7 @@ def compare(root,out,old,new):
         rows.append([label,fmt(a.get(field),3),fmt(b.get(field),3),'Descriptive research; before costs'])
     aligned_original=a.get('SPXU_growth_all',0)/(1+a.get('SPXU_first_return',0))
     rows.append(['SPXU wealth per $1 at the common first close',f"${aligned_original:.9f}",f"${b.get('SPXU_growth_buy_hold',b.get('SPXU_growth_all',0)):.9f}",'Both normalized to the first table close; corrected curve preserves the price change across a missing intermediate observation'])
-    rows.append(['Missing margin: historical long barrier hits',fmt(a.get('missing_margin_long_hit_rate')),fmt(b.get('missing_margin_long_hit_rate')),'Unavailable must not mean zero risk'])
+    rows.append(['Missing margin: historical long barrier hits',fmt(a.get('missing_margin_long_hit_rate')),fmt(b.get('missing_margin_long_hit_rate')),'Unavailable must not mean zero risk'+('' if b.get('missing_margin_long_hit_rate') is not None else ' (the current app dropped the perp margin model on 2026-11-19)')])
     registry=adjust_pvalues(new['tests'])
     tests=[]
     for i,r in enumerate(registry):

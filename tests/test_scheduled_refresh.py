@@ -203,10 +203,10 @@ class GitBackupTests(unittest.TestCase):
         self.root=Path(self.tmp.name)/'app';self.root.mkdir();self.said=[]
         self.git('init','-q','-b','main');self.git('config','user.name','Test');self.git('config','user.email','test@example.invalid')
         self.git('config','commit.gpgsign','false')
-        (self.root/'data/monitor').mkdir(parents=True);(self.root/'data/kalshi').mkdir(parents=True)
+        (self.root/'data/monitor').mkdir(parents=True);(self.root/'data/futures').mkdir(parents=True)
         self.log=self.root/'data/monitor/paper_events.jsonl';self.events=[]
         paper.append(self.log,self.events,{'type':'decision','key':'k1','state':'recorded_before_entry'})
-        (self.root/'data/kalshi/snapshots.csv').write_text('a,b\n1,2\n',encoding='utf-8')
+        (self.root/'data/futures/futures_quotes.csv').write_text('a,b\n1,2\n',encoding='utf-8')
         (self.root/'data/monitor/experiment_lock.json').write_text('{}',encoding='utf-8')
         (self.root/'app.py').write_text('x = 1\n',encoding='utf-8')
         self.git('add','-A');self.git('commit','-q','-m','initial')
@@ -217,7 +217,9 @@ class GitBackupTests(unittest.TestCase):
 
     def refresh_data(self):
         paper.append(self.log,self.events,{'type':'decision','key':'k2','state':'recorded_before_entry'})
-        with (self.root/'data/kalshi/snapshots.csv').open('a',encoding='utf-8') as f:f.write('3,4\n')
+        with (self.root/'data/futures/futures_quotes.csv').open('a',encoding='utf-8') as f:f.write('3,4\n')
+        (self.root/'data/kalshi').mkdir(exist_ok=True)  # Kalshi tracking ended 2026-11-19: never committed
+        (self.root/'data/kalshi/perp_quotes.csv').write_text('x\n',encoding='utf-8')
         (self.root/'data/employment').mkdir(exist_ok=True)
         (self.root/'data/employment/refresh_status.json').write_text('{}',encoding='utf-8')
 
@@ -225,7 +227,7 @@ class GitBackupTests(unittest.TestCase):
         self.refresh_data();(self.root/'app.py').write_text('x = 2\n',encoding='utf-8')
         self.assertEqual(git_backup.sync(self.root,self.said.append,'Evening refresh data, test'),'committed')
         self.assertEqual(sorted(self.git('show','--name-only','--format=','HEAD').split()),
-                         ['data/employment/refresh_status.json','data/kalshi/snapshots.csv','data/monitor/paper_events.jsonl'])
+                         ['data/employment/refresh_status.json','data/futures/futures_quotes.csv','data/monitor/paper_events.jsonl'])
         self.assertIn('M app.py',self.git('status','--porcelain'))
         self.assertTrue(any('No GitHub remote' in s for s in self.said))
 
