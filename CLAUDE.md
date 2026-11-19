@@ -137,6 +137,12 @@ it is a leverage choice on the Nasdaq-100 view, not a separate idea.
    labelled so (not scored); new calls record `opportunity_ids` and a `relation` (take, veto, override, agree flat,
    own view, unlinked); new notes record `opportunity_ids`; paper-book trades compute the same id. Older records
    are unchanged; their ids are derived from their fields.
+   **Shorter daily screen (review C9; user, 2026-11-18: "Yes, as proposed"):** shown first: the call, registered
+   signals with evidence cards and evidence state, the paper ticket, VIX, events and earnings (with a weekend or
+   holiday warning before the next open) and risk by leverage. One click away (folded): the paper book's history,
+   trend/credit/rates/history, the pre-close check, System status (its summary line names anything not ok),
+   news, overnight and inflation, the earnings calendar, hourly base rates and 0DTE. GEX's size result is context
+   only on the GEX tab (regime-matched check: 1.18x, calendar-year interval 0.90-1.43).
    **Also 2026-11-14:** **intraday base rates** from Yahoo's free hourly bars (`intraday_hourly.py`,
    `data/intraday_hourly/`, about 2.9 years, SPY/QQQ/IWM, refreshed each evening and kept, so the history grows):
    gap fill, first-hour share of the range, whether the day kept the first hour's direction after 10:30, and

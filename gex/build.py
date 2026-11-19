@@ -137,10 +137,15 @@ def study_history(j: pd.DataFrame, judge: Judge) -> dict:
     all5 = fwd5[ok5].mean()
 
     findings = [
-        finding(res_g["verdict"],
-                f"When GEX was below zero ({int(neg.sum()):,} days), the next day session moved {mult(raw_ratio)} the usual size, and {mult(adj_ratio)} after adjusting for VIX.",
-                f"GEX below zero mostly happens when fear is already high (average VIX {vix_prev[neg].mean():.1f} vs {vix_prev[pos].mean():.1f} otherwise), "
-                "dividing by VIX does not by itself establish incremental predictive value. Further regime-matched, out-of-sample tests are needed. Day session only, because GEX comes out after the close.", res_g),
+        # Context, not a size effect (review C9, user 2026-11-18: "Yes, as proposed"): Codex's regime-matched check
+        # (2026-11-14) put the GEX-below-zero size ratio at 1.18 with a calendar-year interval of 0.90 to 1.43,
+        # which includes no effect. The luck test's own verdict is still shown in the detail.
+        finding("fact",
+                f"Context, not a verified size effect: when GEX was below zero ({int(neg.sum()):,} days), the next day session moved {mult(raw_ratio)} the usual size, and {mult(adj_ratio)} after adjusting for VIX.",
+                f"GEX below zero mostly happens when fear is already high (average VIX {vix_prev[neg].mean():.1f} vs {vix_prev[pos].mean():.1f} otherwise). "
+                "A regime-matched check (Codex review, 2026-11-14) put the size ratio at 1.18 with a calendar-year interval of 0.90 to 1.43, "
+                f"which includes no effect, so it is shown as context only (the plain luck test said: {VERDICTS[res_g['verdict']]}). "
+                "Day session only, because GEX comes out after the close.", res_g),
         finding(res_hi["verdict"],
                 f"When DIX was in the top 20% of its past year ({int(hi.sum()):,} days), SPY's next 5 sessions averaged {pct(fwd5[hi].mean(), 2)}, "
                 f"higher {share((fwd5[hi] > 0).mean())} of the time, vs {pct(all5, 2)} and {share((fwd5[ok5] > 0).mean())} for any 5 sessions.",
@@ -161,7 +166,7 @@ def study_history(j: pd.DataFrame, judge: Judge) -> dict:
             "tables": [
                 {"title": "GEX and the size of the next day session (SPY)",
                  "columns": ["Previous evening's GEX", "Days", "Average VIX (prior close)", "Day-session move size", "Size, VIX-adjusted", "Average day-session return", "Size verdict"],
-                 "rows": [["Below 0", f"{int(neg.sum()):,}", f"{vix_prev[neg].mean():.1f}", pct(rms(day[neg]), 2, False), mult(adj_ratio), pct(day[neg].mean(), 2), VERDICTS[res_g["verdict"]]],
+                 "rows": [["Below 0", f"{int(neg.sum()):,}", f"{vix_prev[neg].mean():.1f}", pct(rms(day[neg]), 2, False), mult(adj_ratio), pct(day[neg].mean(), 2), "Context only (regime-matched: 1.18x, 0.90-1.43)"],
                           ["0 or above", f"{int(pos.sum()):,}", f"{vix_prev[pos].mean():.1f}", pct(rms(day[pos]), 2, False), "1.00x", pct(day[pos].mean(), 2), ""]]},
                 {"title": "DIX and the next 5 sessions (SPY, from the open)",
                  "columns": ["Previous evening's DIX vs. its past year", "Days", "Next-5-session average", "Higher after 5 sessions", "Verdict"],
