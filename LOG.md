@@ -5,10 +5,19 @@
   C10, C11, C12) done 2026-11-18. Step 2, in this order: A1, B6, C9, A4, B8, C13 (user's go-ahead relayed from the
   backtester chat; check with the user on any new data provider and on visible changes to the daily screen). Details in the backtester chat's message; reviews in
   `C:\Claude\trading-backtester\docs\reviews\APP_REVIEW_2026-11-18.md` and Codex's 2026-11-14 outputs.
-- Second batch step 2 continues: B8, C13.
+- Second batch step 2 continues: C13.
 - The options import lock (`options_research/core.py` `_writer`) has the same no-recovery pattern the minute-bar
   lock had. Manual imports only, so lower risk; same fix if wanted.
 - Reminder from the hand-off: daytime jobs only run while the laptop is asleep or on, never shut down.
+
+## 2026-11-18 (night): idea ledger schema 2 (review B8)
+- New idea events (schema 2) can carry structured fields: observation, mechanism, instruments, rule, decision
+  time, horizon, expected result, benchmark, confirm, invalidate, monitor (forms: "Structured statement").
+  Schema 1 events stay valid as written; older ideas (1-11, which the backtester's cards link to) can have their
+  fields filled in by update events.
+- Once an idea is registered or later, its testable fields (rule, decision time, horizon, expected result,
+  benchmark, confirm, invalidate) can't be changed (a changed rule is a new idea); filling an empty one is allowed
+  and dated by its event. Each idea lists what a testable statement still lacks. 350 tests.
 
 ## 2026-11-18 (night): replay timing (review A4)
 User's go-ahead relayed by the backtester chat ("then A4, B8 and C13"). A replay at moment T now shows only what

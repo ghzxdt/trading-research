@@ -7,6 +7,12 @@ that some look good by luck, so the count belongs next to every result.
 
 data/thesis/ideas.jsonl is an append-only, hash-chained event log (never edit it by hand): one "create" event
 per idea and one "update" event per change. The current state of each idea is rebuilt by replaying the events.
+
+Schema 2 (review B8, 2026-11-18): new events may carry structured fields ("spec"): observation, mechanism,
+instruments, rule, decision time, horizon, expected result, benchmark, what would confirm it, what would
+invalidate it, and what to monitor. Schema 1 events stay valid as written. Once an idea is registered (or later),
+its testable fields (rule, decision time, horizon, expected result, benchmark, confirm, invalidate) are fixed:
+changing them is a new idea, because a rule rewritten after seeing results is no longer the registered rule.
 """
 from __future__ import annotations
 
@@ -23,7 +29,24 @@ LOG = Path("data/thesis/ideas.jsonl")
 STAGES = ("idea", "registered", "backtested", "forward", "kept", "dropped")
 TESTED = ("backtested", "forward", "kept")
 LIMITS = {"title": 140, "claim": 700, "test": 700, "result": 900, "evidence_ref": 240, "route": 40}
+SPEC = {"observation": 600, "mechanism": 600, "instruments": 120, "rule": 600, "decision_time": 120, "horizon": 120,
+        "expected_result": 400, "benchmark": 300, "confirm": 400, "invalidate": 400, "monitor": 400}
+FROZEN = ("rule", "decision_time", "horizon", "expected_result", "benchmark", "confirm", "invalidate")
+CORE = ("rule", "decision_time", "horizon", "expected_result", "benchmark", "invalidate")  # a testable idea needs these
 _LOCK = threading.Lock()
+
+
+def _spec(payload: dict) -> dict:
+    """The structured fields given (only non-empty ones), from payload["spec"] or top-level keys."""
+    source = payload.get("spec") if isinstance(payload.get("spec"), dict) else payload
+    out = {}
+    for key, limit in SPEC.items():
+        value = str(source.get(key) or "").strip()
+        if len(value) > limit:
+            raise ValueError(f"{key.replace('_', ' ').capitalize()} is limited to {limit} characters.")
+        if value:
+            out[key] = value
+    return out
 
 
 def _text(payload: dict, key: str, required: bool = False) -> str:
@@ -44,7 +67,7 @@ def _stage(value, default=None) -> str | None:
 
 def _write(root: Path, rows: list[dict], event: dict, now: pd.Timestamp | None) -> dict:
     now = (now or pd.Timestamp.now(tz="UTC")).tz_convert("UTC")
-    body = {"schema": 1, "id": len(rows) + 1, "recorded_utc": now.isoformat(timespec="seconds"),
+    body = {"schema": 2, "id": len(rows) + 1, "recorded_utc": now.isoformat(timespec="seconds"),
             "recorded_et": now.tz_convert(NY).isoformat(timespec="seconds"), **event,
             "previous_hash": rows[-1]["hash"] if rows else ""}
     row = {**body, "hash": calls._digest(body)}
@@ -61,7 +84,7 @@ def create(root: Path, payload: dict, now: pd.Timestamp | None = None) -> dict:
     event = {"type": "create", "title": _text(payload, "title", True), "claim": _text(payload, "claim", True),
              "test": _text(payload, "test"), "route": _text(payload, "route"),
              "stage": _stage(payload.get("stage"), "idea"), "result": _text(payload, "result"),
-             "evidence_ref": _text(payload, "evidence_ref")}
+             "evidence_ref": _text(payload, "evidence_ref"), "spec": _spec(payload)}
     note = payload.get("from_note")
     if note not in (None, ""):
         try:
@@ -82,13 +105,19 @@ def update(root: Path, payload: dict, now: pd.Timestamp | None = None) -> dict:
     except (TypeError, ValueError):
         raise ValueError("Say which idea (its number).") from None
     event = {"type": "update", "idea": idea, "stage": _stage(payload.get("stage")),
-             "result": _text(payload, "result"), "evidence_ref": _text(payload, "evidence_ref")}
-    if not (event["stage"] or event["result"] or event["evidence_ref"]):
-        raise ValueError("Give a new stage, a result or an evidence reference.")
+             "result": _text(payload, "result"), "evidence_ref": _text(payload, "evidence_ref"), "spec": _spec(payload)}
+    if not (event["stage"] or event["result"] or event["evidence_ref"] or event["spec"]):
+        raise ValueError("Give a new stage, a result, an evidence reference or a structured field.")
     with _LOCK:
         rows = calls.read(root, LOG)
-        if not any(r.get("type") == "create" and r.get("idea") == idea for r in rows):
+        current = next((i for i in fold(rows) if i["idea"] == idea), None)
+        if current is None:
             raise ValueError(f"There is no idea #{idea}.")
+        if current["stage"] != "idea":
+            changed = [k for k in FROZEN if k in event["spec"] and current["spec"].get(k) and event["spec"][k] != current["spec"][k]]
+            if changed:
+                raise ValueError(f"Idea #{idea} is {current['stage']}: its {', '.join(k.replace('_', ' ') for k in changed)} "
+                                 "can't change any more. Record a new idea for a changed rule.")
         return _write(root, rows, event, now)
 
 
@@ -102,6 +131,7 @@ def fold(rows: list[dict]) -> list[dict]:
                                   "test": row.get("test"), "route": row.get("route"), "stage": row["stage"],
                                   "result": row.get("result"), "evidence_ref": row.get("evidence_ref"),
                                   "from_note": row.get("from_note"), "created": when, "updated": when,
+                                  "spec": dict(row.get("spec") or {}),
                                   "history": [{"date": when, "stage": row["stage"]}]}
         elif row.get("type") == "update" and row.get("idea") in ideas:
             item = ideas[row["idea"]]
@@ -111,7 +141,10 @@ def fold(rows: list[dict]) -> list[dict]:
             for key in ("result", "evidence_ref"):
                 if row.get(key):
                     item[key] = row[key]
+            item["spec"].update(row.get("spec") or {})
             item["updated"] = when
+    for item in ideas.values():
+        item["missing"] = [k for k in CORE if not item["spec"].get(k)]  # what a testable statement still lacks
     return [ideas[k] for k in sorted(ideas)]
 
 
