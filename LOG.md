@@ -1,9 +1,8 @@
 # Trading research log
 
 ## Open
-- CLAUDE.md still describes the Kalshi universe and snapshots, the GEX/DIX and Jobs tabs, the 16-ticker universe,
-  options collection and the old front page: update it once the user confirms here (these changes were relayed
-  by the backtester chat).
+- `docs/INTRADAY_TERMINAL.md` predates the 2026-11-19 trim (it lists 16 tickers and options collection); CLAUDE.md
+  says so.
 - Archives awaiting the user's word before any deletion: archive/kalshi-2026-11-19, archive/gex-2026-11-19,
   archive/jobs-study-2026-11-19, archive/options-2026-11-19.
 - Undecided by the user (the Review page assumes neither): a maximum loss per trade; whether QQQ trades add to a
@@ -19,6 +18,13 @@
 - Review v2 is built except two parts that need data not exported yet: a forward count for the unresolved gap
   filter, and the 50-scored-theses check of stated confidence (no confidence field on calls yet; the spec calls it
   optional, later).
+
+## 2026-11-22: CLAUDE.md brought up to date
+User: "Yes, update it". CLAUDE.md now describes the trimmed app: seven active ETFs, the tabs (Review first, Archive
+last), what was removed on 2026-11-19 and where its data is archived, the Review page v2 and its guardrails, the
+Daily thesis by topic instead of by date, the four data tasks plus the dashboard task (Market Snapshots without
+Kalshi, Intraday Collection without options), 339 tests, and the two undecided items. Decisions and dated user
+quotes are kept; Kalshi-only facts point to the 2026-11-07 quant review.
 
 ## 2026-11-21: Review page v2 (profit, edges, the information for a thesis)
 Spec: the backtester chat's `docs/REVIEW_PAGE_V2_2026-11-21.md` (user: "Yes, send it"). All five steps, one commit.
