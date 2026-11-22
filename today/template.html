@@ -137,7 +137,7 @@ function research(){
   badge($('research-status'),r.status||study.evidence_status||'not_run');
   const p=$('research-body');p.replaceChildren();
   const liquidity=obj(state.liquidity);
-  p.append(node('p',liquidity.research_eligible?'compact-note':'notice warn',liquidity.research_eligible?'Verified rolling liquidity screen passed for this window.':'New signal research is blocked until verified 20-session share/options liquidity history qualifies at least 80% of the window.'));
+  p.append(node('p',liquidity.research_eligible?'compact-note':'notice warn',liquidity.research_eligible?'The verified 20-session share-liquidity screen (the gate for the shares baseline) passed for this window.':'New research on the shares baseline is blocked until 20 sessions of verified share-liquidity history qualify at least 80% of the window. Options studies also need options liquidity. The free snapshot journal is a separate, weaker policy (run_intraday.py research --liquidity-journal snapshot).'));
   if(r.qualification_note)p.append(node('p','notice warn',r.qualification_note));
   if(!Object.keys(r).length){p.append(node('p','empty','The registered intraday baseline has not been run for this symbol. Qualified liquidity history and price observations are required. Existing daily studies remain available.'));}
   else{
