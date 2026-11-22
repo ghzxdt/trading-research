@@ -10,22 +10,39 @@
 .callouts li:last-child{border-bottom:0}.lvl{display:inline-block;min-width:52px;text-align:center;font-size:12px;font-weight:600;border-radius:6px;padding:2px 6px}
 .lvl.act{background:var(--red);color:#fff}.lvl.watch{background:var(--amber);color:#111}.lvl.info{background:var(--line);color:var(--text)}
 .src{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.tag{font-size:11px;border-radius:10px;padding:1px 8px;border:1px solid var(--line);color:var(--text);white-space:nowrap}
+.tag.edge{border-color:var(--green);color:var(--green)}.tag.no_effect{color:var(--muted)}
+.tag.unresolved{border-color:var(--amber);color:var(--amber)}.tag.untested{border-style:dashed;color:var(--muted)}
+.tag.difference{border-color:var(--blue);color:var(--blue)}
+.modes{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px}.modes button[aria-pressed="true"]{border-color:var(--blue);color:var(--blue)}
+.plan{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px}.plan h3{margin-top:0}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:14px}.kv dt{color:var(--muted)}.kv dd{margin:0}
+.copy{width:100%;min-height:70px;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.regime-line{margin:4px 0}.regime-line b{margin-right:4px}
+.callform{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px 12px;margin-top:8px}
+.callform label{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--muted)}.callform .wide{grid-column:1/-1}
+.checks{display:flex;gap:12px;flex-wrap:wrap}.checks label{flex-direction:row;align-items:center;gap:5px;color:var(--text)}
 </style>
 </head>
 <body>
 <div class="wrap">
-<header class="top"><div><div class="eyebrow">Trading research / review</div><h1>Review</h1><p class="subtitle" id="sub">What needs your attention today, from this app and the backtester. The detail is on the <a href="thesis.html">Daily thesis</a>.</p></div></header>
+<header class="top"><div><div class="eyebrow">Trading research / review</div><h1>Review</h1><p class="subtitle" id="sub">What needs your attention, from this app and the backtester: tested edges first, context tagged by how far it has been tested. The evidence is on the <a href="thesis.html">Daily thesis</a>.</p>
+<div class="modes" role="group" aria-label="View"><span class="small muted">View:</span><button type="button" data-mode="evening">Evening</button><button type="button" data-mode="preclose">Pre-close</button><button type="button" data-mode="weekly">Weekly review</button><span class="small muted" id="mode-note"></span></div></div></header>
 {{HUB_NAV}}
 <main class="grid">
 <div class="stack">
 <section class="card" aria-labelledby="top-title"><h2 id="top-title">First</h2><ul class="callouts" id="headline"></ul></section>
-<section class="card" aria-labelledby="today-title"><h2 id="today-title">Today</h2><p id="stance" class="muted"></p><div id="setups" class="table-wrap"></div><div id="plan"></div></section>
-<section class="card" aria-labelledby="levels-title"><h2 id="levels-title">Levels for your charts</h2><p class="small muted">Closes that would fire each registered rule tonight, the lower Bollinger band, the 5-day average (the exit level for the 5-day-average exit) and the 50- and 200-day averages.</p><div id="levels" class="table-wrap"></div></section>
+<details class="card fold" data-open="preclose" id="pre-card"><summary><h2>Pre-close</h2></summary><p class="small muted" id="pre-note">In the 30 minutes before a session's close: the latest one-minute bar as the estimated close, against the trigger closes of the rules that are Leads when bought at the close.</p><div id="pre" class="table-wrap"></div></details>
+<details class="card fold" data-open="evening preclose" id="today-card"><summary><h2>Today</h2></summary><p id="stance" class="muted"></p><div id="setups" class="table-wrap"></div><div id="plan"></div><div id="ruletrades" class="table-wrap"></div><ul class="callouts" id="today-more"></ul></details>
+<details class="card fold" data-open="evening" id="thesis-card"><summary><h2>Thesis</h2></summary><div id="thesis"></div></details>
+<details class="card fold" data-open="weekly" id="year-card"><summary><h2>What to expect over a year</h2></summary><div id="year" class="table-wrap"></div></details>
 </div>
 <aside class="stack">
-<section class="card" aria-labelledby="changed-title"><h2 id="changed-title">What changed</h2><ul class="callouts" id="changed"></ul><div id="forward" class="table-wrap"></div><div id="filters"></div></section>
-<section class="card" aria-labelledby="record-title"><h2 id="record-title">Your record</h2><div id="record"></div></section>
-<section class="card" aria-labelledby="queue-title"><h2 id="queue-title">Research queue</h2><div id="queue"></div></section>
+<details class="card fold" data-open="weekly" id="edges-card"><summary><h2>Edge health</h2></summary><div id="edges" class="table-wrap"></div></details>
+<details class="card fold" data-open="evening preclose weekly" id="changed-card"><summary><h2>What changed</h2></summary><ul class="callouts" id="changed"></ul><div id="forward" class="table-wrap"></div><div id="filters"></div></details>
+<details class="card fold" data-open="evening weekly" id="record-card"><summary><h2>Your record</h2></summary><div id="record"></div></details>
+<details class="card fold" data-open="weekly" id="queue-card"><summary><h2>Research queue</h2></summary><div id="queue"></div></details>
 <section class="card" aria-labelledby="open-title"><h2 id="open-title">Your decisions still open</h2><ul id="undecided" class="small"></ul></section>
 </aside>
 </main>
@@ -40,25 +57,79 @@ const ok=v=>v!==null&&v!==undefined&&v!==''&&!(typeof v==='number'&&!Number.isFi
 const fmt=(v,d=2)=>ok(v)?Number(v).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
 const pct=(v,d=1)=>ok(v)?(Number(v)>0?'+':'')+fmt(Number(v)*100,d)+'%':'—';
 const usd=v=>ok(v)?'$'+fmt(v,2):'—';
+const ci=v=>list(v).length===2?' ('+pct(v[0],2)+' to '+pct(v[1],2)+')':'';
+const day=v=>ok(v)?new Date(String(v).slice(0,10)+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'—';
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(ok(text))n.textContent=String(text);return n;}
 function table(parent,cols,rows){const t=el('table'),h=el('thead'),tr=el('tr');cols.forEach(c=>{const th=el('th','',c);th.scope='col';tr.append(th);});h.append(tr);const b=el('tbody');rows.forEach(r=>{const row=el('tr');r.forEach(v=>{const td=el('td');if(v instanceof Node)td.append(v);else td.textContent=ok(v)?String(v):'—';row.append(td);});b.append(row);});t.append(h,b);parent.append(t);}
-function callouts(ul,items,empty){ul.replaceChildren();if(!list(items).length){ul.append(el('li','muted small',empty));return;}items.forEach(c=>{const li=el('li');const body=el('div');body.append(el('span','',c.text),el('span','src','Source: '+c.source));li.append(el('span','lvl '+c.level,c.level),body);ul.append(li);});}
-const S=JSON.parse($('review-state').textContent||'{}');
+const TAGS=obj(S0().tag_names);function S0(){try{return JSON.parse($('review-state').textContent||'{}');}catch(e){return {};}}
+const TESTS={vix_level:'VIX 20+',vix_term_structure:'VIX above VIX3M',spy_200d_trend:'SPY below 200-day',release_within_5_sessions:'release within 5 sessions',gap_at_next_open:'gap up at the open'};
+function chips(tags){const box=el('div','tags');list(tags).forEach(t=>{const c=el('span','tag '+t.tag,(t.test&&TESTS[t.test]?TESTS[t.test]+' · ':'')+(t.rule&&t.rule!=='all'?t.rule+': ':'')+(TAGS[t.tag]||t.tag));c.title=(t.test?t.test.replace(/_/g,' ')+': ':'')+t.text+(ok(t.p)?' · p '+fmt(t.p,2)+(ok(t.q)?', q '+fmt(t.q,2):''):'')+(ok(t.group)?' · '+t.group+' of '+((t.group||0)+(t.rest||0))+' trades in the group':'');box.append(c);});return box;}
+function callouts(ul,items,empty){ul.replaceChildren();if(!list(items).length){ul.append(el('li','muted small',empty));return;}items.forEach(c=>{const li=el('li');const body=el('div');body.append(el('span','',c.text));if(list(c.tags).length)body.append(chips(c.tags));body.append(el('span','src','Source: '+c.source));li.append(el('span','lvl '+c.level,c.level),body);ul.append(li);});}
+const S=S0();
 callouts($('headline'),S.headline,'Nothing needs attention right now.');
+// ---- modes
+let mode=S.mode||'evening',manual=false;
+function applyMode(m){mode=m;document.querySelectorAll('details[data-open]').forEach(d=>{d.open=d.dataset.open.split(' ').includes(m);});document.querySelectorAll('.modes button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===m)));$('mode-note').textContent={evening:'the plan, risks and thesis open',preclose:'the pre-close check and today open; watch only',weekly:'edge health, the year, your record and the queue open'}[m]||'';}
+document.querySelectorAll('.modes button').forEach(b=>b.addEventListener('click',()=>{manual=true;applyMode(b.dataset.mode);}));
+applyMode(mode);
+// ---- today
 const T=obj(S.today);const hl=obj(T.stance).headline||'No stance';$('stance').textContent=hl+(S.latest_close&&!hl.includes(S.latest_close)?' (latest close '+S.latest_close+')':'')+'.';
-if(list(T.setups).length)table($('setups'),['ETF','Rule','State','Fires at or below','Distance','Next-open verdict'],T.setups.map(s=>[s.symbol,s.rule,s.fired?'Fired':'Close to firing',usd(s.trigger_close),pct(s.distance,1),list(s.next_open_verdicts).join(', ')||'—']));
-else $('setups').append(el('p','muted small','No registered rule fired or is within 3% of firing.'));
-if(list(T.plan).length){$('plan').append(el('h3','','The plan'));table($('plan'),['ETF','Rule','Entry','Exit rule','Exit level','Loss at your limit'],T.plan.map(p=>[p.symbol,p.rule,p.entry,p.exit_rule,p.exit_level,p.loss_at_limit]));}
-const L=list(S.levels);if(L.length)table($('levels'),['ETF','Close','Fires at or below (by rule)','Lower Bollinger band','5-day average','50-day','200-day'],L.map(x=>[x.symbol,usd(x.close),list(x.triggers).map(t=>t.rule.replace(' below ',' < ')+': '+usd(t.close_at_or_below)).join(' · '),usd(x.lower_band),usd(x.sma5),usd(x.sma50),usd(x.sma200)]));
+if(list(T.setups).length)table($('setups'),['ETF','Rule','State','Fires next session at or below','Distance','Next-open verdict'],T.setups.map(s=>[s.symbol,s.rule,s.fired?'Fired':'Near its trigger ('+(s.near_basis||'')+')',usd(s.trigger_close),pct(s.distance,1)+(ok(s.distance_atr)?' · '+fmt(s.distance_atr,1)+' ATR':''),list(s.next_open_verdicts).join(', ')||'—']));
+else $('setups').append(el('p','muted small','No registered rule fired or is near its trigger (within 1.5 ATR(14)).'));
+list(T.plan).forEach(p=>{const box=el('div','plan');box.append(el('h3','',p.symbol+': '+(p.one_bet?'one bet, one size ('+p.rules.map(r=>r.short).join(' + ')+')':p.rules[0].short)));
+ const kv=el('dl','kv');const add=(k,v)=>{kv.append(el('dt','',k),el('dd','',v));};add('Entry',p.entry);add('Exit',list(p.exit_lines).join(' '));add('Time stop',day(p.time_stop));
+ const w=obj(p.window);add('Holding window',w.from?day(w.from)+' to '+day(w.to)+' ('+w.sessions+' sessions)':'—');add('Inside it',list(p.catalysts).map(c=>c.what+' '+day(c.date)).join('; ')||'nothing scheduled');
+ add('Size',obj(p.size).text||'set a loss limit');box.append(kv);
+ const sp=el('div','table-wrap');table(sp,['Rule','Trades','Mean','Median','10th pct','Worst trade','Worst inside a trade','>5% against','3x version worst','Excess (90% interval)'],p.rules.map(r=>{const s=obj(r.spread),lv=obj(s.leveraged);return [r.short+(s.small?' (small sample)':''),s.trades,pct(s.mean_net,2),pct(s.median_net,2),pct(s.net_p10,2),pct(s.worst_trade,1),pct(s.worst_inside,1),s.trades_mae_below_5pct,ok(lv.worst_net)?lv.instrument+' '+pct(lv.worst_net,1):'—',pct(s.excess,2)+ci(s.excess_ci90)];}));box.append(sp);
+ box.append(el('p','small muted','Backtester evidence cards, bought at the next open, 2 bp round trip, since '+(obj(p.rules[0].spread).since||'2010')+'. An average hides the tail: the worst trade and the worst point inside a trade are what should size it.'));$('plan').append(box);});
+const RT=list(T.rule_trades);if(RT.length){$('ruletrades').append(el('h3','','Open rule trades'));table($('ruletrades'),['Trade','What it is','In since','Entry','Now','Low so far','Its history at this drawdown','Exit','Time stop'],RT.map(t=>[t.symbol+' '+t.short+' '+({etf_close:'at the close',etf_next_open:'at the next open'}[t.mode]||t.mode)+' · '+(t.exit==='hold_5'?'hold 5':'5-day-average exit'),t.label,t.status==='pending'?'enters at the next open':day(t.signal_day),usd(t.entry_price),pct(t.gross,1),pct(t.worst_so_far,1),t.drawdown_text||(t.status==='pending'?'not entered yet':'no drawdown so far'),ok(t.exit_above)?'close above '+usd(t.exit_above):t.exit==='hold_5'?'close on '+day(t.time_stop):'—',day(t.time_stop)]));$('ruletrades').append(el('p','small muted','Every Lead’s trade, followed by this app’s copy of the backtester’s exit rules, one position at a time per rule, exit and entry. The comparison group is past trades of the same rule whose worst point reached the same drawdown (the backtester’s trade list), not the whole-trade worst of all trades.'));}
+callouts($('today-more'),list(T.callouts).filter(c=>c.level==='info'),'');if(!list(T.callouts).some(c=>c.level==='info'))$('today-more').replaceChildren();
+// ---- pre-close
+function renderPre(P){const box=$('pre');box.replaceChildren();P=obj(P);if(P.status!=='ok'){box.append(el('p','muted small',P.detail||'The pre-close view needs the local service (open the page from the dashboard).'));return;}
+ box.append(el('p','small','Window '+(P.window_et||'')+' ET. '+Object.entries(obj(P.bars)).map(([k,b])=>k+' '+usd(b.price)+' (bar to '+String(b.bar_end_et).slice(11,16)+' ET, '+Math.round(b.age_seconds/60)+' min old)').join(' · ')));
+ if(list(P.rows).length)table(box,['ETF','Rule','Estimated close','Fires at or below','Distance','Fires at this price?','Close-entry Lead exits'],P.rows.map(r=>[r.symbol,r.label,usd(r.price),usd(r.trigger),pct(r.distance,2),r.fired?'Yes':'No',list(r.close_lead_exits).join(', ')]));else box.append(el('p','muted small','No rule is a Lead at the close for these ETFs.'));
+ box.append(el('p','small muted',P.detail||''));}
+async function loadPre(){try{const r=await fetch('/api/v1/review/preclose',{cache:'no-store'});if(!r.ok)throw new Error(String(r.status));const P=await r.json();if(!manual&&P.mode&&P.mode!==mode)applyMode(P.mode);renderPre(P);}catch(e){renderPre({detail:'The pre-close view needs the local service (open the page from the dashboard at localhost:8766).'});}}
+loadPre();setInterval(()=>{if(mode==='preclose')loadPre();},60000);
+// ---- thesis
+const H=obj(S.thesis),th=$('thesis');
+th.append(el('h3','','Regime'));list(H.regime).forEach(line=>{const p=el('div','regime-line');line.forEach((it,i)=>{if(i)p.append(document.createTextNode(' · '));p.append(el('b','',it.item+':'),document.createTextNode(it.text+' '));p.append(chips(it.tags));});th.append(p);});
+th.append(el('h3','','Levels'));const L=list(S.levels);if(L.length){const lw=el('div','table-wrap');table(lw,['ETF','Close','ATR(14)','Exit close','5-day','20-day','50-day','200-day','Lower band','Swing high','Swing low','Rule triggers'],L.map(x=>[x.symbol,usd(x.close),usd(x.atr14),usd(x.exit_close),usd(x.sma5),usd(x.sma20),usd(x.sma50),usd(x.sma200),usd(x.lower_band),x.swing_high?usd(x.swing_high.price)+' '+x.swing_high.date.slice(5):'—',x.swing_low?usd(x.swing_low.price)+' '+x.swing_low.date.slice(5):'—',list(x.triggers).map(t=>t.short+' '+usd(t.close_at_or_below)).join(' · ')]));th.append(lw);
+ const ta=el('textarea','copy');ta.readOnly=true;ta.value=L.map(x=>x.copy).join('\n');const cb=el('button','', 'Copy levels for chart alerts');cb.type='button';cb.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(ta.value);cb.textContent='Copied';}catch(e){ta.select();cb.textContent='Selected: press Ctrl+C';}});th.append(ta,cb);
+ th.append(el('p','small muted','Untested levels: chart context, not signals. Exit close: the close that exits the 5-day-average rule next session (the mean of the last 4 closes). Swing points: the latest session whose high (low) is above (below) the 3 sessions on each side.'));}
+th.append(el('h3','','Catalysts in the holding window'+(obj(H.window).from?' ('+day(H.window.from)+' to '+day(H.window.to)+')':'')));if(list(H.catalysts).length){const ul=el('ul','small');H.catalysts.forEach(c=>ul.append(el('li','',day(c.date)+': '+c.what)));th.append(ul);}else th.append(el('p','muted small','No scheduled release, mega-cap earnings, holiday or half day.'));
+if(list(H.analogs).length){th.append(el('h3','','Analogs: the last times the setup fired'));H.analogs.forEach(a=>{th.append(el('p','small',a.symbol+' '+a.rule+' ('+(a.mode==='etf_next_open'?'next open':'close')+', '+(a.exit==='hold_5'?'hold 5':'5-day-average exit')+')'));const w=el('div','table-wrap');if(list(a.rows).length)table(w,['Signal date','Exit','Sessions','Result','Worst point'],a.rows.map(r=>[r.signal_day,r.exit_day||'—',r.sessions,pct(r.net,2),pct(r.mae,1)]));else w.append(el('p','muted small','The backtester’s trade list is unavailable.'));th.append(w);});th.append(el('p','small muted','From the backtester’s trade list. Look each date up on your chart; a handful of cases is a picture, not a statistic.'));}
+th.append(el('h3','','What would change the call'));if(list(H.changes).length){const ul=el('ul','small');H.changes.forEach(c=>ul.append(el('li','',c)));th.append(ul);}else th.append(el('p','muted small','Nothing registered is close to firing.'));
+const PF=H.prefill;th.append(el('h3','','Your thesis'));
+if(PF){const f=el('form','callform');f.id='thesisform';f.innerHTML='<label>Direction<select name="direction"><option value="long">Long</option><option value="flat">Flat (veto)</option></select></label><label>ETF<select name="instrument"></select></label><label>Horizon (sessions)<input name="horizon_sessions" type="number" min="1" max="60" required></label><label>Wrong if it closes<select name="exit_side"><option value="below">Below</option><option value="above">Above</option></select></label><label>Price (fixed once recorded)<input name="exit_price" type="number" step="0.01" min="0.01" placeholder="your level"></label><label class="wide">What would invalidate it<input name="invalidation" maxlength="600" placeholder="Filled from the price if left empty"></label><label class="wide">Thesis<textarea name="reason" maxlength="1500" rows="5"></textarea></label><div class="wide checks" id="th-basis"></div><div class="wide"><button class="primary" type="submit">Save as a call</button> <span class="small muted" id="th-status"></span></div>';
+ th.append(f);const sel=f.elements.instrument;['SPY','QQQ','IWM','UPRO','SPXU','TQQQ','SQQQ'].forEach(s=>{const o=el('option','',s);o.value=s;sel.append(o);});sel.value=PF.instrument;f.elements.horizon_sessions.value=PF.horizon_sessions;f.elements.reason.value=PF.reason;
+ ['signal','regime','event','news','levels','other'].forEach(b=>{const l=el('label');const c=document.createElement('input');c.type='checkbox';c.name='basis';c.value=b;c.checked=list(PF.basis).includes(b);l.append(c,document.createTextNode(' leans on '+b));$('th-basis').append(l);});
+ th.append(el('p','small muted',PF.note));
+ f.addEventListener('submit',async ev=>{ev.preventDefault();const st=$('th-status'),fd=new FormData(f);const body={instrument:fd.get('instrument'),direction:fd.get('direction'),horizon_sessions:Number(fd.get('horizon_sessions')),reason:fd.get('reason'),invalidation:String(fd.get('invalidation')||'').trim(),basis:fd.getAll('basis'),context:PF.context};
+  const price=String(fd.get('exit_price')||'').trim();if(price&&body.direction!=='flat'){body.exit_price=price;body.exit_side=fd.get('exit_side');if(!body.invalidation)body.invalidation='Wrong if '+body.instrument+' closes '+body.exit_side+' '+price+'.';}
+  if(body.direction==='long'&&!body.invalidation){st.textContent='Not saved: give a "wrong if" price or say what would invalidate it.';return;}
+  try{const r=await fetch('/api/v1/thesis/call',{method:'POST',headers:{'Content-Type':'application/json','X-Hub':'1'},body:JSON.stringify(body)});const out=await r.json();if(!r.ok||out.ok===false)throw new Error(out.error||'Refused');st.textContent='Saved as call #'+out.call.id+' ('+(out.call.relation||'unlinked')+'). It is scored on the Daily thesis.';}catch(e){st.textContent='Not saved: '+(e.message||e)+' (saving needs the local service).';}});}
+else th.append(el('p','muted small','No plan today, so nothing to pre-fill. Record your own view on the Daily thesis.'));
+// ---- year and edges
+const Y=obj(S.year);if(list(Y.rows).length){table($('year'),['ETF','Rule','Entry','Exit','Trades','Trades a year','Mean a trade','Time in market','Yearly return','Return per unit of volatility: rule / held'],Y.rows.map(r=>[r.symbol,r.rule,r.entry,r.exit,r.trades,fmt(r.trades_per_year,1),pct(r.mean_net,2),pct(r.exposure,0).replace('+',''),pct(r.cagr,2),fmt(r.per_volatility,2)+' / '+fmt(r.index_per_volatility,2)]));$('year').append(el('p','small muted',Y.note));}else $('year').append(el('p','muted small','No Leads in the backtester’s export.'));
+const E=list(S.edges);if(E.length){table($('edges'),['ETF','Rule','Entry','Exit','Verdict','Trades','Excess a trade (90% interval)','1993-2009','Forward record','Open, will join','Beyond same-VIX trades?'],E.map(e=>{const h=obj(e.holdout),f=obj(e.forward),v=e.same_volatility;return [e.symbol,e.rule,e.entry,e.exit,e.verdict,String(e.trades)+(e.small?' (small)':''),pct(e.excess,2)+ci(e.excess_ci90),ok(h.trades)?h.trades+' trades, '+pct(h.excess,2)+', p '+fmt(h.p,3):'—',(f.trades||0)+' trades, '+(f.status||'—')+(ok(f.band_lower)?' (band '+pct(f.band_lower,2)+')':''),e.open_joining,v?v.label+': '+pct(v.diff,2)+ci(v.ci90)+', q '+fmt(v.q,3):'not run for this rule'];}));
+ $('edges').append(el('p','small muted','The same-volatility test (the backtester’s filter tests) compares each trade with trades started at the same VIX level: the most important fact here about how good each edge is. The forward band can flag a break but cannot confirm an edge: that would take years at these rates. 1993-2009 also helped choose these rules, so it is not independent.'));}else $('edges').append(el('p','muted small','No Leads with evidence cards.'));
+// ---- changed
 const C=obj(S.changes);callouts($('changed'),C.callouts,'No changes, problems or warnings.');
 if(list(C.forward).length){$('forward').append(el('h3','','Forward record (trades signalled after the backtester’s development window)'));table($('forward'),['ETF','Rule','Exit','Verdict','Forward trades','Status'],C.forward.map(f=>[f.symbol,f.rule,f.exit,f.verdict,f.trades,f.status]));}
 const F=obj(C.filter_tests);if(list(F.notable).length){$('filters').append(el('h3','','Notable filter tests'));table($('filters'),['Test','Strategy','Group','Result'],F.notable.map(t=>[t.test.replace(/_/g,' '),t.strategy.split('|')[0].replace('+',' + '),t.group||'all trades',t.label]));}$('filters').append(el('p','small muted',F.status==='ok'?'Filter tests: '+F.count+' ('+Object.entries(obj(F.by_label)).map(([k,v])=>v+' '+k.toLowerCase()).join(', ')+'), from '+String(F.generated_at||'').slice(0,10)+'.':'Filter tests: the backtester’s file is '+(F.status||'unavailable')+'.'));
+// ---- record
 const R=obj(S.record),rec=$('record');const rc=el('ul','callouts');callouts(rc,R.callouts,'No open paper trades and no missed closes.');rec.append(rc);
-const rel=Object.entries(obj(R.calls_by_relation));rec.append(el('h3','','Your calls against the rule'));if(rel.length)table(rec,['Relation','Calls','Scored','Mean result'],rel.map(([k,v])=>[k,v.calls,v.scored,pct(v.mean_return,2)]));else rec.append(el('p','muted small','No calls recorded yet.'));
+const V=obj(R.versus_rule);rec.append(el('h3','','The rule against you'));rec.append(el('p','small',(V.rule_long||0)+' long opportunit'+(V.rule_long===1?'y':'ies')+' logged by the stance; '+(V.no_call||0)+' with no call from you'+(Object.keys(obj(V.by_relation)).length?'; '+Object.entries(V.by_relation).map(([k,v])=>v+' '+k).join(', '):'')+'.'));
+const rel=Object.entries(obj(R.calls_by_relation));rec.append(el('h3','','Your calls by relation to the rule'));if(rel.length)table(rec,['Relation','Calls','Scored','Mean result',''],rel.map(([k,v])=>[k,v.calls,v.scored,pct(v.mean_return,2),v.judge||'']));else rec.append(el('p','muted small','No calls recorded yet.'));
+const BB=Object.entries(obj(R.by_basis));if(BB.length){rec.append(el('h3','','By what the call leaned on'));table(rec,['Leans on','Scored calls','Mean result','Against always long',''],BB.map(([k,v])=>[k,v.scored,pct(v.mean_call_return,2),pct(v.mean_versus_always_long,2),v.judge||'']));}
+const PR=obj(R.process);rec.append(el('p','small muted','Process: '+(PR.with_exit_level||0)+' of '+(PR.directional_calls||0)+' long or short calls recorded an exit level; '+(PR.took_the_plan||0)+' took the plan. '+(PR.note||'')+' Below 20 scored calls in a group the page says “too few to judge”.'));
+// ---- queue
 const Q=obj(S.queue),q=$('queue');const qc=el('ul','callouts');callouts(qc,Q.callouts,'No forward checks pending.');q.append(qc);
+if(list(Q.tests_due).length){q.append(el('h3','','Tests due'));table(q,['Test','Waits for'],Q.tests_due.map(t=>[t.test,t.waits_for]));}
 const st=obj(Q.by_stage);const stages=Object.keys(st);if(stages.length){q.append(el('h3','','Ideas by stage'));table(q,['Stage','Ideas'],stages.map(k=>[k,st[k].map(i=>'#'+i.idea+' '+i.title+(list(i.missing).length&&k!=='dropped'?' (not yet testable)':'')).join('; ')]));}
 list(S.undecided).forEach(t=>$('undecided').append(el('li','',t)));
-$('foot').textContent='Built '+String(S.as_of||'').replace('T',' ').slice(0,16)+' ET from the Daily thesis build and, when present, the backtester’s exports. A summary: the logs and evidence are on the Daily thesis.';
+const src=obj(S.sources);$('foot').textContent='Built '+String(S.as_of||'').replace('T',' ').slice(0,16)+' ET from the Daily thesis build and the backtester’s files (filter tests: '+(src.filter_tests||'—')+'; trade list: '+(src.trade_list||'—')+'). Statistics are the backtester’s; levels and open trades are computed here. No composite score and no probability of profit.';
 })();
 </script>
 </body>

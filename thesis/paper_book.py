@@ -130,7 +130,8 @@ def ticket(rows: list[dict]) -> list[dict]:
     """What the open and pending paper trades do at the next session."""
     lines = []
     for r in rows:
-        name = f"{r['instrument']} · {r['rule']} ({r['exit_text']})"
+        from .signals import RULES
+        name = f"{r['instrument']} · {RULES.get(r['rule'], (r['rule'],))[0]} ({r['exit_text']})"
         if r["status"] == "pending":
             when = "at the next open" if r["entry_mode"] == "next_open" else "at the signal close"
             lines.append({"action": "enter", "instrument": r["instrument"], "text": f"Enter: paper long {name}, bought {when}."})
@@ -170,3 +171,43 @@ def build(root: Path, now: pd.Timestamp, etfs: dict, signals: list[dict], stance
             "legacy_open": legacy_open(root, now),
             "note": "These are the registered rules' paper trades, entered at the next open after each logged long "
                     "stance and held to the rule's own exit. They are research records, not orders and not advice."}
+
+
+def rule_trades(etfs: dict, signals: list[dict]) -> list[dict]:
+    """Open trades of every Lead pricing, at the close or the next open, whether or not the stance took them
+    (review v2, 2026-11-21: "rule trade, not a stance"). One position at a time per ETF, rule, exit and entry, as
+    in the backtest. Each open trade carries its worst point so far (the lowest low since entry) for the
+    drawdown comparison."""
+    out = []
+    for s in signals or []:
+        frame = etfs.get(s.get("symbol"))
+        if frame is None or frame.empty:
+            continue
+        for e in s.get("evidence") or []:
+            if e.get("verdict") != "Lead" or e.get("mode") not in ("etf_close", "etf_next_open"):
+                continue
+            entry = "close" if e["mode"] == "etf_close" else "next_open"
+            busy_until, current = None, None
+            for day in s.get("recent_fired") or []:
+                if busy_until and day <= busy_until:
+                    continue
+                trade = simulate(frame, day, e["exit"], entry)
+                if trade["status"] == "closed":
+                    busy_until = trade["exit_date"]
+                elif trade["status"] in ("open", "pending"):
+                    busy_until, current = "9999-12-31", trade
+            if not current:
+                continue
+            pos = int(frame.index.get_indexer([pd.Timestamp(current["signal_day"])])[0])
+            first = pos + 1  # the close entry is in at the signal close; the next-open entry trades from that open
+            lows = frame["low"].iloc[first:] if "low" in frame else frame["close"].iloc[first:]
+            worst = float(lows.min() / current["entry_price"] - 1) if current.get("entry_price") and len(lows) else None
+            from validation import equity_sessions
+            stop = list(equity_sessions(pd.Timestamp(current["signal_day"]) + pd.Timedelta(days=1),
+                                        pd.Timestamp(current["signal_day"]) + pd.Timedelta(days=40)))[MAX_SESSIONS[e["exit"]] - 1]
+            out.append({"symbol": s["symbol"], "signal": s["signal"], "rule": s["label"], "exit": e["exit"],
+                        "exit_text": EXIT_TEXT.get(e["exit"], e["exit"]), "mode": e["mode"], "entry_mode": entry,
+                        **{k: current.get(k) for k in ("status", "signal_day", "entry_date", "entry_price", "last_close",
+                                                        "gross", "sessions_left", "exit_above")},
+                        "worst_so_far": worst, "time_stop": f"{stop:%Y-%m-%d}"})
+    return out

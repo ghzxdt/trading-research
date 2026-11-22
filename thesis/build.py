@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import (alfred, archive, calls, data, earnings, earnings_calendar, eligibility, evidence_cards, journal, ledger,
+from . import (alfred, archive, calls, data, earnings, earnings_calendar, eligibility, evidence_cards, journal, ledger, levels,
                macro, morning, movers, news, ops, paper_book, preclose, regime, releases, risk, signals, stance_log)
 
 TEMPLATE = Path(__file__).with_name("template.html")
@@ -37,8 +37,11 @@ SCHEMA = 2  # 2 (2026-11-13): stance direction "none", evidence_check, ops, jour
 
 
 def _sessions_after(start: pd.Timestamp, count: int) -> list[pd.Timestamp]:
-    """The next `count` weekdays after `start` (an approximation of sessions: holidays aren't excluded)."""
-    return list(pd.bdate_range(start + pd.Timedelta(days=1), periods=count))
+    """The next `count` exchange sessions after `start` (holidays excluded; it used plain weekdays before
+    2026-11-21, which counted Thanksgiving as a session)."""
+    from validation import equity_sessions
+    start = pd.Timestamp(start)
+    return list(equity_sessions(start + pd.Timedelta(days=1), start + pd.Timedelta(days=count * 2 + 14)))[:count]
 
 
 SHORT_NOTE = "Short is never suggested: no registered short rule has evidence."
@@ -151,7 +154,8 @@ def stance(sig: list[dict], reg: dict, earn: dict, latest: str | None, check: di
                           "holdout_per_drawdown": (hold.get("strategy") or {}).get("return_per_drawdown"),
                           "holdout_matched_per_drawdown": bench(hold).get("return_per_drawdown")})
         if any(e["exit"] == "close_above_sma5" for e in _leads(s)):
-            exits.append(f"{s['symbol']}: the first close above its 5-day average (about ${s['sma5']:.2f} now; it moves "
+            exits.append(f"{s['symbol']}: the first close above its 5-day average, which is a close above "
+                         f"${s.get('exit_close', s['sma5']):.2f} at the next session (the mean of the last 4 closes; it moves "
                          "daily) or after 10 sessions, whichever comes first.")
         if any(e["exit"] == "hold_5" for e in _leads(s)):
             exits.append(f"{s['symbol']}: the close 5 sessions after the signal.")
@@ -207,7 +211,8 @@ def build_state(root: Path, now: pd.Timestamp) -> dict:
     payload, export_info = signals.load_export()
     sig = signals.build(etfs, payload)["signals"]
     cards = evidence_cards.load(export_info)  # the backtester's evidence.json; "unavailable" never blocks the page
-    evidence_cards.attach(sig, cards)
+    price_levels = levels.build(etfs)  # averages, ATR(14) and swing points (Review page; ATR scales "near a trigger")
+    evidence_cards.attach(sig, cards, {k: v.get("atr14") for k, v in price_levels["symbols"].items()})
     earn = earnings.build(root, now, etfs)
     latest = f"{etfs['SPY'].index[-1]:%Y-%m-%d}" if "SPY" in etfs else None
     check = eligibility.evidence_check(export_info, sig, latest)
@@ -245,6 +250,8 @@ def build_state(root: Path, now: pd.Timestamp) -> dict:
     return {"schema_version": SCHEMA, "as_of": now.isoformat(), "latest_close": latest,
             "view": view, "stance": call,
             "paper_book": paper_book.build(root, now, etfs, sig, stance_rows),
+            # every Lead's open trade, the stance's or not (Review v2: "rule trade, not a stance")
+            "rule_trades": paper_book.rule_trades(etfs, sig), "levels": price_levels,
             "preclose": preclose.summary(root, etfs, sig),
             "news": news.build(root, now, latest), "movers": moved,
             "earnings_calendar": earnings_calendar.build(root, now), "releases": releases.build(root, now),

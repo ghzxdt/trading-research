@@ -16,6 +16,38 @@
 - The options import lock (`options_research/core.py` `_writer`) has the same no-recovery pattern the minute-bar
   lock had. Manual imports only, so lower risk; same fix if wanted.
 - Reminder from the hand-off: daytime jobs only run while the laptop is asleep or on, never shut down.
+- Review v2 is built except two parts that need data not exported yet: a forward count for the unresolved gap
+  filter, and the 50-scored-theses check of stated confidence (no confidence field on calls yet; the spec calls it
+  optional, later).
+
+## 2026-11-21: Review page v2 (profit, edges, the information for a thesis)
+Spec: the backtester chat's `docs/REVIEW_PAGE_V2_2026-11-21.md` (user: "Yes, send it"). All five steps, one commit.
+- Step 1 fixes: the exit level is the close that exits (the mean of the last 4 closes, 642.49 after Nov 20, not
+  today's 5-day average 646.34), also on the Daily thesis; the holding window and time stops count exchange
+  sessions (5th session after Nov 20 is Nov 30, the 10th Dec 7; Thanksgiving and the Nov 27 half day listed);
+  context callouts carry the tag of their registered filter test for the rule in play (tested edge / tested, no
+  effect / unresolved / untested; mapping table `review.CONTEXT`); several Leads on one ETF and close are one plan.
+  The release filter covers the 5 sessions after the signal (checked in the backtester's `splits.py`), so the Dec 4
+  jobs report is not tagged by it; the page says so.
+- Step 2: the plan shows each rule's spread from the evidence cards (median, 10th percentile, worst, worst inside a
+  trade, trades more than 5% against, the TQQQ version's worst); open trades of every Lead, close-only included,
+  labelled "rule trade, not a stance" (`paper_book.rule_trades`), each against past trades of the same rule whose
+  worst point reached the same drawdown (backtester trade list CSV; RSI(2) since Nov 17: 10 of 192 went to -7.7%,
+  1 finished positive); sizing arithmetic once `risk.max_loss_per_trade` is set (until then "set a loss limit");
+  a year table per Lead (trades a year, mean, time in market, yearly return, return per unit of volatility against
+  the index held).
+- Step 3: a Thesis section: regime in two tagged lines, levels with the 20-day average, ATR(14), swing points and a
+  copyable list (`thesis/levels.py`), catalysts in the holding window, the last 8 trades of each plan rule, what
+  would change the call, and a thesis pre-filled from the plan that saves as a call (calls schema unchanged).
+- Step 4: edge health per Lead (excess with its 90% interval, 1993-2009, forward record, open trades that will
+  join it, the same-VIX test from filter_tests.json); your record against the rule by opportunity id, by
+  leans-on tag and process ("too few to judge" below 20); tests due in the research queue.
+- Step 5: Evening, Pre-close and Weekly views (chosen by the clock, switchable); the pre-close view reads the live
+  minute bars through `/api/v1/review/preclose` (watch only, writes nothing); "near a trigger" is within 1.5 ATR(14)
+  instead of 3% (Review and Daily thesis evidence cards).
+- 16 review tests (fixtures for the exit close, the session window, the tag mapping, one bet, the drawdown group,
+  sizing, ATR, levels, modes, pre-close); 339 tests pass. Offline rebuild published; both pages checked in the
+  browser; the dashboard server was restarted to load the new endpoint.
 
 ## 2026-11-19 (afternoon): trim list and the Review front page
 User (relayed by the backtester chat): "Yes, send both" (the trim list, then a Review page). Each step committed.

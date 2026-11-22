@@ -41,6 +41,11 @@ def handle_get(root, route, query):
             return 200, {'preclose': preclose.summary(root, etfs, sig),
                          'paper_book': paper_book.build(root, now, etfs, sig, calls.read(root, stance_log.LOG)),
                          'export': export}
+        if route == '/api/v1/review/preclose':
+            # Review v2 timing: the page's mode now, and in the 30 minutes before the close the latest minute bar
+            # against the close-entry Leads' triggers. Watch only; reads, never writes.
+            from thesis import review
+            return 200, review.preclose_live(root)
         if route == '/api/v1/thesis/journal':
             import pandas as pd
             from thesis import data, journal, ledger

@@ -176,9 +176,14 @@ def build(etfs: dict, payload: dict | None = None) -> dict:
                         "fired": bool(fired.iloc[-1]), "value": float(level) if np.isfinite(level) else None,
                         "close": float(close.iloc[-1]),
                         "last_fired": f"{dates[-1]:%Y-%m-%d}" if len(dates) else None,
+                        # firing dates within the last 15 sessions: a rule trade from one of them can still be open
+                        "recent_fired": [f"{d:%Y-%m-%d}" for d in dates if d >= close.index[max(0, len(close) - 15)]],
                         "times_fired_1y": int((dates > close.index[-1] - pd.DateOffset(years=1)).sum()),
                         "trigger_close": trigger_close(close, rule),
                         "sma5": float(close.iloc[-5:].mean()),
+                        # The 5-day-average exit fires on the first close x above the average that includes x:
+                        # x > (sum of the last 4 closes + x) / 5, i.e. x > the mean of the last 4 closes (review v2).
+                        "exit_close": float(close.iloc[-4:].mean()),
                         "evidence": _evidence(payload, symbol, name) if symbol in EVIDENCE_SYMBOLS else [],
                         "evidence_note": None if symbol in EVIDENCE_SYMBOLS else
                         "Not simulated: the backtester's trade simulation covers SPY and QQQ. IWM's daily history goes back "

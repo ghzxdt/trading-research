@@ -19,7 +19,8 @@ from pathlib import Path
 
 from . import eligibility, signals
 
-NEAR = 0.03  # a rule within 3% of its trigger close gets its cards too
+NEAR = 0.03  # without an ATR: a rule within 3% of its trigger close counts as near (it gets its cards too)
+NEAR_ATR = 1.5  # with ATR(14): within 1.5 daily ranges of the trigger close (review v2 step 5.15)
 
 
 def path() -> Path:
@@ -82,6 +83,9 @@ def summarize(card: dict) -> dict:
             "development": card.get("development"), "win_rate": card.get("win_rate"), "mean_net": card.get("mean_net"),
             "excess": card.get("excess"), "excess_ci90": card.get("excess_ci90"),
             "worst_inside": inside.get("mae_worst"), "inside_p10": inside.get("mae_p10"),
+            "median_net": (card.get("net_distribution") or {}).get("median_net"),
+            "net_p10": (card.get("net_distribution") or {}).get("net_p10"),
+            "trades_mae_below_5pct": inside.get("trades_mae_below_5pct"),
             "worst_trade": (card.get("net_distribution") or {}).get("worst_net"),
             "leveraged": {k: lev.get(k) for k in ("instrument", "trades", "mean_net", "worst_net", "mae_worst")} if lev else None,
             "holdout": {k: (card.get("holdout") or {}).get(k) for k in ("trades", "excess", "p")} if card.get("holdout") else None,
@@ -90,14 +94,27 @@ def summarize(card: dict) -> dict:
             "ideas": [i.get("id") for i in card.get("ideas") or [] if isinstance(i, dict)]}
 
 
-def attach(sigs: list[dict], cards: dict) -> None:
-    """Give each signal its next-open cards and say whether it is near its trigger."""
+def attach(sigs: list[dict], cards: dict, atr: dict | None = None) -> None:
+    """Give each signal its cards and say whether it is near its trigger.
+
+    "Near" is scaled to volatility when the ETF's ATR(14) is known (review v2, 2026-11-21: within NEAR_ATR daily
+    ranges of the trigger close; 3% was less than one day's move with VIX at 36 and several days' in a calm
+    market); otherwise within 3%. `cards` are the next-open cards the Daily thesis shows; `close_cards` the
+    closing-price ones, for the Review page's edge table."""
     for s in sigs:
         trigger, close = s.get("trigger_close"), s.get("close")
-        s["near_trigger"] = bool(not s.get("fired") and trigger and close and trigger / close - 1 >= -NEAR)
-        s["cards"] = [summarize(c) for c in cards.get("cards") or []
-                      if cards.get("status") == "ok" and c["symbol"] == s.get("symbol") and _base(c["signal"]) == s.get("signal")
-                      and c["entry"] == eligibility.ENTRY_MODE]
+        width = (atr or {}).get(s.get("symbol"))
+        s["near_atr"] = (close - trigger) / width if width and trigger and close else None
+        if width:
+            s["near_trigger"] = bool(not s.get("fired") and trigger and close and close - trigger <= NEAR_ATR * width)
+            s["near_basis"] = f"within {NEAR_ATR:g} ATR(14)"
+        else:
+            s["near_trigger"] = bool(not s.get("fired") and trigger and close and trigger / close - 1 >= -NEAR)
+            s["near_basis"] = f"within {NEAR:.0%}"
+        mine = [c for c in cards.get("cards") or []
+                if cards.get("status") == "ok" and c["symbol"] == s.get("symbol") and _base(c["signal"]) == s.get("signal")]
+        s["cards"] = [summarize(c) for c in mine if c["entry"] == eligibility.ENTRY_MODE]
+        s["close_cards"] = [summarize(c) for c in mine if c["entry"] == "etf_close"]
 
 
 def meta(cards: dict) -> dict:
