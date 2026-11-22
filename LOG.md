@@ -1,8 +1,8 @@
 # Trading research log
 
 ## Open
-- `docs/INTRADAY_TERMINAL.md` predates the 2026-11-19 trim (it lists 16 tickers and options collection); CLAUDE.md
-  says so.
+- The Intraday page's liquidity notice still says research waits for "share/options liquidity history"; the shares
+  baseline's gate is shares only since review C13 (wording only).
 - Archives awaiting the user's word before any deletion: archive/kalshi-2026-11-19, archive/gex-2026-11-19,
   archive/jobs-study-2026-11-19, archive/options-2026-11-19.
 - Undecided by the user (the Review page assumes neither): a maximum loss per trade; whether QQQ trades add to a
@@ -18,6 +18,13 @@
 - Review v2 is built except two parts that need data not exported yet: a forward count for the unresolved gap
   filter, and the 50-scored-theses check of stated confidence (no confidence field on calls yet; the spec calls it
   optional, later).
+
+## 2026-11-22: docs/INTRADAY_TERMINAL.md brought up to date
+User: "Yes, update it". The doc now lists the 7 active symbols, the `C:\Claude\trading-research` path, the
+scheduled collection and live minute polling, collection of bars and headlines only (`--without-options` accepted,
+no effect), options panels "unavailable" unless contracts are imported, the live poller's `observed_live` rule, the
+shares-only gate and the two liquidity journals (2 of 20 sampled days on 2026-11-21), and an updated capability
+table. Commands checked against `run_intraday.py`.
 
 ## 2026-11-22: CLAUDE.md brought up to date
 User: "Yes, update it". CLAUDE.md now describes the trimmed app: seven active ETFs, the tabs (Review first, Archive

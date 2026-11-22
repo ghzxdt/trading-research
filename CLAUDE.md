@@ -134,8 +134,8 @@ in `docs/THESIS_PLAYBOOK.pdf`, gaps 1-4 fixed). Changes of 2026-11-12/13 are in 
   Cboe's VIX closes against FRED's `VIXCLS`. Context only.
 
 ## Intraday tab (user, 2026-11-07)
-Built as an extension of this app; see `docs/INTRADAY_TERMINAL.md` for capabilities and commands (written before
-the 2026-11-19 trim: it still lists 16 tickers and options collection).
+Built as an extension of this app; see `docs/INTRADAY_TERMINAL.md` for capabilities, commands and limits (updated
+for the trim on 2026-11-22).
 - `terminal_config.json` is the shared source of scope; inclusion never establishes execution eligibility.
 - Free feeds only. Minute bars keep their receipt times. Yahoo's last-trade time is not a verified quote time.
   No paid subscription or broker integration has been added. Options collection stopped on 2026-11-19;
